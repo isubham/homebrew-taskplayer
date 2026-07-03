@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Rust / Cargo (build artifacts) — Cargo.lock is committed for apps
+target/
+src-tauri/target/
+**/*.rs.bk
+
+# Tauri (generated)
+src-tauri/gen/schemas/
+
+# Local runtime data (SQLite lives in the OS app-data dir, but ignore any local copies)
+*.sqlite3
+*.sqlite
+*.db
+
+# Editors / env
+.vscode/
+.idea/
+.env
+.env.*
+*.swp

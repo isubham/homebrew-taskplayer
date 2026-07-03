@@ -11,6 +11,13 @@ cask "taskplayer" do
 
   app "TaskPlayer.app"
 
+  postflight do
+    system_command "/usr/bin/xattr",
+                    args: ["-cr", "#{appdir}/TaskPlayer.app"]
+    system_command "/usr/bin/codesign",
+                    args: ["--force", "--deep", "--sign", "-", "#{appdir}/TaskPlayer.app"]
+  end
+
   zap trash: [
     "~/Library/Application Support/com.taskplayer.desktop",
     "~/Library/Saved Application State/com.taskplayer.desktop.savedState",
@@ -18,12 +25,13 @@ cask "taskplayer" do
   ]
 
   caveats <<~EOS
-    TaskPlayer isn't notarized by Apple yet, so Gatekeeper will block the
-    first launch with an "unidentified developer" warning. Run this once
-    to allow it:
+    TaskPlayer isn't notarized by Apple yet. This install already cleared
+    the Gatekeeper quarantine flag and re-signed it locally, so it should
+    open normally from Applications or Spotlight.
 
-      xattr -cr "#{appdir}/TaskPlayer.app"
+    If macOS still calls it "damaged" (rare — can happen if Finder
+    re-quarantines it after moving), run this once:
 
-    Then open it normally from Applications or Spotlight.
+      xattr -cr "#{appdir}/TaskPlayer.app" && codesign --force --deep --sign - "#{appdir}/TaskPlayer.app"
   EOS
 end

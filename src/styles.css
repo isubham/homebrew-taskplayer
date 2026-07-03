@@ -6,8 +6,10 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 /* draggable window strip (title bar is hidden via Overlay style) */
-#titlebar{position:fixed;top:0;left:0;right:0;height:30px;-webkit-app-region:drag;z-index:9999}
+#titlebar{position:fixed;top:0;left:0;right:0;height:38px;z-index:9999;pointer-events:auto;-webkit-app-region:drag}
 #titlebar *{-webkit-app-region:drag}
+body,#app{-webkit-app-region:drag}
+button,input,select,textarea,a,.brand-gear,.list-edit,.menu-btn,.rail-toggle,.play-all,.pill,.donebtn,.ccheck,.pbtn,.mode-btn,.badge,.m-genre select,.list-item,.crow{-webkit-app-region:no-drag}
 /* back/forward nav — pinned top-left of the content pane (clears the sidebar) */
 #navbar{position:fixed;top:18px;left:280px;z-index:10000;display:flex;gap:6px;-webkit-app-region:no-drag}
 #navbar button{width:28px;height:28px;border-radius:50%;border:none;background:rgba(0,0,0,.4);color:#fff;font-size:17px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:background .15s}

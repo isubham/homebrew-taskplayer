@@ -9,15 +9,15 @@
 <body>
   <div id="titlebar"></div>
   <div id="navbar">
-    <button id="navback" onclick="goBack()" title="Back (⌘[)">‹</button>
-    <button id="navfwd" onclick="goForward()" title="Forward (⌘])">›</button>
+    <button id="navback" data-action="goBack" title="Back (⌘[)">‹</button>
+    <button id="navfwd" data-action="goForward" title="Forward (⌘])">›</button>
   </div>
   <div id="app">
     <aside class="side">
-      <div class="brand"><span class="dot">▶</span><span class="brand-name">TaskPlayer</span><button class="brand-gear" id="sessBtn" onclick="openSessionsPage()" title="All sessions">◷</button><button class="brand-gear" id="gear" onclick="openSettingsPage()" title="Settings">⚙</button></div>
+      <div class="brand"><span class="dot">▶</span><span class="brand-name">TaskPlayer</span><button class="brand-gear" id="sessBtn" data-action="openSessionsPage" title="All sessions">◷</button><button class="brand-gear" id="gear" data-action="openSettingsPage" title="Settings">⚙</button></div>
       <h3>Your Lists</h3>
       <div id="lists"></div>
-      <button class="add-btn" onclick="addList()">＋ New list</button>
+      <button class="add-btn" data-action="addList">＋ New list</button>
     </aside>
     <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
     <main class="main" id="main"></main>
@@ -26,18 +26,18 @@
       <div class="np" id="np"></div>
       <div class="center" id="center"></div>
       <div class="right" id="music"></div>
-      <button class="rail-toggle" id="railtoggle" onclick="toggleRail()" title="Now playing view (toggle)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/></svg></button>
+      <button class="rail-toggle" id="railtoggle" data-action="toggleRail" title="Now playing view (toggle)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="15" y1="4" x2="15" y2="20"/></svg></button>
     </footer>
   </div>
 
-  <div class="overlay" id="overlay" onclick="if(event.target===this)closeDetail()"><div class="modal" id="modal"></div></div>
-  <div class="overlay" id="soverlay" onclick="if(event.target===this)closeSettings()"><div class="modal" id="smodal"></div></div>
-  <div class="overlay" id="lyroverlay" onclick="if(event.target===this)closeLyrics()"><div class="lyrpanel" id="lyrmodal"></div></div>
+  <div class="overlay" id="overlay" data-action="closeOverlay" data-overlay="detail"><div class="modal" id="modal"></div></div>
+  <div class="overlay" id="soverlay" data-action="closeOverlay" data-overlay="settings"><div class="modal" id="smodal"></div></div>
+  <div class="overlay" id="lyroverlay" data-action="closeOverlay" data-overlay="lyrics"><div class="lyrpanel" id="lyrmodal"></div></div>
   <div class="overlay" id="doverlay"><div class="modal dlg" id="dmodal"></div></div>
   <div class="popmenu" id="popmenu"></div>
   <audio id="audio" preload="none"></audio>
 
   <script src="music.js"></script>
-  <script src="main.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

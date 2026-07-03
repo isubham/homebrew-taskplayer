@@ -1,0 +1,91 @@
+export function createAppState() {
+  const state = {
+    S: null,
+    activeListId: null,
+    view: "tasks",
+    completedOpen: false,
+    railOpen: (localStorage.getItem("tp.rail") ?? "1") === "1",
+    route: { view: "tasks", listId: null },
+    navBack: [],
+    navFwd: [],
+    openTaskId: null,
+    lyricsId: null,
+    lastPhase: null,
+  };
+
+  const list = (id) => state.S?.lists.find((item) => item.id === id);
+  const activeList = () => list(state.activeListId) || state.S?.lists[0];
+  const findTask = (id) => state.S?.tasks.find((task) => task.id === id);
+  const tasksForList = (lid) => state.S?.tasks.filter((task) => task.listId === lid) || [];
+  const taskSessions = (id) => state.S?.sessions.filter((session) => session.taskId === id) || [];
+
+  state.setSnapshot = (snap) => {
+    state.S = snap;
+    if (!state.activeListId || !list(state.activeListId)) {
+      state.activeListId = state.S?.lists[0]?.id ?? null;
+    }
+    if (state.route.view === "tasks" && state.route.listId && !list(state.route.listId)) {
+      state.route.listId = state.activeListId;
+    }
+    return state;
+  };
+
+  state.setRoute = (view, listId = null) => {
+    state.route = { view, listId: listId || null };
+    state.view = view;
+    if (view === "tasks" && state.activeListId && !list(state.activeListId)) {
+      state.activeListId = state.S?.lists[0]?.id ?? null;
+    }
+    return state.route;
+  };
+
+  function taskTotal(id) {
+    const now = Date.now();
+    let ms = taskSessions(id).reduce((sum, session) => sum + ((session.end ?? now) - session.start), 0);
+    const run = state.S?.run;
+    if (run?.activeTaskId === id && run.phase === "work" && run.runningStart) {
+      ms += now - run.runningStart;
+    }
+    return ms;
+  }
+
+  const listTotal = (lid) => tasksForList(lid).reduce((sum, task) => sum + taskTotal(task.id), 0);
+  const targetMs = () => {
+    const config = state.S?.config;
+    if (!config) return null;
+    return config.mode === "target"
+      ? config.targetMin * 60000
+      : config.mode === "pomodoro"
+        ? config.workMin * 60000
+        : null;
+  };
+
+  const modeLabel = () => {
+    const config = state.S?.config;
+    if (!config) return "∞ Open";
+    return config.mode === "target"
+      ? `🎯 ${config.targetMin}m target`
+      : config.mode === "pomodoro"
+        ? `🍅 ${config.workMin}/${config.breakMin}`
+        : "∞ Open";
+  };
+
+  const modeGlyph = () => {
+    const mode = state.S?.config?.mode;
+    return mode === "target" ? "◎" : mode === "pomodoro" ? "◔" : "∞";
+  };
+
+  return {
+    state,
+    list,
+    activeList,
+    findTask,
+    tasksForList,
+    taskSessions,
+    taskTotal,
+    listTotal,
+    targetMs,
+    modeLabel,
+    modeGlyph,
+  };
+}

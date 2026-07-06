@@ -1,6 +1,10 @@
 // TaskPlayer — macOS menu-bar deep-work timer (Tauri v2 shell around taskplayer-core).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod auth;
+mod config;
+mod sync;
+
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -8,27 +12,55 @@ use std::time::Duration;
 use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_opener::OpenerExt;
 
 use taskplayer_core::models::now_ms;
 use taskplayer_core::{
-    task_total_ms, timer, Db, RunState, Session, SessionConfig, Snapshot, Status, Task, TaskList,
+    task_total_ms, timer, AccountInfo, Db, RunState, Session, SessionConfig, Snapshot, Status,
+    Task, TaskList,
 };
 
 struct AppState {
     db: Mutex<Db>,
     run: Mutex<RunState>,
     config: Mutex<SessionConfig>,
+    /// PKCE verifier for the in-flight sign-in attempt, if any. Only one
+    /// sign-in flow happens at a time, so a single slot is enough.
+    pending_pkce: Mutex<Option<auth::Pkce>>,
+    /// Current Supabase session access token, if signed in. The refresh
+    /// token lives in `data_dir/session.json` (see auth.rs), never here.
+    access_token: Mutex<Option<String>>,
+    sync_status: Mutex<SyncStatus>,
+    /// Whether the focus-music widget is currently playing. Mirrored from
+    /// the frontend (music.js's `<audio>` element lives entirely in the
+    /// webview, Rust has no direct visibility into it) via the
+    /// `set_music_playing` command, purely so the tray menu's music toggle
+    /// label can read "Pause music" vs. "Play music" correctly.
+    music_playing: Mutex<bool>,
+    /// OS app-data directory — also where the SQLite file and session.json live.
+    data_dir: PathBuf,
+}
+
+#[derive(Clone, Default)]
+struct SyncStatus {
+    syncing: bool,
+    last_synced_at: Option<i64>,
 }
 
 // ---- snapshot / status builders ----
 fn build_snapshot(state: &AppState) -> Snapshot {
     let db = state.db.lock().unwrap();
+    let sync_status = state.sync_status.lock().unwrap().clone();
     Snapshot {
         lists: db.lists().unwrap_or_default(),
         tasks: db.tasks().unwrap_or_default(),
         sessions: db.sessions().unwrap_or_default(),
         config: state.config.lock().unwrap().clone(),
         run: state.run.lock().unwrap().clone(),
+        account: db.get_account(),
+        syncing: sync_status.syncing,
+        last_synced_at: sync_status.last_synced_at,
     }
 }
 
@@ -75,6 +107,22 @@ fn build_status(state: &AppState, now: i64) -> Status {
     st
 }
 
+/// Format milliseconds as "1h 05m" / "1h" / "45m", matching the frontend's fmtHM.
+fn format_hm(ms: i64) -> String {
+    let minutes = ms / 60_000;
+    let hours = minutes / 60;
+    let remainder = minutes % 60;
+    if hours > 0 {
+        if remainder > 0 {
+            format!("{}h {}m", hours, remainder)
+        } else {
+            format!("{}h", hours)
+        }
+    } else {
+        format!("{}m", minutes)
+    }
+}
+
 /// Trim a title to `n` characters (char-safe), adding an ellipsis if cut.
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() > n {
@@ -96,8 +144,8 @@ fn refresh(app: &AppHandle) {
         let title = if status.active {
             let name = truncate(status.task_name.as_deref().unwrap_or("Focus"), 26);
             match status.phase.as_deref() {
-                Some("break") => Some(format!(" {} · ☕ {}m", name, status.elapsed_ms / 60_000)),
-                _ => Some(format!(" {} · {}m", name, status.minutes)),
+                Some("break") => Some(format!(" {} · ☕ {}", name, format_hm(status.elapsed_ms))),
+                _ => Some(format!(" {} · {}", name, format_hm(status.elapsed_ms))),
             }
         } else {
             None
@@ -137,15 +185,70 @@ fn do_play(state: &AppState, task_id: &str) {
 }
 
 fn do_stop(state: &AppState) {
-    let now = now_ms();
+    do_stop_at(state, now_ms());
+}
+
+/// Same as `do_stop`, but logs the work segment as ending at `at_ms` instead
+/// of "right now". Used when we detect the machine was asleep: the session
+/// gets closed out at the last moment we know it was actually awake, so the
+/// time spent asleep never gets counted as tracked work.
+fn do_stop_at(state: &AppState, at_ms: i64) {
     let mut run = state.run.lock().unwrap();
-    let (nr, log) = timer::stop(&run, now);
+    let (nr, log) = timer::stop(&run, at_ms);
     *run = nr;
     let db = state.db.lock().unwrap();
     if let Some(l) = log {
         let _ = db.add_session(&l);
     }
     let _ = db.set_run(&run);
+}
+
+/// Common tail of both the sign-in callback and the startup silent refresh:
+/// persist the refresh token, remember the access token in memory, cache
+/// the profile, and notify the frontend.
+fn apply_session(app: &AppHandle, session: auth::Session) {
+    let state = app.state::<AppState>();
+    if let Err(e) = auth::save_refresh_token(&state.data_dir, &session.refresh_token) {
+        // Not fatal — this run stays signed in via the in-memory access
+        // token; the user will just be prompted to sign in again next
+        // launch if the write never succeeds (e.g. a full disk).
+        eprintln!("failed to save the refresh token: {e}");
+    }
+    *state.access_token.lock().unwrap() = Some(session.access_token);
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_account(Some(&session.account));
+    }
+    push(app);
+    run_sync(app);
+}
+
+/// Runs one push+pull cycle if signed in; no-ops silently otherwise. Safe to
+/// call from a background thread (it blocks on network I/O) — every caller
+/// here already runs on one, never the main/event thread.
+fn run_sync(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let Some(access_token) = state.access_token.lock().unwrap().clone() else { return };
+    let Some(user_id) = state.db.lock().unwrap().get_account().map(|a| a.id) else { return };
+
+    state.sync_status.lock().unwrap().syncing = true;
+    push(app);
+
+    let result = {
+        let db = state.db.lock().unwrap();
+        sync::sync_once(&db, &access_token, &user_id)
+    };
+
+    {
+        let mut status = state.sync_status.lock().unwrap();
+        status.syncing = false;
+        status.last_synced_at = Some(now_ms());
+    }
+
+    if let Err(e) = &result {
+        eprintln!("sync failed: {e}");
+    }
+    push(app);
 }
 
 // ---- commands ----
@@ -186,10 +289,10 @@ fn delete_list(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
 }
 
 #[tauri::command]
-fn add_task(app: AppHandle, state: State<AppState>, list_id: String, name: String) -> Snapshot {
+fn add_task(app: AppHandle, state: State<AppState>, list_id: String, name: String, estimate_min: Option<i64>) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
-        let _ = db.add_task(&list_id, &name);
+        let _ = db.add_task(&list_id, &name, estimate_min.filter(|m| *m > 0));
     }
     push(&app);
     build_snapshot(state.inner())
@@ -227,6 +330,16 @@ fn set_description(app: AppHandle, state: State<AppState>, id: String, text: Opt
 }
 
 #[tauri::command]
+fn set_album(app: AppHandle, state: State<AppState>, id: String, album: Option<String>) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_album(&id, album.as_deref());
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
 fn move_task(app: AppHandle, state: State<AppState>, id: String, list_id: String) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
@@ -237,9 +350,38 @@ fn move_task(app: AppHandle, state: State<AppState>, id: String, list_id: String
 }
 
 #[tauri::command]
+fn reorder_tasks(app: AppHandle, state: State<AppState>, list_id: String, ordered_ids: Vec<String>) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.reorder_tasks(&list_id, &ordered_ids);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn reorder_lists(app: AppHandle, state: State<AppState>, ordered_ids: Vec<String>) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.reorder_lists(&ordered_ids);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
 fn set_done(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
-    // completing the active task stops its timer first (logs the segment)
-    if state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str()) {
+    // completing the active task stops its timer first (logs the segment).
+    // The `is_active` bool must be computed in its own `let` statement —
+    // binding it here drops the `state.run` MutexGuard immediately. Inlining
+    // the lock directly into the `if` condition would keep that temporary
+    // guard alive for the whole if-body (Rust extends a temporary's scope to
+    // the enclosing statement, which for `if cond { block }` used as a
+    // statement is the entire construct), so `do_stop`'s own `state.run.lock()`
+    // below would deadlock against itself whenever the task being completed
+    // is the one currently running.
+    let is_active = state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str());
+    if is_active {
         do_stop(state.inner());
     }
     {
@@ -291,6 +433,16 @@ fn delete_session(app: AppHandle, state: State<AppState>, id: String) -> Snapsho
     {
         let db = state.db.lock().unwrap();
         let _ = db.delete_session(&id);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn update_session(app: AppHandle, state: State<AppState>, id: String, start: i64, end: i64) -> Snapshot {
+    if end > start {
+        let db = state.db.lock().unwrap();
+        let _ = db.update_session(&id, start, end);
     }
     push(&app);
     build_snapshot(state.inner())
@@ -375,7 +527,10 @@ fn import_data(app: AppHandle, state: State<AppState>, payload: String) -> Resul
 
 #[tauri::command]
 fn delete_task(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
-    if state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str()) {
+    // see the comment in `set_done` — this bool must be its own `let`
+    // statement so the `state.run` guard drops before `do_stop` re-locks it.
+    let is_active = state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str());
+    if is_active {
         do_stop(state.inner());
     }
     {
@@ -443,12 +598,62 @@ fn set_config_field(app: AppHandle, state: State<AppState>, key: String, value: 
     build_snapshot(state.inner())
 }
 
+/// Opens the system browser to Google's consent screen and returns
+/// immediately — the deep-link callback (registered in `setup()`) drives
+/// the rest of the flow asynchronously and calls `push()` once signed in.
+#[tauri::command]
+fn sign_in_google(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    let pkce = auth::generate_pkce();
+    let url = auth::authorize_url(&pkce);
+    *state.pending_pkce.lock().unwrap() = Some(pkce);
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn sign_out(app: AppHandle, state: State<AppState>) -> Snapshot {
+    auth::clear_refresh_token(&state.data_dir);
+    *state.access_token.lock().unwrap() = None;
+    *state.sync_status.lock().unwrap() = SyncStatus::default();
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_account(None::<&AccountInfo>);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+/// Fire-and-forget, like `sign_in_google` — the eventual `push()`/`refresh()`
+/// inside `run_sync` notifies the frontend once the sync finishes.
+#[tauri::command]
+fn sync_now(app: AppHandle) {
+    std::thread::spawn(move || run_sync(&app));
+}
+
 #[tauri::command]
 fn open_main(app: AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.set_focus();
     }
+}
+
+/// Mirrors the focus-music widget's play/pause state into Rust purely so the
+/// tray's music toggle can show the right label — the actual `<audio>`
+/// element lives in the webview (music.js), Rust never touches it directly.
+/// The frontend calls this every time window.Music's own state changes.
+#[tauri::command]
+fn set_music_playing(app: AppHandle, state: State<AppState>, playing: bool) -> Snapshot {
+    *state.music_playing.lock().unwrap() = playing;
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+/// Opens a URL in the system's default browser — used by the in-app "View on
+/// Audius" button (a plain `<a href>` would just navigate the app's own
+/// webview away instead).
+#[tauri::command]
+fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
 /// After a delete, drop any run-state references to tasks that no longer exist:
@@ -501,6 +706,16 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         app, "toggle", if active.is_some() { "Pause" } else { "Play" }, true, None::<&str>,
     )?));
 
+    // Focus-music controls — separate from the task Play/Pause above, since
+    // the ambient music and the work timer are two different things a
+    // person might want to control independently from the tray.
+    owned.push(Box::new(PredefinedMenuItem::separator(app)?));
+    let music_on = *state.music_playing.lock().unwrap();
+    owned.push(Box::new(MenuItem::with_id(
+        app, "music_toggle", if music_on { "⏸  Pause music" } else { "▶  Play music" }, true, None::<&str>,
+    )?));
+    owned.push(Box::new(MenuItem::with_id(app, "music_next", "⏭  Next track", true, None::<&str>)?));
+
     // up to 3 recently played, skipping the current and completed tasks
     let mut recents: Vec<&Task> = Vec::new();
     for id in &recent {
@@ -538,6 +753,8 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // --- open the SQLite database in the OS app-data dir ---
             let dir = app
@@ -553,7 +770,47 @@ fn main() {
                 db: Mutex::new(db),
                 run: Mutex::new(run),
                 config: Mutex::new(config),
+                pending_pkce: Mutex::new(None),
+                access_token: Mutex::new(None),
+                sync_status: Mutex::new(SyncStatus::default()),
+                music_playing: Mutex::new(false),
+                data_dir: dir.clone(),
             });
+
+            // --- Google Sign-In: deep-link callback + silent refresh on startup ---
+            {
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let Some(url) = event.urls().first().cloned() else { return };
+                    let Some(code) = auth::extract_code(url.as_str()) else { return };
+                    let pkce = {
+                        let state = handle.state::<AppState>();
+                        let taken = state.pending_pkce.lock().unwrap().take();
+                        taken
+                    };
+                    let Some(pkce) = pkce else {
+                        eprintln!("received an OAuth callback with no sign-in in progress — ignoring");
+                        return;
+                    };
+                    let handle2 = handle.clone();
+                    std::thread::spawn(move || match auth::exchange_code(&code, &pkce.verifier) {
+                        Ok(session) => apply_session(&handle2, session),
+                        Err(e) => eprintln!("Google sign-in failed: {e}"),
+                    });
+                });
+            }
+            {
+                let handle = app.handle().clone();
+                let dir = dir.clone();
+                std::thread::spawn(move || {
+                    let Some(refresh_token) = auth::load_refresh_token(&dir) else { return };
+                    if let Err(e) = auth::refresh_session(&refresh_token).map(|s| apply_session(&handle, s)) {
+                        // Fail closed: never crash/hang on a missing or
+                        // corrupt session file — just stay signed out.
+                        eprintln!("silent session refresh failed, staying signed out: {e}");
+                    }
+                });
+            }
 
             // --- menu-bar tray ---
             let menu = build_tray_menu(app.handle())?;
@@ -593,17 +850,43 @@ fn main() {
                         }
                         push(app);
                     }
+                    // The actual <audio> element lives in the webview (music.js), so
+                    // Rust can't play/pause/skip it directly — just forward the
+                    // intent as an event and let the frontend act on it.
+                    "music_toggle" => { let _ = app.emit("music-toggle", ()); }
+                    "music_next" => { let _ = app.emit("music-next", ()); }
                     _ => {}
                     }
                 });
             tray.build(app)?;
 
             // --- 1s background loop: pomodoro transitions + tray refresh ---
+            // Also doubles as sleep/wake detection: this thread is suspended
+            // along with the rest of the process while the Mac is asleep, so
+            // a `sleep(1000)` that comes back having taken much longer than
+            // 1s means the system was actually asleep (there's no reliable,
+            // dependency-free "sleep" notification otherwise). When that
+            // happens, and a task was running, we stop the clock as of the
+            // last tick we know was real — so the nap never gets logged as
+            // work — rather than at the (much later) wake-up time.
+            const SLEEP_GAP_MS: i64 = 5_000;
             let handle = app.handle().clone();
-            std::thread::spawn(move || loop {
+            std::thread::spawn(move || {
+                let mut last_seen = now_ms();
+                loop {
                 std::thread::sleep(Duration::from_millis(1000));
                 let state = handle.state::<AppState>();
                 let now = now_ms();
+                let woke_from_sleep_at = last_seen;
+                let gap = now - last_seen;
+                last_seen = now;
+                if gap > SLEEP_GAP_MS {
+                    let was_working = state.run.lock().unwrap().phase.as_deref() == Some("work");
+                    if was_working {
+                        do_stop_at(state.inner(), woke_from_sleep_at);
+                        push(&handle);
+                    }
+                }
                 let (run, config) = {
                     (
                         state.run.lock().unwrap().clone(),
@@ -641,23 +924,43 @@ fn main() {
                 } else {
                     refresh(&handle);
                 }
+                }
+            });
+
+            // --- 60s background loop: push/pull sync when signed in ---
+            // Separate from the 1s loop above on purpose — that one is
+            // tuned for a snappy pomodoro/tray refresh; this one does
+            // blocking network I/O and would be wasteful (and rate-limit-y)
+            // to run every second.
+            let sync_handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(60));
+                run_sync(&sync_handle);
             });
 
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
             // keep the app alive in the menu bar when the main window is closed
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
+                api.prevent_close();
+                let _ = window.hide();
+            }
+            // Catches "I switched to my other laptop and back" without
+            // shortening the 60s baseline interval for everyone else.
+            if let WindowEvent::Focused(true) = event {
+                let handle = window.app_handle().clone();
+                std::thread::spawn(move || run_sync(&handle));
             }
         })
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             add_list,
             rename_list,
+            reorder_lists,
             delete_list,
             add_task,
             rename_task,
@@ -665,9 +968,12 @@ fn main() {
             set_estimate,
             set_done,
             set_description,
+            set_album,
             move_task,
+            reorder_tasks,
             delete_task,
             add_session,
+            update_session,
             delete_session,
             export_data,
             import_data,
@@ -676,7 +982,12 @@ fn main() {
             skip_break,
             set_mode,
             set_config_field,
-            open_main
+            sign_in_google,
+            sign_out,
+            sync_now,
+            open_main,
+            set_music_playing,
+            open_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running TaskPlayer");

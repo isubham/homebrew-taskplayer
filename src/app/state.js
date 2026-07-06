@@ -11,6 +11,11 @@ export function createAppState() {
     openTaskId: null,
     lyricsId: null,
     lastPhase: null,
+    lastTaskId: null,
+    // Most recent window.Music.snapshot(), cached here so the track-details
+    // modal (opened by a click, not a music state push) has something to
+    // render from at any time.
+    lastMusic: null,
   };
 
   const list = (id) => state.S?.lists.find((item) => item.id === id);
@@ -50,6 +55,10 @@ export function createAppState() {
   }
 
   const listTotal = (lid) => tasksForList(lid).reduce((sum, task) => sum + taskTotal(task.id), 0);
+  // Sum of every task's own estimate (minutes) in a list — the "artist"-level
+  // counterpart to a single task's estimateMin, shown alongside listTotal
+  // wherever a list's total tracked time is displayed.
+  const listEstimateTotal = (lid) => tasksForList(lid).reduce((sum, task) => sum + (task.estimateMin || 0), 0);
   const targetMs = () => {
     const config = state.S?.config;
     if (!config) return null;
@@ -84,6 +93,7 @@ export function createAppState() {
     taskSessions,
     taskTotal,
     listTotal,
+    listEstimateTotal,
     targetMs,
     modeLabel,
     modeGlyph,

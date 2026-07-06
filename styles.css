@@ -5,16 +5,10 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-/* draggable window strip (title bar is hidden via Overlay style).
-   Scoped ONLY to the header strips (#titlebar / .brand / .hdr) rather than
-   the whole app: marking body/#app as one giant drag region — even with
-   every interactive element individually excluded via `no-drag` — competes
-   with native HTML5 drag-and-drop (the task-reorder feature) for the same
-   mousedown-and-move gesture, since WebKit's window-drag recognizer sits
-   above the content-drag recognizer for the entire ancestor region. Keeping
-   the drag region small avoids that conflict entirely. */
+/* draggable window strip (title bar is hidden via Overlay style) */
 #titlebar{position:fixed;top:0;left:0;right:0;height:38px;z-index:9999;pointer-events:auto;-webkit-app-region:drag}
 #titlebar *{-webkit-app-region:drag}
+body,#app{-webkit-app-region:drag}
 button,input,select,textarea,a,.brand-gear,.list-edit,.menu-btn,.rail-toggle,.play-all,.pill,.donebtn,.ccheck,.pbtn,.mode-btn,.badge,.m-genre select,.list-item,.crow,tbody tr{-webkit-app-region:no-drag}
 /* back/forward nav — pinned top-left of the content pane (clears the sidebar) */
 #navbar{position:fixed;top:18px;left:280px;z-index:10000;display:flex;gap:6px;-webkit-app-region:no-drag}
@@ -75,26 +69,9 @@ body{
 .list-item .sq{width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font-size:15px;flex:none}
 .list-item .meta{display:flex;flex-direction:column;line-height:1.2;overflow:hidden;flex:1}
 .list-item .meta small{color:var(--muted);font-weight:500;font-size:11px}
-/* "Recent" — pinned above Your Lists, not a real list so its tile is a
-   neutral clock glyph instead of a colored emoji square */
-.recent-item .sq{background:var(--bg3);color:var(--muted)}
-.recent-item .sq svg{display:block}
 .list-edit{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:3px 6px;border-radius:5px;opacity:0;flex:none}
 .list-item:hover .list-edit{opacity:1}
 .list-edit:hover{color:#fff;background:var(--elev)}
-
-/* drag handle for reordering lists in the sidebar — hidden until hovered so
-   it doesn't compete visually with the emoji tile at rest */
-.list-grip{flex:none;display:flex;align-items:center;color:var(--muted);opacity:0;cursor:grab}
-.list-item:hover .list-grip{opacity:.55}
-.list-grip:hover{opacity:1}
-.list-item:active .list-grip,.list-item.dragging .list-grip{cursor:grabbing}
-/* same WebKit drag-source + no-text-select fix used for task rows */
-.list-item[draggable="true"]{-webkit-user-drag:element;user-select:none}
-.list-item[draggable="true"] *{-webkit-user-drag:none}
-.list-item.dragging{opacity:.4}
-.list-item.drag-over-top{box-shadow:inset 0 2px 0 0 var(--green)}
-.list-item.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--green)}
 .add-btn{margin:12px 8px 0;width:calc(100% - 16px);background:none;border:1px dashed #444;color:var(--muted);padding:9px;border-radius:6px;cursor:pointer;font-weight:600}
 .add-btn:hover{border-color:#777;color:#fff}
 /* Settings page (rendered in main area) */
@@ -151,6 +128,7 @@ body{
 table{width:100%;border-collapse:collapse;margin-top:16px;padding:0 16px}
 thead th{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 24px;border-bottom:1px solid var(--line);font-weight:600}
 th.r,td.r{text-align:right}
+tbody tr{cursor:pointer}
 tbody tr:hover{background:var(--bg3)}
 tbody td{padding:14px 24px;font-size:14px}
 .idx{color:var(--muted);width:44px;position:relative}
@@ -166,16 +144,6 @@ tbody tr:hover .idx .go{display:inline-block}
 tbody tr:hover .grip{opacity:.55}
 .grip:hover{opacity:1}
 tbody tr:active .grip,tr.dragging .grip{cursor:grabbing}
-/* WebKit doesn't reliably treat a `draggable="true"` <tr> as an HTML5 drag
-   source on its own — table-row-display elements don't automatically pick
-   up -webkit-user-drag:element the way a plain block/inline element would,
-   which is why dragstart silently never fires in Safari/WKWebView even
-   though the same markup works in Chromium. Force it explicitly, and turn
-   drag off + disable text selection on everything inside the row so a
-   click-drag on the task name (etc.) doesn't get treated as a text/element
-   drag of its own and steal the gesture from the row. */
-tbody tr[draggable="true"]{-webkit-user-drag:element;user-select:none}
-tbody tr[draggable="true"] *{-webkit-user-drag:none}
 /* dragging state + drop-target indicator line */
 tbody tr.dragging{opacity:.4}
 tbody tr.drag-over-top{box-shadow:inset 0 2px 0 0 var(--green)}
@@ -186,33 +154,6 @@ tr.playing:hover{background:rgba(29,185,84,.16)}
 tr.playing td,tr.playing .total{color:var(--green)}
 tr.playing .idx .num{font-weight:700}
 .tname{font-weight:600}
-/* Album sections — related tasks within one list can share an album, the
-   way songs by an artist group into albums. Each section gets a small
-   header (tile color hashed from the album name, see utils.js albumColor)
-   and its own table so track numbering restarts per album; tasks with no
-   album collect into a trailing "Singles" section instead. */
-.albhead{display:flex;align-items:center;gap:10px;padding:22px 32px 6px;margin:0}
-.albhead:first-of-type{padding-top:4px}
-.albhead .alb-tile{width:36px;height:36px;border-radius:6px;display:grid;place-items:center;font-size:16px;flex:none}
-.albhead .alb-meta{flex:1;min-width:0}
-.albhead .alb-name{font-weight:700;font-size:14px;color:#fff}
-.albhead .alb-sub{color:var(--muted);font-size:11px;margin-top:1px}
-.alb-play{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:50%;flex:none;display:grid;place-items:center}
-.alb-play:hover{color:#fff;background:rgba(255,255,255,.08)}
-table.albrows{margin-top:4px}
-.singles-tag{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:22px 32px 0}
-/* Drop targets for moving a task into/out of an album by dragging it onto
-   the section header itself (not just an existing row) — an album header,
-   or the "Singles" label / its empty-state placeholder when an album has
-   pulled every task out of Singles. */
-.empty-singles{margin:6px 32px 0;padding:14px;border:1px dashed #444;border-radius:8px;color:var(--muted);font-size:12px;text-align:center}
-.albhead.drop-zone-over,.singles-tag.drop-zone-over,.empty-singles.drop-zone-over{outline:2px dashed var(--green);outline-offset:-2px;border-radius:8px}
-/* Recent page: which list a task belongs to, shown as a small tag under
-   its name since tasks here can come from any list. */
-.list-tag{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:11px;color:var(--muted);font-weight:500}
-.list-tag i{width:6px;height:6px;border-radius:50%;flex:none;display:inline-block}
-.rwhen{color:var(--muted);font-size:12px;white-space:nowrap;text-align:right;width:110px}
-tr.playing .rwhen{color:var(--green)}
 .tag{margin-left:8px;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:800;text-transform:uppercase}
 .tag.deep{background:rgba(29,185,84,.2);color:var(--green)}
 .tag.shallow{background:rgba(255,255,255,.1);color:var(--muted)}
@@ -222,33 +163,25 @@ tr.playing .rwhen{color:var(--green)}
    = sessions, fill = total time, color/slit = estimate), living in its own
    right-aligned column same as the old "Total time" column did. */
 .bar-cell{vertical-align:middle;white-space:nowrap}
+.bar-label{margin-right:10px;font-weight:600;font-variant-numeric:tabular-nums}
+.bar-label.over{color:var(--red2, #e5484d)}
 .rbar-status{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 tr.playing .rbar-status{color:var(--green)}
-/* Capacity bar: individual sessions as chips (the original segmented-bar
-   idea) fill the track, sized to true scale under the estimate — the bar
-   just ends early — and rescaled to keep fitting a fixed width once over,
-   splitting green→red right at the estimate boundary. The numbers live ON
-   the bar itself, not beside it: a centered white readout reads
-   "spent │ estimate" (a thin tick stands in for the "/") under the
-   estimate, collapsing to just the total plus a small "+Xh over" tag once
-   past it. Session count gets a small corner badge alongside. */
-.capbar{position:relative;width:160px;height:22px;border-radius:6px;background:#2c2c2c;overflow:hidden;
-  display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
-.capbar .chips{position:absolute;left:0;top:0;bottom:0;display:flex;overflow:hidden}
-.capbar .chips .seg{display:block;height:100%}
-.capbar .chips .seg.g{background:var(--green)}
-.capbar .chips .seg.r{background:var(--red2, #e5484d)}
-.capbar .chips>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.4)}
-.capbar .readout{position:relative;z-index:1;font-size:11px;font-weight:700;color:#fff;
-  text-shadow:0 1px 2px rgba(0,0,0,.65);display:flex;align-items:center;gap:5px;white-space:nowrap}
-.capbar .sep{width:1px;height:11px;background:rgba(255,255,255,.8);display:inline-block}
-.capbar .est-part{color:rgba(255,255,255,.75);font-weight:600}
-.capbar .over-tag{background:rgba(0,0,0,.35);border-radius:8px;padding:1px 6px;font-size:10px;margin-left:2px}
-/* session count — used to be its own column, now a small corner badge so
-   it doesn't compete with the centered spent/estimate readout */
-.capbar .sess-badge{position:absolute;left:5px;top:50%;transform:translateY(-50%);z-index:1;
-  font-size:9px;font-weight:700;color:rgba(255,255,255,.85);background:rgba(0,0,0,.35);
-  border-radius:6px;padding:1px 4px;font-variant-numeric:tabular-nums}
+/* under the estimate: true scale, sessions as green chips, bar just ends early */
+.capbar{width:160px;height:8px;border-radius:4px;background:#2c2c2c;display:inline-flex;overflow:hidden;vertical-align:middle}
+.capbar .seg{display:block;height:100%;border-radius:2px}
+.capbar .seg.g{background:var(--green)}
+.capbar>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+/* over the estimate: fixed 160px track splits into a green piece, a grey
+   "slit" (the cut marking exactly where the estimate was), and a red piece
+   for whatever ran past it — every session rescales down to keep fitting */
+.cutbar{width:160px;height:8px;display:inline-flex;align-items:center;vertical-align:middle}
+.cutbar .piece{height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden}
+.cutbar .piece>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+.cutbar .piece .seg{display:block;height:100%;border-radius:2px}
+.cutbar .piece .seg.g{background:var(--green)}
+.cutbar .piece .seg.r{background:var(--red2, #e5484d)}
+.cutbar .gap{height:8px;width:4px;border-radius:2px;background:#6b6b6b;flex:none}
 .menu-cell{position:relative;width:52px;text-align:center}
 .menu-btn{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;opacity:0;padding:4px 8px;border-radius:5px}
 tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
@@ -304,53 +237,53 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .right{width:30%;min-width:210px;display:flex;justify-content:flex-end}
 /* Music mini-player — ultra-compact: no art tile, just a note glyph, a scrolling
-   title, a genre dot, and icon controls. Static — no hover-triggered effects. */
+   title, a genre dot, and icon controls. Hover only brightens the row. */
 .music{display:flex;align-items:center;gap:8px;width:100%;justify-content:flex-end;
-  padding:6px 8px;border-radius:10px}
+  padding:6px 8px;border-radius:10px;transition:background .2s}
+.music:hover{background:rgba(255,255,255,.05)}
 
-/* note glyph — tints to green while playing instead of sitting in an art tile.
-   Swapped for the track's actual cover art (.m-art) whenever Audius gave us
-   one; falls back to this plain glyph otherwise (see renderMusic in render.js). */
-.m-note{flex:none;display:grid;place-items:center;color:var(--muted)}
+/* note glyph — tints to green while playing instead of sitting in an art tile */
+.m-note{flex:none;display:grid;place-items:center;color:var(--muted);transition:color .2s}
 .m-note svg{display:block}
 .music.playing .m-note{color:var(--green)}
-.m-note.m-art{width:20px;height:20px;border-radius:4px;object-fit:cover;background:var(--bg3);cursor:pointer}
 
-/* now-playing title — scrolls only when it overflows; clickable to open the
-   track-details modal (artwork, artist, link to Audius) */
-.m-mq{overflow:hidden;white-space:nowrap;position:relative;min-width:0;flex:1 1 auto;max-width:96px;
-  font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+/* now-playing title — scrolls only when it overflows, pauses on hover */
+.m-mq{overflow:hidden;white-space:nowrap;position:relative;min-width:0;flex:1 1 auto;max-width:130px;
+  font-size:13px;font-weight:600;color:var(--muted)}
 .music.playing .m-mq{color:var(--green)}
 .music.loading .m-mq{font-style:italic}
 .m-mq-inner{display:inline-block}
 .m-mq.scroll .m-mq-inner{animation:m-mq-scroll linear infinite}
+.m-mq:hover .m-mq-inner{animation-play-state:paused}
 .m-mq-gap{display:inline-block;width:36px}
 @keyframes m-mq-scroll{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--mq-dist,0px)))}}
 
 /* genre — native <select> sits invisibly over a small dot indicator */
 .m-genre{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px}
 .m-genre select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;-webkit-appearance:none;appearance:none;border:0}
-.m-genre-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);pointer-events:none}
-.music.playing .m-genre-dot{background:var(--green)}
+.m-genre-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);pointer-events:none;transition:background .15s}
+.music:hover .m-genre-dot,.m-genre:focus-within .m-genre-dot{background:var(--green)}
 
 /* skip to next track — flat icon, points right */
 .m-next{background:none;border:none;color:var(--muted);cursor:pointer;flex:none;padding:5px;border-radius:6px;display:grid;place-items:center}
+.m-next:hover{color:#fff;background:rgba(255,255,255,.08)}
 
-/* volume — icon plus an always-visible horizontal slider, inline in the bar */
-.m-vol{position:relative;display:flex;align-items:center;gap:4px;flex:none}
-.m-vol-ic{display:grid;place-items:center;color:var(--muted);padding:5px 2px 5px 5px;border-radius:6px}
-.m-vol .vol{-webkit-appearance:none;appearance:none;width:60px;height:4px;border-radius:2px;
-  background:#4d4d4d;accent-color:var(--green);cursor:pointer}
+/* volume — icon always visible; hovering/focusing pops a vertical slider up above it,
+   like a native macOS/Spotify volume control, so the bar stays narrow at rest */
+.m-vol{position:relative;display:flex;align-items:center;flex:none}
+.m-vol-ic{display:grid;place-items:center;color:var(--muted);padding:5px;border-radius:6px}
+.m-vol:hover .m-vol-ic,.m-vol:focus-within .m-vol-ic{color:#fff;background:rgba(255,255,255,.08)}
+.m-vol-pop{position:absolute;left:50%;bottom:calc(100% + 6px);z-index:20;
+  display:flex;justify-content:center;background:var(--elev);border:1px solid #3a3a3a;border-radius:8px;
+  padding:10px 0 12px;box-shadow:0 8px 20px rgba(0,0,0,.45);
+  opacity:0;pointer-events:none;transform:translate(-50%,4px);transition:opacity .15s ease,transform .15s ease}
+.m-vol:hover .m-vol-pop,.m-vol:focus-within .m-vol-pop{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.m-vol .vol{-webkit-appearance:slider-vertical;appearance:slider-vertical;writing-mode:vertical-lr;direction:rtl;
+  width:6px;height:70px;accent-color:var(--green);cursor:pointer}
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
 .overlay.show{display:flex}
 .modal{background:var(--bg2);border:1px solid var(--line);border-radius:12px;width:min(560px,92vw);max-height:82vh;overflow:hidden;display:flex;flex-direction:column}
-/* Track-details modal — same component as the task-detail dialog above, just
-   narrower since there's a lot less to show (art, title, artist, one link). */
-.track-modal{width:min(360px,92vw)}
-/* real cover-art <img> (vs. the emoji/gradient fallback tile) needs
-   object-fit — the tile's sizing/radius is otherwise identical */
-.modal .top img.art{object-fit:cover;background:var(--bg3)}
 .modal .top{padding:22px 24px;display:flex;gap:16px;align-items:center;border-bottom:1px solid var(--line)}
 .modal .top .art{width:70px;height:70px;border-radius:8px;display:grid;place-items:center;font-size:30px;flex:none}
 .modal .top h2{margin:0 0 4px;font-size:22px}

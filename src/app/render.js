@@ -1,16 +1,42 @@
-import { esc, fmt, fmtLong, fmtEst, fmtHM, estPct, whenLabel } from "./utils.js";
+import { esc, fmt, fmtLong, fmtEst, fmtHM, estPct, whenLabel, timeAgo, buildCapacityBar, albumColor } from "./utils.js";
 import { html, render as litRender } from "../vendor/lit-html.js";
 
 export function createRenderer({ state, helpers, actions }) {
-  const { list, activeList, findTask, tasksForList, taskSessions, taskTotal, listTotal, targetMs, modeLabel, modeGlyph } = helpers;
-  const dispatch = actions || (() => undefined);
+  const { list, activeList, findTask, tasksForList, taskSessions, taskTotal, listTotal, listEstimateTotal, targetMs, modeLabel, modeGlyph } = helpers;
+
+  // "12h 15m" -> "12h 15m of 20h" when an estimate total is known, otherwise
+  // just the plain time — shared by the artist header, sidebar row, and
+  // album sub-line so "spent of estimate" reads the same everywhere.
+  const withEst = (timeText, estimateMin) => (estimateMin ? `${timeText} of ${fmtEst(estimateMin)}` : timeText);
+  // `api` is the exact object this function returns (built up via
+  // Object.assign at the bottom, not a fresh object literal), so that
+  // bootstrap.js's later `renderer.actions = dispatchAction` — done after
+  // construction, since dispatchAction's own switch statement calls back
+  // into `renderer.*` — actually reaches this closure. Capturing the
+  // `actions` parameter directly here would freeze `dispatch` on whatever
+  // `actions` was AT CONSTRUCTION TIME (always `null`, since bootstrap.js
+  // passes `actions: null` and only assigns the real dispatcher afterward),
+  // silently turning every rowMenu action and "play first" into a no-op.
+  const api = {};
+  const dispatch = (action, payload) => (api.actions || actions || (() => undefined))(action, payload);
+
+  // Six-dot drag handle — the classic, instantly-recognizable "grab here" glyph.
+  const GRIP_SVG = `<svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="14" r="1.3"/><circle cx="8" cy="14" r="1.3"/></svg>`;
+
+  const CLOCK_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
 
   function renderSidebar() {
     if (!state.S) return;
+    document.getElementById("recentNav").innerHTML = `
+      <div class="list-item recent-item ${state.view === "recent" ? "active" : ""}" data-action="openRecentPage" title="Last 6 tasks played">
+        <span class="sq">${CLOCK_SVG}</span>
+        <span class="meta"><span>Recent</span></span>
+      </div>`;
     document.getElementById("lists").innerHTML = state.S.lists.map((listItem) => `
-      <div class="list-item ${listItem.id === state.activeListId ? "active" : ""}" data-action="selectList" data-id="${listItem.id}" title="Double-click to rename">
+      <div class="list-item ${state.view === "tasks" && listItem.id === state.activeListId ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="Drag to reorder · Double-click to rename">
+        <span class="list-grip" title="Drag to reorder">${GRIP_SVG}</span>
         <span class="sq" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span>
-        <span class="meta"><span>${esc(listItem.name)}</span><small>${tasksForList(listItem.id).length} tasks · ${fmtLong(listTotal(listItem.id))}</small></span>
+        <span class="meta"><span>${esc(listItem.name)}</span><small>${tasksForList(listItem.id).length} tasks · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))}</small></span>
         <button class="list-edit" title="Rename" data-action="renameList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
       </div>`).join("");
   }
@@ -19,6 +45,7 @@ export function createRenderer({ state, helpers, actions }) {
     if (!state.S) return;
     if (state.view === "settings") return renderSettingsPage();
     if (state.view === "sessions") return renderSessionsPage();
+    if (state.view === "recent") return renderRecentPage();
 
     const listItem = activeList();
     const main = document.getElementById("main");
@@ -31,19 +58,73 @@ export function createRenderer({ state, helpers, actions }) {
     const todo = all.filter((task) => !task.completedAt);
     const done = all.filter((task) => task.completedAt).sort((a, b) => b.completedAt - a.completedAt);
 
-    const rows = todo.map((task, index) => {
+    const taskRow = (task, index) => {
       const active = state.S.run.activeTaskId === task.id && state.S.run.phase;
       const working = active && state.S.run.phase === "work" && state.S.run.runningStart;
       const onBreak = active && state.S.run.phase === "break";
-      const sessionCount = taskSessions(task.id).length;
-      return `<tr class="${active ? "playing" : ""}" data-action="play" data-id="${task.id}" title="Click to ${active ? "stop" : "start"}">
-        <td class="idx" data-action="play" data-id="${task.id}" data-stop-propagation="true"><span class="num">${working ? "♪" : onBreak ? "☕" : index + 1}</span><button class="go">${active ? "⏸" : "▶"}</button></td>
+
+      // Sessions + total time + estimate used to be three separate bits of
+      // text. They're now this one capacity bar, with the numbers written
+      // directly on it (fill = total time, "spent │ estimate" readout, red
+      // once over) in its own column.
+      const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
+      if (working) durations.push(Date.now() - state.S.run.runningStart);
+      const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
+      const rbarline = onBreak
+        ? `<span class="rbar-status">on break</span>`
+        : bar
+          ? bar.html
+          : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
+
+      return `<tr class="${active ? "playing" : ""}" draggable="true" data-drag-id="${task.id}" data-list-id="${listItem.id}" data-album="${esc(task.album || "")}" title="Drag to reorder">
+        <td class="idx">
+          <span class="grip" title="Drag to reorder">${GRIP_SVG}</span>
+          <span class="num">${working ? "♪" : onBreak ? "☕" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to ${active ? "stop" : "start"}">${active ? "⏸" : "▶"}</button>
+        </td>
         <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</td>
-        <td class="total">${onBreak ? "on break" : sessionCount + " session" + (sessionCount === 1 ? "" : "s")}</td>
-        <td class="r total">${fmtHM(taskTotal(task.id))}${task.estimateMin ? `<span class="est"> / ${fmtEst(task.estimateMin)}</span>` : ""}</td>
+        <td class="r bar-cell">${rbarline}</td>
         <td class="menu-cell"><button class="menu-btn" title="More" data-action="openRowMenu" data-id="${task.id}" data-stop-propagation="true">⋯</button></td>
       </tr>`;
+    };
+
+    // Group the to-do list into album sections — related tasks sharing a
+    // task.album value, in order of that album's first appearance, with
+    // ungrouped tasks (no album) collected into a trailing "Singles"
+    // section. Track numbering (the # column) restarts per section, like a
+    // real album's track list.
+    const albumOrder = [];
+    const byAlbum = new Map();
+    for (const task of todo) {
+      const key = task.album || "";
+      let bucket = byAlbum.get(key);
+      if (!bucket) { bucket = []; byAlbum.set(key, bucket); albumOrder.push(key); }
+      bucket.push(task);
+    }
+    const singles = byAlbum.get("") || [];
+    const sections = albumOrder.filter((key) => key !== "").map((key) => {
+      const tasks = byAlbum.get(key);
+      const totalMs = tasks.reduce((sum, task) => sum + taskTotal(task.id), 0);
+      const totalEst = tasks.reduce((sum, task) => sum + (task.estimateMin || 0), 0);
+      const color = albumColor(key);
+      return `<div class="albhead" data-album-drop="${esc(key)}" title="Drop a task here to add it to this album">
+          <div class="alb-tile" style="background:${color}22;color:${color}">💿</div>
+          <div class="alb-meta"><div class="alb-name">${esc(key)}</div><div class="alb-sub">${tasks.length} task${tasks.length === 1 ? "" : "s"} · ${withEst(fmtLong(totalMs), totalEst)}</div></div>
+          <button class="alb-play" data-action="play" data-id="${tasks[0].id}" data-stop-propagation="true" title="Play first task in this album">▶</button>
+        </div>
+        <table class="albrows"><tbody>${tasks.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`;
     }).join("");
+    // Once at least one album exists, "Singles" is always shown (even
+    // empty) so there's somewhere to drop a task to take it out of its
+    // album — otherwise there'd be no valid drop target for that gesture.
+    const singlesSection = sections
+      ? `<div class="singles-tag" data-album-drop="" title="Drop a task here to remove it from its album">Singles</div>${
+          singles.length
+            ? `<table class="albrows"><tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
+            : `<div class="empty-singles" data-album-drop="">Drop a task here to remove it from its album</div>`
+        }`
+      : singles.length
+        ? `<table class="albrows"><tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
+        : "";
 
     const doneRows = done.map((task) => `
       <div class="crow" data-action="openDetail" data-id="${task.id}">
@@ -59,15 +140,15 @@ export function createRenderer({ state, helpers, actions }) {
       </div>` : "";
 
     main.innerHTML = `
-      <div class="hdr">
+      <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
-        <div class="info"><small>Task List</small><h1>${esc(listItem.name)}</h1><div class="sub">${todo.length} to do${done.length ? " · " + done.length + " done" : ""} · ${fmtLong(listTotal(listItem.id))} tracked</div></div>
+        <div class="info"><small>Task List</small><h1>${esc(listItem.name)}</h1><div class="sub">${todo.length} to do${done.length ? " · " + done.length + " done" : ""} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} tracked</div></div>
       </div>
       <div class="toolbar">
         <button class="play-all" data-action="playFirst" title="Play first task">▶</button>
         <button class="pill" data-action="addTask">＋ Add task</button>
       </div>
-      ${todo.length ? `<table><thead><tr><th class="idx">#</th><th>Task</th><th>Sessions</th><th class="r">Total time</th><th class="menu-cell"></th></tr></thead><tbody>${rows}</tbody></table>`
+      ${todo.length ? `${sections}${singlesSection}`
         : `<div class="empty">${all.length ? "All done here. 🎉" : "No tasks yet. Click <b>Add task</b> to start."}</div>`}
       ${completedGroup}
       <p class="note">Only one task runs at a time. The menu-bar item shows live minutes and toggles play/pause.</p>`;
@@ -202,17 +283,33 @@ export function createRenderer({ state, helpers, actions }) {
     navigate({ view: "sessions", listId: null });
   }
 
+  function openRecentPage() {
+    navigate({ view: "recent", listId: null });
+  }
+
   function toggleCompleted() {
     state.completedOpen = !state.completedOpen;
     renderMain();
   }
 
   function playFirst() {
-    const task = tasksForList(activeList().id).find((item) => !item.completedAt);
-    if (task) dispatch("play", { id: task.id });
+    // Mirrors renderMain's album grouping: named-album tasks (in the order
+    // their album first appears) come before ungrouped "singles" ones, so
+    // "play first task" always starts whichever row renders first on screen.
+    const todo = tasksForList(activeList().id).filter((item) => !item.completedAt);
+    const albumOrder = [];
+    const byAlbum = new Map();
+    for (const item of todo) {
+      const key = item.album || "";
+      let bucket = byAlbum.get(key);
+      if (!bucket) { bucket = []; byAlbum.set(key, bucket); albumOrder.push(key); }
+      bucket.push(item);
+    }
+    const ordered = [...albumOrder.filter((key) => key !== ""), ...(byAlbum.has("") ? [""] : [])].flatMap((key) => byAlbum.get(key));
+    if (ordered.length) dispatch("play", { id: ordered[0].id });
   }
 
-  function openRowMenu(event, id) {
+  function openRowMenu(anchorEl, id) {
     const popmenu = document.getElementById("popmenu");
     const task = findTask(id);
     const active = state.S.run.activeTaskId === id && state.S.run.phase;
@@ -226,10 +323,11 @@ export function createRenderer({ state, helpers, actions }) {
       <button data-action="rowMenu" data-action-name="deep" data-id="${id}">${task && task.depth === "deep" ? "✓" : "🎯"}&nbsp; Mark deep work</button>
       <button data-action="rowMenu" data-action-name="shallow" data-id="${id}">${task && task.depth === "shallow" ? "✓" : "💤"}&nbsp; Mark shallow</button>
       <button data-action="rowMenu" data-action-name="estimate" data-id="${id}">⏳&nbsp; ${task && task.estimateMin ? "Edit estimate (" + fmtEst(task.estimateMin) + ")" : "Set estimate…"}</button>
+      <button data-action="rowMenu" data-action-name="album" data-id="${id}">💿&nbsp; ${task && task.album ? "Change album (" + esc(task.album) + ")" : "Set album…"}</button>
       <div class="sep"></div>
       <button class="danger" data-action="rowMenu" data-action-name="delete" data-id="${id}">🗑&nbsp; Delete task</button>`;
     popmenu.classList.add("show");
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = anchorEl.getBoundingClientRect();
     const width = popmenu.offsetWidth || 190;
     popmenu.style.left = Math.max(8, rect.right - width) + "px";
     popmenu.style.top = (rect.bottom + 6) + "px";
@@ -249,6 +347,7 @@ export function createRenderer({ state, helpers, actions }) {
     else if (action === "deep") dispatch("setDepth", { id, depth: "deep" });
     else if (action === "shallow") dispatch("setDepth", { id, depth: "shallow" });
     else if (action === "estimate") dispatch("setEstimate", { id });
+    else if (action === "album") dispatch("setAlbum", { id });
     else if (action === "delete") dispatch("deleteTask", { id });
   }
 
@@ -277,7 +376,7 @@ export function createRenderer({ state, helpers, actions }) {
     if (working) entries.push({ start: state.S.run.runningStart, end: null, live: true });
     entries.sort((a, b) => b.start - a.start);
     const now = Date.now();
-    const rows = entries.length ? entries.map((entry) => `<div class="entry ${entry.live ? "live" : ""}"><span class="when">${whenLabel(entry.start)}${entry.live ? " · recording…" : ""}</span><span class="dur">${fmt((entry.end ?? now) - entry.start)}</span>${entry.live ? `<span class="entry-del"></span>` : `<button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${entry.id}">×</button>`}</div>`).join("")
+    const rows = entries.length ? entries.map((entry) => `<div class="entry ${entry.live ? "live" : ""}"><span class="when">${whenLabel(entry.start)}${entry.live ? " · recording…" : ""}</span><span class="dur">${fmt((entry.end ?? now) - entry.start)}</span>${entry.live ? `<span class="entry-del"></span>` : `<button class="entry-edit" title="Edit session" data-action="editSession" data-id="${entry.id}">✎</button><button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${entry.id}">×</button>`}</div>`).join("")
       : `<div class="entry"><span class="when">No sessions logged yet</span><span class="dur">—</span></div>`;
     document.getElementById("modal").innerHTML = `
       <div class="top"><div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
@@ -377,6 +476,33 @@ export function createRenderer({ state, helpers, actions }) {
     document.getElementById("soverlay").classList.remove("show");
   }
 
+  function accountSectionHtml() {
+    const account = state.S.account;
+    if (!account) {
+      return `<h4>Account</h4>
+        <p class="hint" style="margin-top:0">Sign in with Google to sync your tasks and sessions across devices.</p>
+        <div class="setrow"><button class="pill" data-action="signInGoogle">Sign in with Google</button></div>`;
+    }
+    const avatar = account.avatarUrl
+      ? `<img class="acct-avatar" src="${esc(account.avatarUrl)}" alt="">`
+      : `<div class="acct-avatar acct-avatar-fallback">${esc((account.name || account.email || "?")[0].toUpperCase())}</div>`;
+    const syncLabel = state.S.syncing
+      ? "Syncing…"
+      : state.S.lastSyncedAt
+        ? `Synced ${whenLabel(state.S.lastSyncedAt)}`
+        : "Not synced yet";
+    return `<h4>Account</h4>
+      <div class="acct-row">
+        ${avatar}
+        <div class="acct-info"><strong>${esc(account.name || account.email)}</strong><small>${esc(account.email)}</small></div>
+      </div>
+      <div class="setrow">
+        <button class="pill" data-action="signOut">Sign out</button>
+        <button class="pill" data-action="syncNow" ${state.S.syncing ? "disabled" : ""}>${state.S.syncing ? "⟳ Syncing…" : "⟳ Sync now"}</button>
+      </div>
+      <p class="hint">${syncLabel}</p>`;
+  }
+
   function sessionControlsHtml() {
     const config = state.S.config;
     return `
@@ -401,12 +527,13 @@ export function createRenderer({ state, helpers, actions }) {
   function renderSettingsPage() {
     if (!state.S) return;
     document.getElementById("main").innerHTML = `
-      <div class="hdr">
+      <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#5a5a5a,#2e2e2e)">⚙</div>
         <div class="info"><small>App</small><h1>Settings</h1><div class="sub">Focus session, data, and about</div></div>
       </div>
       <div class="settings-page">
         <section><h4>Focus session</h4>${sessionControlsHtml()}</section>
+        <section>${accountSectionHtml()}</section>
         <section>
           <h4>Data</h4>
           <p class="hint" style="margin-top:0">Back up everything — lists, tasks, and session history — to a JSON file, or restore from one.</p>
@@ -416,7 +543,7 @@ export function createRenderer({ state, helpers, actions }) {
           </div>
           <p class="hint">Importing replaces all current data and can't be undone.</p>
         </section>
-        <section><h4>About</h4><p class="hint" style="margin-top:0">TaskPlayer 0.1.0 — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live minutes.</p></section>
+        <section><h4>About</h4><p class="hint" style="margin-top:0">TaskPlayer 0.1.0 — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p></section>
       </div>`;
   }
 
@@ -454,72 +581,288 @@ export function createRenderer({ state, helpers, actions }) {
       currentGroup.items.push(item);
     }
 
+    const todayKey = dayKey(now);
+    const TRACK_PX = 640;
+    const minutesOfDay = (ts) => {
+      const date = new Date(ts);
+      return date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+    };
+
+    // "How my day went" — one 24h strip per group. Every session becomes a
+    // colored block positioned at its real start time and sized to its real
+    // duration (midnight-to-midnight, same scale every day), colored by the
+    // same list color as its row's dot below it.
+    function buildDayBar(group) {
+      const segs = group.items.map((item) => {
+        const task = findTask(item.taskId);
+        const listItem = task ? list(task.listId) : null;
+        const startMin = minutesOfDay(item.start);
+        const endMin = Math.min(1440, item.end ? minutesOfDay(item.end) : minutesOfDay(now));
+        const left = (startMin / 1440) * TRACK_PX;
+        const width = Math.max(2, ((endMin - startMin) / 1440) * TRACK_PX);
+        const label = task ? esc(task.name) : "(deleted task)";
+        const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${item.end ? new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}`;
+        return {
+          html: `<i class="seg${item.live ? " live" : ""}" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;background:${listItem ? listItem.color : "#555"}" title="${label} · ${range} · ${fmt((item.end ?? now) - item.start)}"></i>`,
+          label, color: listItem ? listItem.color : "#555", live: !!item.live,
+        };
+      });
+      const nowLine = group.key === todayKey ? `<span class="now-line" style="left:${((minutesOfDay(now) / 1440) * TRACK_PX).toFixed(1)}px"></span>` : "";
+
+      const seen = new Set();
+      const legend = segs.filter((s) => {
+        if (seen.has(s.label)) return false;
+        seen.add(s.label);
+        return true;
+      }).map((s) => `<span class="chip"><i style="background:${s.color}"></i>${s.label}${s.live ? " · now" : ""}</span>`).join("");
+
+      return `<div class="daybar" style="width:${TRACK_PX}px">${segs.map((s) => s.html).join("")}${nowLine}</div>
+        <div class="ticks" style="width:${TRACK_PX}px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+        <div class="daylegend">${legend}</div>`;
+    }
+
     const body = items.length ? groups.map((group) => {
       const total = group.items.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
       const rows = group.items.map((item) => {
         const task = findTask(item.taskId);
         const listItem = task ? list(task.listId) : null;
         const time = new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-        const deleteButton = (item.live || !item.id) ? `<span class="entry-del"></span>`
-          : `<button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${item.id}">×</button>`;
+        const rowActions = (item.live || !item.id) ? `<span class="entry-del"></span>`
+          : `<button class="entry-edit" title="Edit session" data-action="editSession" data-id="${item.id}">✎</button><button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${item.id}">×</button>`;
         return `<div class="sess ${item.live ? "live" : ""}">
           <span class="sess-dot" style="background:${listItem ? listItem.color : "#555"}"></span>
           <span class="sess-name">${task ? esc(task.name) : "(deleted task)"}${item.live ? " · recording…" : ""}</span>
           <span class="sess-list">${listItem ? esc(listItem.name) : ""}</span>
           <span class="sess-time">${time}</span>
-          <span class="sess-dur">${fmt((item.end ?? now) - item.start)}</span>${deleteButton}</div>`;
+          <span class="sess-dur">${fmt((item.end ?? now) - item.start)}</span>${rowActions}</div>`;
       }).join("");
       return `<section class="sess-group">
         <div class="sess-head"><h4>${dayLabel(group.ts)}</h4><span class="sess-total">${fmtLong(total)}</span></div>
+        ${buildDayBar(group)}
         ${rows}</section>`;
     }).join("") : `<div class="empty">No sessions yet. Press play on a task to start tracking.</div>`;
 
     document.getElementById("main").innerHTML = `
-      <div class="hdr">
+      <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#2e7d4f,#0c3f26)">◷</div>
         <div class="info"><small>History</small><h1>Sessions</h1><div class="sub">${items.length} session${items.length === 1 ? "" : "s"} across all tasks</div></div>
       </div>
       <div class="sessions-page">${body}</div>`;
   }
 
+  // "Recent" — a pinned sidebar entry (not a real list) that opens a
+  // read-only page of the last 6 distinct tasks played, most-recent first,
+  // across every list. Playing the same task again just moves it back to
+  // #1 rather than adding a duplicate row.
+  function recentTasks(limit = 6) {
+    if (!state.S) return [];
+    const now = Date.now();
+    const lastPlayedAt = new Map();
+    for (const session of state.S.sessions) {
+      const at = session.end ?? now;
+      if (!lastPlayedAt.has(session.taskId) || at > lastPlayedAt.get(session.taskId)) {
+        lastPlayedAt.set(session.taskId, at);
+      }
+    }
+    const run = state.S.run;
+    const liveTaskId = run.activeTaskId && run.phase === "work" && run.runningStart ? run.activeTaskId : null;
+    if (liveTaskId) lastPlayedAt.set(liveTaskId, now);
+
+    return Array.from(lastPlayedAt.entries())
+      .map(([taskId, at]) => ({ task: findTask(taskId), at, live: taskId === liveTaskId }))
+      .filter((entry) => entry.task && !entry.task.completedAt)
+      .sort((a, b) => b.at - a.at)
+      .slice(0, limit);
+  }
+
+  function renderRecentPage() {
+    if (!state.S) return;
+    const entries = recentTasks(6);
+
+    const rows = entries.map((entry, index) => {
+      const { task, at, live } = entry;
+      const listItem = list(task.listId);
+      const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
+      if (live) durations.push(Date.now() - state.S.run.runningStart);
+      const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
+      const barCell = bar ? bar.html : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
+      const when = live ? `<span style="color:var(--green)">now · recording</span>` : timeAgo(at);
+
+      return `<tr class="${live ? "playing" : ""}">
+        <td class="idx">
+          <span class="num">${index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to ${live ? "stop" : "start"}">${live ? "⏸" : "▶"}</button>
+        </td>
+        <td class="tname">
+          <div>${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</div>
+          <span class="list-tag"><i style="background:${listItem ? listItem.color : "#555"}"></i>${listItem ? esc(listItem.name) : ""}</span>
+        </td>
+        <td class="r bar-cell">${barCell}</td>
+        <td class="rwhen">${when}</td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("main").innerHTML = `
+      <div class="hdr" data-tauri-drag-region>
+        <div class="cover" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c);color:var(--muted)">${CLOCK_SVG}</div>
+        <div class="info"><small>History</small><h1>Recent</h1><div class="sub">Last ${entries.length} task${entries.length === 1 ? "" : "s"} played, across all lists</div></div>
+      </div>
+      ${entries.length
+        ? `<table><thead><tr><th class="idx">#</th><th>Task</th><th class="r">Progress</th><th class="rwhen">Last played</th></tr></thead>
+           <tbody>${rows}</tbody></table>`
+        : `<div class="empty">No tasks played yet. Press play on a task to start tracking.</div>`}`;
+  }
+
+  const M_NOTE_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+  const M_SKIP_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/></svg>`;
+  const M_VOL_HIGH_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="10 5 5 9 2 9 2 15 5 15 10 19 10 5"/><path d="M15 8.5a5 5 0 0 1 0 7"/><path d="M18 5a9 9 0 0 1 0 14"/></svg>`;
+  const M_VOL_LOW_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="10 5 5 9 2 9 2 15 5 15 10 19 10 5"/><path d="M15 8.5a5 5 0 0 1 0 7"/></svg>`;
+  const M_VOL_MUTE_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="10 5 5 9 2 9 2 15 5 15 10 19 10 5"/><line x1="17" y1="9" x2="22" y2="14"/><line x1="22" y1="9" x2="17" y2="14"/></svg>`;
+
+  function volIconSvg(v) {
+    return v === 0 ? M_VOL_MUTE_SVG : v < 0.5 ? M_VOL_LOW_SVG : M_VOL_HIGH_SVG;
+  }
+
+  // Scrolls the now-playing title only when it doesn't fit; pauses on hover.
+  function setupMusicMarquee(text) {
+    const mq = document.getElementById("musicMq");
+    if (!mq) return;
+    mq.classList.remove("scroll");
+    mq.innerHTML = `<span class="m-mq-inner">${esc(text)}</span>`;
+    requestAnimationFrame(() => {
+      const inner = mq.querySelector(".m-mq-inner");
+      if (!inner || inner.scrollWidth <= mq.clientWidth) return;
+      inner.innerHTML = `<span>${esc(text)}</span><span class="m-mq-gap"></span><span>${esc(text)}</span>`;
+      const dist = inner.firstElementChild.scrollWidth + 36;
+      inner.style.setProperty("--mq-dist", `${dist}px`);
+      inner.style.animationDuration = `${Math.max(6, dist / 26)}s`;
+      mq.classList.add("scroll");
+    });
+  }
+
   function renderMusic(m) {
     if (!window.Music?.GENRES) return;
-    const genre = window.Music.GENRES[m.genre] || { label: "🎧 Music" };
+    // Cached so the track-details modal — opened by a click, not a music
+    // state push — has something to render from whenever it's opened.
+    state.lastMusic = m;
     const options = Object.entries(window.Music.GENRES).map(([key, value]) => `<option value="${key}" ${key === m.genre ? "selected" : ""}>${value.label}</option>`).join("");
-    const emoji = (genre.label.match(/^\S+/) || ["🎧"])[0];
-    const genreName = genre.label.replace(/^\S+\s*/, "");
     const stateName = m.loading ? "loading" : m.playing ? "playing" : "idle";
-    const name = m.loading ? "Finding tracks…" : (m.playing || (m.name && m.name !== "Focus music")) ? esc(m.name) : "Not playing";
+    const name = m.loading ? "Finding tracks…" : (m.playing || (m.name && m.name !== "Focus music")) ? m.name : "Not playing";
+    const urls = m.artworkUrls || [];
+    // Real cover art in place of the generic note glyph when we have one —
+    // an <img> (not a background-image) so a failed load can fall through
+    // the mirror list wired up below, same reasoning as the track-details
+    // modal (Audius content nodes can be down/slow/rate-limiting).
+    const noteHtml = urls.length
+      ? `<img class="m-note m-art" src="${esc(urls[0])}" data-action="openTrackDetail" title="Track details">`
+      : `<span class="m-note">${M_NOTE_SVG}</span>`;
     document.getElementById("music").innerHTML = `<div class="music ${stateName}">
-      <div class="m-art" title="Focus music">
-        <span class="m-note">♪</span>
-        <span class="m-eq"><i></i><i></i><i></i><i></i></span>
-      </div>
-      <div class="m-meta">
-        <span class="m-label">Focus music</span>
-        <span class="m-name">${name}</span>
-      </div>
+      ${noteHtml}
+      <div class="m-mq" id="musicMq" data-action="openTrackDetail" title="Track details"></div>
       <label class="m-genre" title="Change vibe">
         <select data-action="musicSetGenre">${options}</select>
-        <span class="m-genre-face"><span class="g-emo">${emoji}</span><span class="g-name">${esc(genreName)}</span></span>
+        <span class="m-genre-dot"></span>
       </label>
-      <button class="m-next" title="Next track" data-action="musicNext">⟳</button>
-      <div class="m-vol">
-        <span class="m-vol-ic">${m.volume > 0 ? "🔊" : "🔈"}</span>
+      <button class="m-next" title="Next track" data-action="musicNext">${M_SKIP_SVG}</button>
+      <div class="m-vol" title="Volume">
+        <span class="m-vol-ic">${volIconSvg(m.volume)}</span>
         <input class="vol" type="range" min="0" max="1" step="0.05" value="${m.volume}" oninput="window.Music.setVolume(this.value)">
       </div>
     </div>`;
+    setupMusicMarquee(name);
+
+    const artEl = document.querySelector("#music img.m-art");
+    if (artEl) {
+      let i = 1;
+      artEl.onerror = () => {
+        if (i < urls.length) {
+          artEl.src = urls[i];
+          i++;
+        } else {
+          const fallback = document.createElement("span");
+          fallback.className = "m-note";
+          fallback.innerHTML = M_NOTE_SVG;
+          artEl.replaceWith(fallback);
+        }
+      };
+    }
+  }
+
+  // "Now Playing" track-details modal — artwork, artist, and a link to the
+  // track on Audius, from clicking the scrolling title. Reuses the same
+  // .top/.art/.m/.body/.close modal vocabulary as the task-detail dialog.
+  function openTrackDetail() {
+    document.getElementById("trkoverlay").classList.add("show");
+    renderTrackDetail();
+  }
+
+  function closeTrackDetail() {
+    document.getElementById("trkoverlay").classList.remove("show");
+  }
+
+  function renderTrackDetail() {
+    const m = state.lastMusic;
+    const urls = (m && m.artworkUrls) || [];
+    const hasTrack = m && (m.title || urls.length || m.permalink);
+    // A plain <img src> (not a CSS background-image) so a failed load can
+    // actually be caught and retried against the next mirror — Audius is a
+    // decentralized network, so any single content node's URL can be down,
+    // slow, or rate-limiting hotlinks. See music.js's artworkUrls().
+    const art = urls.length
+      ? `<img class="art" src="${esc(urls[0])}">`
+      : `<div class="art" style="background:linear-gradient(135deg,var(--green),#0a5)">♪</div>`;
+    document.getElementById("trkmodal").className = "modal track-modal";
+    document.getElementById("trkmodal").innerHTML = `
+      <div class="top">${art}
+        <div><h2>${esc((m && m.title) || "Focus music")}</h2>
+          <div class="m">${m && m.artist ? esc(m.artist) : "—"}${m && m.genreLabel ? " · " + esc(m.genreLabel) : ""}</div>
+        </div>
+        <button class="close" data-action="closeTrackDetail">×</button></div>
+      <div class="body">
+        ${hasTrack && m.permalink
+          ? `<button class="pill" data-action="openTrackLink" data-value="${esc(m.permalink)}">↗ View on Audius</button>`
+          : `<div class="hint">${hasTrack ? "This track has no page on Audius." : "Nothing playing yet — start a task to hear some focus music."}</div>`}
+      </div>`;
+
+    const artEl = document.querySelector("#trkmodal img.art");
+    if (artEl) {
+      let i = 1;
+      artEl.onerror = () => {
+        if (i < urls.length) {
+          artEl.src = urls[i];
+          i++;
+        } else {
+          // Every mirror failed — drop back to the plain glyph tile instead
+          // of leaving a broken-image icon in the modal.
+          const fallback = document.createElement("div");
+          fallback.className = "art";
+          fallback.style.background = "linear-gradient(135deg,var(--green),#0a5)";
+          fallback.textContent = "♪";
+          artEl.replaceWith(fallback);
+        }
+      };
+    }
   }
 
   function syncMusic() {
     if (!state.S) return;
     const phase = state.S.run.phase ?? null;
-    if (phase === state.lastPhase) return;
-    window.Music.setActive(phase === "work");
+    const taskId = state.S.run.activeTaskId ?? null;
+    // Switching directly from one task to another (still "work" the whole
+    // time — the timer never passes through idle/break in between, see
+    // timer::play's single-active-task invariant) doesn't change phase, so
+    // it wouldn't otherwise be noticed here. Treat it as "new song": skip to
+    // the next track instead of just letting the old one keep playing under
+    // a different task.
+    if (phase === "work" && state.lastPhase === "work" && taskId !== state.lastTaskId) {
+      window.Music.next();
+    } else if (phase !== state.lastPhase) {
+      window.Music.setActive(phase === "work");
+    }
     state.lastPhase = phase;
+    state.lastTaskId = taskId;
   }
 
-  return {
+  return Object.assign(api, {
     render,
     toggleRail,
     navigate,
@@ -544,7 +887,12 @@ export function createRenderer({ state, helpers, actions }) {
     renderSettings,
     renderSettingsPage,
     renderSessionsPage,
+    renderRecentPage,
+    openRecentPage,
     renderMusic,
+    openTrackDetail,
+    closeTrackDetail,
+    renderTrackDetail,
     syncMusic,
     renderSidebar,
     renderMain,
@@ -555,5 +903,5 @@ export function createRenderer({ state, helpers, actions }) {
     animatePage,
     dayLabel,
     lyrBtn,
-  };
+  });
 }

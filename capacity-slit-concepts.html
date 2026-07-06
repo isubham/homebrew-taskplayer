@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Capacity threshold — fixed-width bar + grey slit</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:700px;margin:0 auto}
+  .section{margin-bottom:48px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:640px;line-height:1.55}
+  table{background:var(--bg);border-radius:10px;overflow:hidden;width:100%;border-collapse:collapse}
+  .seg-cell{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .seg-time{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:56px;text-align:right}
+
+  :root{ --red2:#e5484d; --slit:#6b6b6b; --slit-lt:#8f8f8f; }
+
+  /* shared fixed-width track */
+  .bar-wrap{position:relative;display:inline-flex;align-items:center;height:14px}
+  .bar{width:160px;height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden;flex:none}
+  .bar .seg{display:block;height:100%;border-radius:2px}
+  .bar .seg.g{background:var(--green)}
+  .bar .seg.r{background:var(--red2)}
+  .bar .pair{display:flex;height:100%}
+  .bar .pair .g{border-radius:2px 0 0 2px}
+  .bar .pair .r{border-radius:0 2px 2px 0}
+  /* hairline separators between chips drawn with box-shadow so they don't
+     consume any of the fixed 160px budget the way a flex `gap` would */
+  .bar>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+
+  /* 1 — hairline tick overlaid on a continuous compressed bar */
+  .slit-tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--slit-lt);border-radius:1px}
+
+  /* 2 — physical cut: bar splits into two real pieces with a rounded grey gap between */
+  .cutbar{width:160px;height:8px;display:flex;align-items:center;flex:none}
+  .cutbar .piece{height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden}
+  .cutbar .piece>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+  .cutbar .gap{height:8px;width:4px;border-radius:2px;background:var(--slit);flex:none}
+
+  /* 3 — diamond stitch marker on a continuous bar */
+  .diamond{position:absolute;top:50%;width:7px;height:7px;background:var(--slit-lt);border:1.5px solid #000;
+    transform:translate(-50%,-50%) rotate(45deg);border-radius:1.5px}
+
+  /* 4 — proportional cut: gap width itself encodes how far over */
+  .propbar{width:160px;height:8px;display:flex;align-items:center;flex:none}
+  .propbar .piece{height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden}
+  .propbar .piece>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+  .propbar .gap{height:8px;border-radius:2px;background:var(--slit);flex:none}
+  .over-label{color:var(--red2);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:36px">All four variants share the same rule: the track is a <b>fixed width</b> (160px). Under the capacity threshold, sessions sit at true scale and the bar just ends early — same as before. Once total time crosses the threshold, every session <b>rescales down proportionally</b> to fit the same fixed width; whatever falls past the threshold turns <b style="color:var(--red2)">red</b>; and a <b style="color:#ccc">grey slit</b> marks exactly where the threshold line landed. Only the slit's rendering changes between the four options below.</p>
+
+  <!-- ============ VARIANT 1 ============ -->
+  <div class="section">
+    <p class="label">1 · Hairline tick</p>
+    <p class="cap">Simplest option: the bar stays one continuous piece, and a thin 2px grey line is overlaid on top at the threshold position — same mechanic as a progress marker. Cheapest to build (one absolutely-positioned div), lowest visual weight.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="bar-wrap"><span class="bar" title="3 sessions · 1h 33m left of 4h">
+            <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+          </span></span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">4h 12m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="4 sessions · 12m over the 4h threshold">
+              <i class="seg g" style="width:45px"></i><i class="seg g" style="width:38px"></i><i class="seg g" style="width:49px"></i>
+              <span class="pair" style="width:29px"><i class="g" style="width:20px"></i><i class="r" style="width:9px"></i></span>
+            </span>
+            <span class="slit-tick" style="left:152px"></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">3</span></td><td class="tname">chase down the flaky CI test</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">6h 00m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="4 sessions · 2h over the 4h threshold">
+              <i class="seg g" style="width:40px"></i><i class="seg g" style="width:40px"></i>
+              <span class="pair" style="width:40px"><i class="g" style="width:27px"></i><i class="r" style="width:13px"></i></span>
+              <i class="seg r" style="width:40px"></i>
+            </span>
+            <span class="slit-tick" style="left:107px"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- ============ VARIANT 2 ============ -->
+  <div class="section">
+    <p class="label">2 · Physical cut</p>
+    <p class="cap">The slit is a real break in the track, not an overlay — the bar visually splits into two rounded pieces (before / after the threshold) with a short grey bridge between them. Reads more like "this is where the budget ran out" than a tick mark, at the cost of eating a few px from the fixed width for the gap itself.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="bar" title="3 sessions · 1h 33m left of 4h">
+            <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">4h 12m</span>
+          <span class="cutbar" title="4 sessions · 12m over the 4h threshold">
+            <span class="piece" style="width:149px">
+              <i class="seg g" style="width:43px"></i><i class="seg g" style="width:37px"></i><i class="seg g" style="width:48px"></i><i class="seg g" style="width:21px"></i>
+            </span>
+            <span class="gap"></span>
+            <span class="piece" style="width:7px"><i class="seg r" style="width:7px"></i></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">3</span></td><td class="tname">chase down the flaky CI test</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">6h 00m</span>
+          <span class="cutbar" title="4 sessions · 2h over the 4h threshold">
+            <span class="piece" style="width:104px">
+              <i class="seg g" style="width:39px"></i><i class="seg g" style="width:39px"></i><i class="seg g" style="width:26px"></i>
+            </span>
+            <span class="gap"></span>
+            <span class="piece" style="width:52px"><i class="seg r" style="width:13px"></i><i class="seg r" style="width:39px"></i></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- ============ VARIANT 3 ============ -->
+  <div class="section">
+    <p class="label">3 · Diamond stitch</p>
+    <p class="cap">The bar stays one continuous piece (nothing structurally splits), but the threshold is marked with a small rotated-square "stitch" sitting right on the edge, echoing a perforated ticket. Slightly more decorative than the hairline tick, and doesn't need extra width budgeted for a gap.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="bar-wrap"><span class="bar" title="3 sessions · 1h 33m left of 4h">
+            <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+          </span></span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">4h 12m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="4 sessions · 12m over the 4h threshold">
+              <i class="seg g" style="width:45px"></i><i class="seg g" style="width:38px"></i><i class="seg g" style="width:49px"></i>
+              <span class="pair" style="width:29px"><i class="g" style="width:20px"></i><i class="r" style="width:9px"></i></span>
+            </span>
+            <span class="diamond" style="left:152px"></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">3</span></td><td class="tname">chase down the flaky CI test</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">6h 00m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="4 sessions · 2h over the 4h threshold">
+              <i class="seg g" style="width:40px"></i><i class="seg g" style="width:40px"></i>
+              <span class="pair" style="width:40px"><i class="g" style="width:27px"></i><i class="r" style="width:13px"></i></span>
+              <i class="seg r" style="width:40px"></i>
+            </span>
+            <span class="diamond" style="left:107px"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- ============ VARIANT 4 ============ -->
+  <div class="section">
+    <p class="label">4 · Proportional slit (gap width = how far over)</p>
+    <p class="cap">Same physical-cut idea as #2, but the gap itself isn't a fixed 4px — it widens with how far past the threshold you are (barely-over tasks get a hairline slit, wildly-over tasks get a visibly wide one). Packs a second signal into the same element, so the exact overage doesn't have to live only in a tooltip or the "+Xh over" label.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="bar" title="3 sessions · 1h 33m left of 4h">
+            <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">4h 12m</span>
+          <span class="propbar" title="4 sessions · 12m over the 4h threshold (5% over)">
+            <span class="piece" style="width:149px">
+              <i class="seg g" style="width:44px"></i><i class="seg g" style="width:37px"></i><i class="seg g" style="width:48px"></i><i class="seg g" style="width:20px"></i>
+            </span>
+            <span class="gap" style="width:3px"></span>
+            <span class="piece" style="width:8px"><i class="seg r" style="width:8px"></i></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">3</span></td><td class="tname">chase down the flaky CI test</td>
+        <td class="r total seg-cell">
+          <span class="over-label">+2h over</span>
+          <span class="seg-time">6h 00m</span>
+          <span class="propbar" title="4 sessions · 2h over the 4h threshold (50% over)">
+            <span class="piece" style="width:99px">
+              <i class="seg g" style="width:37px"></i><i class="seg g" style="width:37px"></i><i class="seg g" style="width:25px"></i>
+            </span>
+            <span class="gap" style="width:10px"></span>
+            <span class="piece" style="width:50px"><i class="seg r" style="width:13px"></i><i class="seg r" style="width:37px"></i></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+</div>
+</body>
+</html>

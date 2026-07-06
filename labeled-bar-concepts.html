@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Labeled capacity bar — numbers on the bar itself</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:760px;margin:0 auto}
+  .section{margin-bottom:52px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:700px;line-height:1.55}
+  .rowwrap{background:var(--bg);border-radius:10px;padding:10px 20px}
+  .demo-row{display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .demo-row:last-child{border-bottom:none}
+  .demo-row .tname{font-weight:600;font-size:14px;width:210px;flex:none}
+
+  :root{ --red2:#e5484d; }
+
+  /* ============ 1 · Split-fill readout, thin bar ============ */
+  .bar1{position:relative;width:220px;height:20px;border-radius:5px;background:#2c2c2c;overflow:hidden;flex:none}
+  .bar1 .fill{position:absolute;top:0;bottom:0;left:0;background:var(--green);display:flex;align-items:center}
+  .bar1 .fill.over{background:var(--red2)}
+  .bar1 .spent-txt{color:#062b14;font-weight:700;font-size:11px;padding-left:8px;white-space:nowrap}
+  .bar1 .fill.over .spent-txt{color:#fff}
+  .bar1 .est-txt{position:absolute;top:0;bottom:0;right:8px;display:flex;align-items:center;color:var(--muted);font-weight:600;font-size:11px;white-space:nowrap}
+  .bar1 .split{position:absolute;top:2px;bottom:2px;width:2px;background:#fff}
+
+  /* ============ 2 · Big split pill, real white gap ============ */
+  .bar2{display:flex;align-items:center;width:220px;height:28px;flex:none}
+  .bar2 .seg{height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .bar2 .seg.spent{background:var(--green);color:#062b14;border-radius:6px 0 0 6px}
+  .bar2 .seg.spent.over{background:var(--red2);color:#fff;border-radius:6px}
+  .bar2 .seg.est{background:#2c2c2c;color:var(--muted);border-radius:0 6px 6px 0}
+  .bar2 .gap{width:3px;height:28px;background:#fff;flex:none}
+
+  /* ============ 3 · Dimension-line style, labels above the bar ============ */
+  .bar3-wrap{width:220px;flex:none}
+  .bar3-labels{position:relative;height:15px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+  .bar3-labels .spent-txt{position:absolute;top:0;color:var(--green-hi)}
+  .bar3-labels .est-txt{position:absolute;top:0;color:var(--muted);font-weight:600}
+  .bar3{position:relative;width:220px;height:10px;border-radius:4px;background:#2c2c2c;overflow:visible}
+  .bar3 .fill{position:absolute;top:0;bottom:0;left:0;background:var(--green);border-radius:4px 0 0 4px}
+  .bar3 .fill.full{border-radius:4px}
+  .bar3 .fill.over{background:var(--red2)}
+  .bar3 .tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff}
+
+  /* ============ 4 · Single centered readout, tick as separator ============ */
+  .bar4{position:relative;width:220px;height:22px;border-radius:6px;background:#2c2c2c;overflow:hidden;flex:none;
+    display:flex;align-items:center;justify-content:center}
+  .bar4 .fill{position:absolute;top:0;bottom:0;left:0;background:var(--green)}
+  .bar4 .fill.over{background:var(--red2)}
+  .bar4 .readout{position:relative;z-index:1;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.65);
+    display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .bar4 .sep{width:1px;height:11px;background:rgba(255,255,255,.8);display:inline-block}
+  .bar4 .est-part{color:rgba(255,255,255,.75);font-weight:600}
+  .bar4 .over-tag{background:rgba(0,0,0,.35);border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:36px">Numbers move from beside the bar to <b>on</b> the bar. Rule stays the same in all four: under the estimate, show both <b>time spent</b> and the <b>estimate</b> with a white split marking the boundary between them; over the estimate, there's nothing left to split against, so it collapses to a single <b>total time spent</b> readout. Same three example rows throughout — comfortably under, almost at the estimate (stress-tests a narrow remainder), and over.</p>
+
+  <!-- ============ 1 ============ -->
+  <div class="section">
+    <p class="label">1 · Split-fill readout</p>
+    <p class="cap">The fill itself carries the spent-time label (dark text straight on the green, like a filled toggle), the leftover track carries the estimate in muted grey, and a thin white tick sits exactly on the seam between them. Over the estimate, the same tick disappears — there's only one number left to show, in white on the fill color.</p>
+    <div class="rowwrap">
+      <div class="demo-row">
+        <span class="tname">database migration from local to remote</span>
+        <div class="bar1" title="2h 27m of 4h · 1h 33m left">
+          <div class="fill" style="width:135px"><span class="spent-txt">2h 27m</span></div>
+          <span class="split" style="left:135px"></span>
+          <span class="est-txt">4h</span>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">refactor auth middleware</span>
+        <div class="bar1" title="3h 40m of 4h · 20m left">
+          <div class="fill" style="width:202px"><span class="spent-txt">3h 40m</span></div>
+          <span class="split" style="left:202px"></span>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">chase down the flaky CI test</span>
+        <div class="bar1" title="6h of 4h · 2h over">
+          <div class="fill over" style="width:220px"><span class="spent-txt">6h 00m</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="cap" style="margin-top:10px">Row 2 is the edge case: at 3h40m of 4h there's only 18px of track left — nowhere near enough for "4h" to render without crowding the tick. Here the number is just dropped (the tick alone still shows where the estimate is); the exact figure is a tooltip away.</p>
+  </div>
+
+  <!-- ============ 2 ============ -->
+  <div class="section">
+    <p class="label">2 · Split pill, physical white gap</p>
+    <p class="cap">Taller capsule, split into two real pieces with an actual 3px white gap between them — the "split" is a literal cut, not just a line on top, echoing the grey slit from the earlier capacity-bar concepts but in white since it's marking a boundary rather than a threshold crossing. Over the estimate, the two pieces merge into one (no gap, nothing to separate) and the single pill just turns red.</p>
+    <div class="rowwrap">
+      <div class="demo-row">
+        <span class="tname">database migration from local to remote</span>
+        <div class="bar2" title="2h 27m of 4h · 1h 33m left">
+          <div class="seg spent" style="width:133px">2h 27m</div>
+          <div class="gap"></div>
+          <div class="seg est" style="width:84px">4h</div>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">refactor auth middleware</span>
+        <div class="bar2" title="3h 40m of 4h · 20m left">
+          <div class="seg spent" style="width:200px">3h 40m</div>
+          <div class="gap"></div>
+          <div class="seg est" style="width:17px"></div>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">chase down the flaky CI test</span>
+        <div class="bar2" title="6h of 4h · 2h over">
+          <div class="seg spent over" style="width:220px">6h 00m</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 ============ -->
+  <div class="section">
+    <p class="label">3 · Dimension-line style</p>
+    <p class="cap">Borrowed from architectural/technical drawings: the two numbers sit as plain text just above the bar, each anchored over its own segment, with a white tick dropping from the split point in the text down through the bar itself — same idea as 1, but the labels get their own clean row instead of fighting for space inside a thin fill. Over the estimate, the second label and the tick both go away, leaving one number sitting over a solid bar.</p>
+    <div class="rowwrap">
+      <div class="demo-row">
+        <span class="tname">database migration from local to remote</span>
+        <div class="bar3-wrap">
+          <div class="bar3-labels">
+            <span class="spent-txt" style="left:0">2h 27m</span>
+            <span class="est-txt" style="right:0">4h</span>
+          </div>
+          <div class="bar3" title="2h 27m of 4h · 1h 33m left">
+            <div class="fill" style="width:135px"></div>
+            <span class="tick" style="left:135px"></span>
+          </div>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">refactor auth middleware</span>
+        <div class="bar3-wrap">
+          <div class="bar3-labels">
+            <span class="spent-txt" style="left:0">3h 40m</span>
+            <span class="est-txt" style="right:0">4h</span>
+          </div>
+          <div class="bar3" title="3h 40m of 4h · 20m left">
+            <div class="fill" style="width:202px"></div>
+            <span class="tick" style="left:202px"></span>
+          </div>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">chase down the flaky CI test</span>
+        <div class="bar3-wrap">
+          <div class="bar3-labels">
+            <span class="spent-txt" style="left:0;color:var(--red2)">6h 00m</span>
+          </div>
+          <div class="bar3" title="6h of 4h · 2h over">
+            <div class="fill full over" style="width:220px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4 ============ -->
+  <div class="section">
+    <p class="label">4 · Single centered readout</p>
+    <p class="cap">Most compact: one line of white text centered on the bar reads "spent │ estimate" with a small vertical tick standing in for the "/" — the split lives inside the text itself rather than tracking the fill boundary separately, so it never fights for space even when the fill is nearly full. Over the estimate, it collapses to just the total, with a small "+Xh over" tag riding alongside it.</p>
+    <div class="rowwrap">
+      <div class="demo-row">
+        <span class="tname">database migration from local to remote</span>
+        <div class="bar4" title="2h 27m of 4h · 1h 33m left">
+          <div class="fill" style="width:135px"></div>
+          <span class="readout">2h 27m<span class="sep"></span><span class="est-part">4h</span></span>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">refactor auth middleware</span>
+        <div class="bar4" title="3h 40m of 4h · 20m left">
+          <div class="fill" style="width:202px"></div>
+          <span class="readout">3h 40m<span class="sep"></span><span class="est-part">4h</span></span>
+        </div>
+      </div>
+      <div class="demo-row">
+        <span class="tname">chase down the flaky CI test</span>
+        <div class="bar4" title="6h of 4h · 2h over">
+          <div class="fill over" style="width:220px"></div>
+          <span class="readout">6h 00m<span class="over-tag">+2h over</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

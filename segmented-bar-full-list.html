@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Segmented bar — full list mockup</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+  .cap{color:var(--muted);font-size:13px;margin:14px 0 0;max-width:620px}
+  table{background:var(--bg);border-radius:10px;overflow:hidden;width:100%;border-collapse:collapse;margin-top:0}
+  .seg-cell{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .seg-time{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:52px;text-align:right}
+
+  /* shared 8px track; each session is its own rounded chip with a real gap
+     before the next one, so same-color sessions never read as one block */
+  .bar{height:8px;border-radius:4px;background:#2c2c2c;display:flex;gap:3px;overflow:hidden;flex:none}
+  .bar .seg{display:block;height:100%;border-radius:2px}
+  .bar .seg.g{background:var(--green)}
+  .bar .seg.r{background:var(--red2)}
+  /* the one session that straddles the estimate: green+red halves of the SAME
+     session sit flush (no gap) — only the pair's outer edges are rounded */
+  .bar .pair{display:flex;height:100%}
+  .bar .pair .g{border-radius:2px 0 0 2px}
+  .bar .pair .r{border-radius:0 2px 2px 0}
+
+  :root{ --red2:#e5484d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <table><thead><tr><th class="idx">#</th><th>Task</th><th class="r">Total time</th><th class="menu-cell"></th></tr></thead>
+  <tbody>
+
+    <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+      <td class="r total seg-cell">
+        <span class="seg-time">7h 00m</span>
+        <span class="bar" title="3 sessions (2h, 2h, 3h) · 2h over the 5h estimate">
+          <i class="seg g" style="width:72px"></i>
+          <i class="seg g" style="width:72px"></i>
+          <span class="pair" style="width:108px"><i class="g" style="width:36px"></i><i class="r" style="width:72px"></i></span>
+        </span>
+      </td>
+      <td class="menu-cell"><button class="menu-btn">⋯</button></td></tr>
+
+    <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+      <td class="r total seg-cell">
+        <span class="seg-time">1h 30m</span>
+        <span class="bar" title="2 sessions (40m, 50m) · 10m left of 1h40m">
+          <i class="seg g" style="width:24px"></i>
+          <i class="seg g" style="width:30px"></i>
+        </span>
+      </td>
+      <td class="menu-cell"><button class="menu-btn">⋯</button></td></tr>
+
+    <tr><td class="idx"><span class="num">3</span></td><td class="tname">write onboarding docs</td>
+      <td class="r total seg-cell">
+        <span class="seg-time">45m</span>
+      </td>
+      <td class="menu-cell"><button class="menu-btn">⋯</button></td></tr>
+
+    <tr><td class="idx"><span class="num">4</span></td><td class="tname">clean up the notifications backlog</td>
+      <td class="r total seg-cell">
+        <span class="seg-time">1h 45m</span>
+        <span class="bar" title="6 sessions · 15m over the 1h30m estimate">
+          <i class="seg g" style="width:9px"></i>
+          <i class="seg g" style="width:12px"></i>
+          <i class="seg g" style="width:6px"></i>
+          <i class="seg g" style="width:15px"></i>
+          <i class="seg g" style="width:9px"></i>
+          <span class="pair" style="width:12px"><i class="g" style="width:3px"></i><i class="r" style="width:9px"></i></span>
+        </span>
+      </td>
+      <td class="menu-cell"><button class="menu-btn">⋯</button></td></tr>
+
+  </tbody></table>
+
+  <p class="cap">Row 1 is the confirmed example (5h estimate, 2h+2h+3h). Row 2 is comfortably under its 1h40m estimate — the bar just ends where the time does, no filler for the unused budget. Row 3 has no estimate at all, so it falls back to plain elapsed time exactly like today. Row 4 shows six short sessions still holding up: each stays its own visible chip down to a few pixels wide, and the crossing point still lands cleanly inside whichever session it falls in.</p>
+</div>
+</body>
+</html>

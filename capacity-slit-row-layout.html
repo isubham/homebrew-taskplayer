@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Capacity threshold — combined into a two-line row</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:700px;margin:0 auto}
+  .section{margin-bottom:48px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:640px;line-height:1.55}
+  table{background:var(--bg);border-radius:10px;overflow:hidden;width:100%;border-collapse:collapse}
+
+  :root{ --red2:#e5484d; --slit:#6b6b6b; --slit-lt:#8f8f8f; }
+
+  /* the whole row is now just: title line, bar line. No session-count text,
+     no "Xh / Yh" text — the bar alone carries sessions + total + estimate.
+     Exact numbers still live in the title attribute (tooltip) for anyone
+     who wants them, they just aren't spelled out inline anymore. */
+  .rcell{padding:13px 24px 15px;vertical-align:middle}
+  .rtitle{font-weight:600;font-size:14px;line-height:1.3;margin-bottom:9px}
+  .rbarline{display:flex;align-items:center;height:8px}
+
+  /* shared fixed-width track (unchanged from the previous round) */
+  .bar-wrap{position:relative;display:inline-flex;align-items:center;height:14px}
+  .bar{width:160px;height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden;flex:none}
+  .bar .seg{display:block;height:100%;border-radius:2px}
+  .bar .seg.g{background:var(--green)}
+  .bar .seg.r{background:var(--red2)}
+  .bar .pair{display:flex;height:100%}
+  .bar .pair .g{border-radius:2px 0 0 2px}
+  .bar .pair .r{border-radius:0 2px 2px 0}
+  .bar>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+
+  .slit-tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--slit-lt);border-radius:1px}
+
+  .cutbar{width:160px;height:8px;display:flex;align-items:center;flex:none}
+  .cutbar .piece{height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden}
+  .cutbar .piece>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+  .cutbar .gap{height:8px;width:4px;border-radius:2px;background:var(--slit);flex:none}
+
+  .diamond{position:absolute;top:50%;width:7px;height:7px;background:var(--slit-lt);border:1.5px solid #000;
+    transform:translate(-50%,-50%) rotate(45deg);border-radius:1.5px}
+
+  .propbar{width:160px;height:8px;display:flex;align-items:center;flex:none}
+  .propbar .piece{height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden}
+  .propbar .piece>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+  .propbar .gap{height:8px;border-radius:2px;background:var(--slit);flex:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:36px">Row now collapses to two lines and nothing else: the <b>title</b> on top, the <b>bar</b> underneath. "3 sessions", "2h 27m", "4h estimate" all used to be separate text — now they're just the bar's segment count, fill, color, and slit, so that text is gone from the row entirely (it still lives in the tooltip for anyone who hovers). Same four slit treatments as before, replayed in the new row shape.</p>
+
+  <!-- ============ 1 · Hairline tick ============ -->
+  <div class="section">
+    <p class="label">1 · Hairline tick</p>
+    <table><tbody>
+      <tr>
+        <td class="idx"><span class="num">1</span></td>
+        <td class="rcell">
+          <div class="rtitle">database migration from local to remote</div>
+          <div class="rbarline">
+            <span class="bar-wrap"><span class="bar" title="3 sessions · 2h 27m of 4h · 1h 33m left">
+              <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+            </span></span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">2</span></td>
+        <td class="rcell">
+          <div class="rtitle">refactor auth middleware</div>
+          <div class="rbarline">
+            <span class="bar-wrap">
+              <span class="bar" title="4 sessions · 4h 12m of 4h · 12m over">
+                <i class="seg g" style="width:45px"></i><i class="seg g" style="width:38px"></i><i class="seg g" style="width:49px"></i>
+                <span class="pair" style="width:29px"><i class="g" style="width:20px"></i><i class="r" style="width:9px"></i></span>
+              </span>
+              <span class="slit-tick" style="left:152px"></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">3</span></td>
+        <td class="rcell">
+          <div class="rtitle">chase down the flaky CI test</div>
+          <div class="rbarline">
+            <span class="bar-wrap">
+              <span class="bar" title="4 sessions · 6h of 4h · 2h over">
+                <i class="seg g" style="width:40px"></i><i class="seg g" style="width:40px"></i>
+                <span class="pair" style="width:40px"><i class="g" style="width:27px"></i><i class="r" style="width:13px"></i></span>
+                <i class="seg r" style="width:40px"></i>
+              </span>
+              <span class="slit-tick" style="left:107px"></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+    </tbody></table>
+  </div>
+
+  <!-- ============ 2 · Physical cut ============ -->
+  <div class="section">
+    <p class="label">2 · Physical cut</p>
+    <table><tbody>
+      <tr>
+        <td class="idx"><span class="num">1</span></td>
+        <td class="rcell">
+          <div class="rtitle">database migration from local to remote</div>
+          <div class="rbarline">
+            <span class="bar" title="3 sessions · 2h 27m of 4h · 1h 33m left">
+              <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">2</span></td>
+        <td class="rcell">
+          <div class="rtitle">refactor auth middleware</div>
+          <div class="rbarline">
+            <span class="cutbar" title="4 sessions · 4h 12m of 4h · 12m over">
+              <span class="piece" style="width:149px">
+                <i class="seg g" style="width:43px"></i><i class="seg g" style="width:37px"></i><i class="seg g" style="width:48px"></i><i class="seg g" style="width:21px"></i>
+              </span>
+              <span class="gap"></span>
+              <span class="piece" style="width:7px"><i class="seg r" style="width:7px"></i></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">3</span></td>
+        <td class="rcell">
+          <div class="rtitle">chase down the flaky CI test</div>
+          <div class="rbarline">
+            <span class="cutbar" title="4 sessions · 6h of 4h · 2h over">
+              <span class="piece" style="width:104px">
+                <i class="seg g" style="width:39px"></i><i class="seg g" style="width:39px"></i><i class="seg g" style="width:26px"></i>
+              </span>
+              <span class="gap"></span>
+              <span class="piece" style="width:52px"><i class="seg r" style="width:13px"></i><i class="seg r" style="width:39px"></i></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+    </tbody></table>
+  </div>
+
+  <!-- ============ 3 · Diamond stitch ============ -->
+  <div class="section">
+    <p class="label">3 · Diamond stitch</p>
+    <table><tbody>
+      <tr>
+        <td class="idx"><span class="num">1</span></td>
+        <td class="rcell">
+          <div class="rtitle">database migration from local to remote</div>
+          <div class="rbarline">
+            <span class="bar-wrap"><span class="bar" title="3 sessions · 2h 27m of 4h · 1h 33m left">
+              <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+            </span></span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">2</span></td>
+        <td class="rcell">
+          <div class="rtitle">refactor auth middleware</div>
+          <div class="rbarline">
+            <span class="bar-wrap">
+              <span class="bar" title="4 sessions · 4h 12m of 4h · 12m over">
+                <i class="seg g" style="width:45px"></i><i class="seg g" style="width:38px"></i><i class="seg g" style="width:49px"></i>
+                <span class="pair" style="width:29px"><i class="g" style="width:20px"></i><i class="r" style="width:9px"></i></span>
+              </span>
+              <span class="diamond" style="left:152px"></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">3</span></td>
+        <td class="rcell">
+          <div class="rtitle">chase down the flaky CI test</div>
+          <div class="rbarline">
+            <span class="bar-wrap">
+              <span class="bar" title="4 sessions · 6h of 4h · 2h over">
+                <i class="seg g" style="width:40px"></i><i class="seg g" style="width:40px"></i>
+                <span class="pair" style="width:40px"><i class="g" style="width:27px"></i><i class="r" style="width:13px"></i></span>
+                <i class="seg r" style="width:40px"></i>
+              </span>
+              <span class="diamond" style="left:107px"></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+    </tbody></table>
+  </div>
+
+  <!-- ============ 4 · Proportional slit ============ -->
+  <div class="section">
+    <p class="label">4 · Proportional slit</p>
+    <table><tbody>
+      <tr>
+        <td class="idx"><span class="num">1</span></td>
+        <td class="rcell">
+          <div class="rtitle">database migration from local to remote</div>
+          <div class="rbarline">
+            <span class="bar" title="3 sessions · 2h 27m of 4h · 1h 33m left">
+              <i class="seg g" style="width:47px"></i><i class="seg g" style="width:40px"></i><i class="seg g" style="width:11px"></i>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">2</span></td>
+        <td class="rcell">
+          <div class="rtitle">refactor auth middleware</div>
+          <div class="rbarline">
+            <span class="propbar" title="4 sessions · 4h 12m of 4h · 12m over (5%)">
+              <span class="piece" style="width:149px">
+                <i class="seg g" style="width:44px"></i><i class="seg g" style="width:37px"></i><i class="seg g" style="width:48px"></i><i class="seg g" style="width:20px"></i>
+              </span>
+              <span class="gap" style="width:3px"></span>
+              <span class="piece" style="width:8px"><i class="seg r" style="width:8px"></i></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+      <tr>
+        <td class="idx"><span class="num">3</span></td>
+        <td class="rcell">
+          <div class="rtitle">chase down the flaky CI test</div>
+          <div class="rbarline">
+            <span class="propbar" title="4 sessions · 6h of 4h · 2h over (50%)">
+              <span class="piece" style="width:99px">
+                <i class="seg g" style="width:37px"></i><i class="seg g" style="width:37px"></i><i class="seg g" style="width:25px"></i>
+              </span>
+              <span class="gap" style="width:10px"></span>
+              <span class="piece" style="width:50px"><i class="seg r" style="width:13px"></i><i class="seg r" style="width:37px"></i></span>
+            </span>
+          </div>
+        </td>
+        <td class="menu-cell"><button class="menu-btn">⋯</button></td>
+      </tr>
+    </tbody></table>
+  </div>
+
+</div>
+</body>
+</html>

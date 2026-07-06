@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Recent — pinned sidebar entry + last-6-played page</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:920px;margin:0 auto}
+  .section{margin-bottom:52px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:820px;line-height:1.55}
+
+  :root{ --c-work:#1db954; --c-side:#509bf5; --c-admin:#e5a83c; }
+
+  /* ---- mini sidebar preview, shared by all three sections ---- */
+  .mini-side{width:230px;background:var(--bg);border-radius:10px;padding:14px 10px;flex:none}
+  .mini-side h3{color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin:14px 10px 8px}
+  .recent-item .sq{background:var(--bg3);color:var(--muted)}
+  .recent-item.active,.recent-item:hover{color:#fff;background:var(--bg3)}
+  .demo-row{display:flex;gap:20px;align-items:flex-start}
+  .demo-main{flex:1;min-width:0;background:var(--bg);border-radius:10px;padding:0 0 8px;overflow:hidden}
+  .rhdr{padding:22px 24px 14px;display:flex;align-items:center;gap:16px}
+  .rhdr .cover{width:56px;height:56px;border-radius:8px;display:grid;place-items:center;font-size:24px;flex:none;
+    background:linear-gradient(135deg,#3a3a3a,#1c1c1c);color:var(--muted)}
+  .rhdr h1{margin:0 0 2px;font-size:20px}
+  .rhdr .sub{color:var(--muted);font-size:12px}
+  .list-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);font-weight:500}
+  .list-tag i{width:6px;height:6px;border-radius:50%;flex:none}
+
+  table.rtbl{width:100%;border-collapse:collapse}
+  table.rtbl td{padding:11px 20px;font-size:14px;vertical-align:middle}
+  table.rtbl tr{border-bottom:1px solid var(--line)}
+  table.rtbl tr:last-child{border-bottom:none}
+  table.rtbl tr:hover{background:var(--bg3)}
+  .ridx{color:var(--muted);width:28px;font-variant-numeric:tabular-nums}
+  .rname{font-weight:600}
+  .rwhen{color:var(--muted);font-size:12px;white-space:nowrap;text-align:right;width:90px}
+
+  /* ---- reused, real production bar classes (capbar/cutbar) ---- */
+  .bar-label{margin-right:10px;font-weight:600;font-variant-numeric:tabular-nums;font-size:13px}
+  .capbar{width:120px;height:8px;border-radius:4px;background:#2c2c2c;display:inline-flex;overflow:hidden;vertical-align:middle}
+  .capbar .seg{display:block;height:100%;border-radius:2px;background:var(--green)}
+  .capbar>*+*{box-shadow:-1px 0 0 rgba(0,0,0,.55)}
+
+  /* ---- 2 · card grid ---- */
+  .rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:0 24px 24px}
+  .rcard{background:#1c1c1c;border-radius:10px;padding:14px;cursor:pointer;transition:background .15s}
+  .rcard:hover{background:var(--bg3)}
+  .rcard .top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .rcard .sq{width:34px;height:34px;border-radius:6px;display:grid;place-items:center;font-size:15px;flex:none}
+  .rcard .name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rcard .listname{color:var(--muted);font-size:11px}
+  .rcard .foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+  .rcard .when{color:var(--muted);font-size:11px}
+
+  /* ---- 3 · compact stacked rows ---- */
+  .rstack{padding:4px 24px 20px}
+  .rrow{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line)}
+  .rrow:last-child{border-bottom:none}
+  .rrow:hover{background:var(--bg3);border-radius:8px}
+  .rrank{width:22px;height:22px;border-radius:50%;background:var(--bg3);color:var(--muted);font-size:11px;font-weight:700;
+    display:grid;place-items:center;flex:none}
+  .rdot{width:10px;height:10px;border-radius:3px;flex:none}
+  .rmeta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .rmeta .n{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rmeta .l{color:var(--muted);font-size:11px}
+  .rright{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+  .rright .when{color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:40px">"Recent" is a pinned entry that lives above the "Your Lists" header — not a real list, so no color/emoji/rename, no drag-reorder, no "Add task". Clicking it opens a read-only page of the <b>last 6 distinct tasks played</b>, most-recent first, deduped (playing the same task again just moves it back to #1 instead of adding a duplicate row). Because tasks can come from any list, every row also shows which list it belongs to. All three page layouts below share the same sidebar entry — only the page itself changes.</p>
+
+  <!-- ============ SIDEBAR ENTRY (shared) ============ -->
+  <div class="section">
+    <p class="label">The sidebar entry</p>
+    <p class="cap">Same <code>.list-item</code> row every list already uses, so it doesn't look bolted-on — just with a neutral clock glyph in a grey tile instead of a colored emoji square (since "Recent" has no color of its own), and no rename pencil on hover (there's nothing to rename).</p>
+    <div class="mini-side">
+      <div class="brand" style="padding:6px 8px 14px"><span class="dot">▶</span><span class="brand-name">TaskPlayer</span></div>
+      <div class="list-item recent-item active">
+        <span class="sq"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <span class="meta"><span>Recent</span><small>Last 6 played</small></span>
+      </div>
+      <h3>Your Lists</h3>
+      <div class="list-item">
+        <span class="sq" style="background:#1db95422;color:#1db954">💼</span>
+        <span class="meta"><span>Work</span><small>5 tasks · 4h 52m</small></span>
+      </div>
+      <div class="list-item">
+        <span class="sq" style="background:#509bf522;color:#509bf5">🚀</span>
+        <span class="meta"><span>Side Project</span><small>3 tasks · 1h 10m</small></span>
+      </div>
+      <div class="list-item">
+        <span class="sq" style="background:#e5a83c22;color:#e5a83c">🗂️</span>
+        <span class="meta"><span>Admin &amp; Errands</span><small>2 tasks · 45m</small></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 1 · TABLE ============ -->
+  <div class="section">
+    <p class="label">1 · Table — matches a normal list page exactly</p>
+    <p class="cap">Reuses the real task-row layout (title + capacity-bar column) unchanged, just with the toolbar removed (no "▶ play first" / "＋ Add task" — you don't add tasks to Recent) and a "Last played" column added since recency is the whole point here. The list a task belongs to sits as a small colored tag under its name.</p>
+    <div class="demo-main">
+      <div class="rhdr">
+        <div class="cover"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <div><h1>Recent</h1><div class="sub">Last 6 tasks played, across all lists</div></div>
+      </div>
+      <table class="rtbl"><tbody>
+        <tr>
+          <td class="ridx">1</td>
+          <td><div class="rname">refactor auth middleware</div><span class="list-tag"><i style="background:var(--c-work)"></i>Work</span></td>
+          <td class="r" style="text-align:right"><span class="bar-label">20m<span style="color:var(--muted);font-weight:500"> / 2h</span></span><span class="capbar"><i class="seg" style="width:20px"></i></span></td>
+          <td class="rwhen">now · recording</td>
+        </tr>
+        <tr>
+          <td class="ridx">2</td>
+          <td><div class="rname">database migration from local to remote</div><span class="list-tag"><i style="background:var(--c-work)"></i>Work</span></td>
+          <td class="r" style="text-align:right"><span class="bar-label">2h 27m<span style="color:var(--muted);font-weight:500"> / 4h</span></span><span class="capbar"><i class="seg" style="width:74px"></i></span></td>
+          <td class="rwhen">35m ago</td>
+        </tr>
+        <tr>
+          <td class="ridx">3</td>
+          <td><div class="rname">clean up the notifications backlog</div><span class="list-tag"><i style="background:var(--c-side)"></i>Side Project</span></td>
+          <td class="r" style="text-align:right"><span class="bar-label">1h 45m<span style="color:var(--muted);font-weight:500"> / 1h 30m</span></span><span class="capbar"><i class="seg" style="width:96px;background:var(--red2,#e5484d)"></i></span></td>
+          <td class="rwhen">1h ago</td>
+        </tr>
+        <tr>
+          <td class="ridx">4</td>
+          <td><div class="rname">write onboarding docs</div><span class="list-tag"><i style="background:var(--c-work)"></i>Work</span></td>
+          <td class="r" style="text-align:right"><span class="bar-label">45m<span style="color:var(--muted);font-weight:500"> / 3h</span></span><span class="capbar"><i class="seg" style="width:15px"></i></span></td>
+          <td class="rwhen">Yesterday</td>
+        </tr>
+        <tr>
+          <td class="ridx">5</td>
+          <td><div class="rname">expense report</div><span class="list-tag"><i style="background:var(--c-admin)"></i>Admin &amp; Errands</span></td>
+          <td class="r" style="text-align:right"><span class="bar-label">30m<span style="color:var(--muted);font-weight:500"> / 1h</span></span><span class="capbar"><i class="seg" style="width:60px"></i></span></td>
+          <td class="rwhen">Yesterday</td>
+        </tr>
+        <tr>
+          <td class="ridx">6</td>
+          <td><div class="rname">inbox zero</div><span class="list-tag"><i style="background:var(--c-admin)"></i>Admin &amp; Errands</span></td>
+          <td class="r" style="text-align:right"><span class="bar-label">15m<span style="color:var(--muted);font-weight:500"> / 30m</span></span><span class="capbar"><i class="seg" style="width:60px"></i></span></td>
+          <td class="rwhen">2 days ago</td>
+        </tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <!-- ============ 2 · CARD GRID ============ -->
+  <div class="section">
+    <p class="label">2 · Card grid — Spotify's "Recently played" shelf</p>
+    <p class="cap">Closest to the metaphor the whole app is already leaning on. Six tiles instead of six table rows; each is its own little card with the list's color/emoji as the "cover art", the task name, its list, when it was last played, and a slim progress bar along the bottom edge. Reads more like a home-screen shelf than a data table — better suited to a smaller "Recent" shelf embedded elsewhere too, not just its own full page.</p>
+    <div class="demo-main">
+      <div class="rhdr">
+        <div class="cover"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <div><h1>Recent</h1><div class="sub">Last 6 tasks played, across all lists</div></div>
+      </div>
+      <div class="rgrid">
+        <div class="rcard">
+          <div class="top"><span class="sq" style="background:#1db95422;color:#1db954">💼</span><div style="min-width:0"><div class="name">refactor auth middleware</div><div class="listname">Work</div></div></div>
+          <div class="foot"><span class="when">now · recording</span><span class="capbar" style="width:60px"><i class="seg" style="width:10px"></i></span></div>
+        </div>
+        <div class="rcard">
+          <div class="top"><span class="sq" style="background:#1db95422;color:#1db954">💼</span><div style="min-width:0"><div class="name">database migration…</div><div class="listname">Work</div></div></div>
+          <div class="foot"><span class="when">35m ago</span><span class="capbar" style="width:60px"><i class="seg" style="width:37px"></i></span></div>
+        </div>
+        <div class="rcard">
+          <div class="top"><span class="sq" style="background:#509bf522;color:#509bf5">🚀</span><div style="min-width:0"><div class="name">clean up notifications</div><div class="listname">Side Project</div></div></div>
+          <div class="foot"><span class="when">1h ago</span><span class="capbar" style="width:60px"><i class="seg" style="width:48px;background:var(--red2,#e5484d)"></i></span></div>
+        </div>
+        <div class="rcard">
+          <div class="top"><span class="sq" style="background:#1db95422;color:#1db954">💼</span><div style="min-width:0"><div class="name">write onboarding docs</div><div class="listname">Work</div></div></div>
+          <div class="foot"><span class="when">Yesterday</span><span class="capbar" style="width:60px"><i class="seg" style="width:8px"></i></span></div>
+        </div>
+        <div class="rcard">
+          <div class="top"><span class="sq" style="background:#e5a83c22;color:#e5a83c">🗂️</span><div style="min-width:0"><div class="name">expense report</div><div class="listname">Admin &amp; Errands</div></div></div>
+          <div class="foot"><span class="when">Yesterday</span><span class="capbar" style="width:60px"><i class="seg" style="width:30px"></i></span></div>
+        </div>
+        <div class="rcard">
+          <div class="top"><span class="sq" style="background:#e5a83c22;color:#e5a83c">🗂️</span><div style="min-width:0"><div class="name">inbox zero</div><div class="listname">Admin &amp; Errands</div></div></div>
+          <div class="foot"><span class="when">2 days ago</span><span class="capbar" style="width:60px"><i class="seg" style="width:30px"></i></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 · COMPACT STACK ============ -->
+  <div class="section">
+    <p class="label">3 · Compact stacked rows — borrowed from the "Recent sessions" rail card</p>
+    <p class="cap">The Now Playing rail already has a small "Recent sessions" list in this exact shape; this is that same row style promoted to a full page, with a numbered rank badge standing in for the position (#1 = played most recently) instead of the sidebar's usual track number. Sits between the density of the table and the visual weight of the card grid.</p>
+    <div class="demo-main">
+      <div class="rhdr">
+        <div class="cover"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <div><h1>Recent</h1><div class="sub">Last 6 tasks played, across all lists</div></div>
+      </div>
+      <div class="rstack">
+        <div class="rrow">
+          <span class="rrank">1</span><span class="rdot" style="background:var(--c-work)"></span>
+          <div class="rmeta"><span class="n">refactor auth middleware</span><span class="l">Work</span></div>
+          <div class="rright"><span class="when" style="color:var(--green)">now · recording</span><span class="bar-label" style="font-size:12px">20m / 2h</span></div>
+        </div>
+        <div class="rrow">
+          <span class="rrank">2</span><span class="rdot" style="background:var(--c-work)"></span>
+          <div class="rmeta"><span class="n">database migration from local to remote</span><span class="l">Work</span></div>
+          <div class="rright"><span class="when">35m ago</span><span class="bar-label" style="font-size:12px">2h 27m / 4h</span></div>
+        </div>
+        <div class="rrow">
+          <span class="rrank">3</span><span class="rdot" style="background:var(--c-side)"></span>
+          <div class="rmeta"><span class="n">clean up the notifications backlog</span><span class="l">Side Project</span></div>
+          <div class="rright"><span class="when">1h ago</span><span class="bar-label" style="font-size:12px;color:var(--red2,#e5484d)">1h 45m / 1h 30m</span></div>
+        </div>
+        <div class="rrow">
+          <span class="rrank">4</span><span class="rdot" style="background:var(--c-work)"></span>
+          <div class="rmeta"><span class="n">write onboarding docs</span><span class="l">Work</span></div>
+          <div class="rright"><span class="when">Yesterday</span><span class="bar-label" style="font-size:12px">45m / 3h</span></div>
+        </div>
+        <div class="rrow">
+          <span class="rrank">5</span><span class="rdot" style="background:var(--c-admin)"></span>
+          <div class="rmeta"><span class="n">expense report</span><span class="l">Admin &amp; Errands</span></div>
+          <div class="rright"><span class="when">Yesterday</span><span class="bar-label" style="font-size:12px">30m / 1h</span></div>
+        </div>
+        <div class="rrow">
+          <span class="rrank">6</span><span class="rdot" style="background:var(--c-admin)"></span>
+          <div class="rmeta"><span class="n">inbox zero</span><span class="l">Admin &amp; Errands</span></div>
+          <div class="rright"><span class="when">2 days ago</span><span class="bar-label" style="font-size:12px">15m / 30m</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

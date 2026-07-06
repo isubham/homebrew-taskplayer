@@ -38,8 +38,22 @@ export function createCommands({ state, ui, renderer, invoke }) {
 
   async function addTask() {
     if (!state.activeListId) return;
-    const name = await uiPrompt("Task name");
-    if (name) apply(await invoke("add_task", { listId: state.activeListId, name }));
+    const value = await uiForm({
+      title: "New task",
+      confirmText: "Add task",
+      focusSel: "#taskNameIn",
+      bodyHtml: `
+        <div class="ffield"><label>Name</label><input id="taskNameIn" placeholder="Task name" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
+        <div class="ffield"><label>Estimate</label><input type="number" id="taskEstIn" min="0.25" max="1000" step="0.25" value="0.5" autocomplete="off"> hours</div>`,
+      collect: () => {
+        const name = document.getElementById("taskNameIn").value.trim();
+        if (!name) return undefined;
+        const hours = parseFloat(document.getElementById("taskEstIn").value);
+        if (isNaN(hours) || hours <= 0) return undefined;
+        return { name, minutes: Math.round(hours * 60) };
+      },
+    });
+    if (value) apply(await invoke("add_task", { listId: state.activeListId, name: value.name, estimateMin: value.minutes }));
   }
 
   async function renameTask(id) {
@@ -107,6 +121,35 @@ export function createCommands({ state, ui, renderer, invoke }) {
     if (value && value.listId) apply(await invoke("move_task", { id, listId: value.listId }));
   }
 
+  async function reorderTasks(listId, orderedIds) {
+    apply(await invoke("reorder_tasks", { listId, orderedIds }));
+  }
+
+  async function setAlbum(id) {
+    if (!state.S) return;
+    const task = findTask(id);
+    if (!task) return;
+    const others = new Set(state.S.tasks.filter((item) => item.listId === task.listId && item.album).map((item) => item.album));
+    const optionsHtml = Array.from(others).map((name) => `<option value="${esc(name)}"></option>`).join("");
+    const value = await uiForm({
+      title: "Set album",
+      confirmText: "Save",
+      focusSel: "#albIn",
+      bodyHtml: `<div class="dbody">Group this with related tasks under an album — type an existing one or a new name. Leave blank for no album.</div>
+        <div class="ffield"><label>Album</label><input id="albIn" list="albumOptions" placeholder="e.g. Backend" autocomplete="off" value="${esc(task.album || "")}"><datalist id="albumOptions">${optionsHtml}</datalist></div>`,
+      collect: () => ({ album: document.getElementById("albIn").value.trim() || null }),
+    });
+    if (value) apply(await invoke("set_album", { id, album: value.album }));
+  }
+
+  async function moveTaskToAlbum(id, album) {
+    apply(await invoke("set_album", { id, album: album || null }));
+  }
+
+  async function reorderLists(orderedIds) {
+    apply(await invoke("reorder_lists", { orderedIds }));
+  }
+
   async function editLyrics(id) {
     const task = findTask(id);
     if (!task) return;
@@ -153,8 +196,50 @@ export function createCommands({ state, ui, renderer, invoke }) {
     if (value) apply(await invoke("add_session", { taskId, start: value.start, end: value.end }));
   }
 
+  async function editSession(id) {
+    if (!state.S) return;
+    const session = state.S.sessions.find((item) => item.id === id);
+    if (!session) return;
+    const start = new Date(session.start);
+    const pad = (n) => String(n).padStart(2, "0");
+    const dateValue = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+    const timeValue = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+    const currentMin = Math.max(1, Math.round(((session.end ?? Date.now()) - session.start) / 60000));
+    const body = `
+      <div class="dbody">Adjust when this session started and how long it ran.</div>
+      <div class="ffield"><label>Date</label><input type="date" id="sfDate" value="${dateValue}"></div>
+      <div class="ffield"><label>Start</label><input type="time" id="sfTime" value="${timeValue}"></div>
+      <div class="ffield"><label>Duration</label><input type="number" id="sfMin" min="1" max="1440" value="${currentMin}"> minutes</div>`;
+    const value = await uiForm({
+      title: "Edit session",
+      confirmText: "Save",
+      focusSel: "#sfMin",
+      bodyHtml: body,
+      collect: () => {
+        const date = document.getElementById("sfDate").value;
+        const time = document.getElementById("sfTime").value || "00:00";
+        const minutes = parseInt(document.getElementById("sfMin").value, 10);
+        const newStart = new Date(`${date}T${time}`).getTime();
+        if (!date || !minutes || minutes <= 0 || isNaN(newStart)) return undefined;
+        return { start: newStart, end: newStart + minutes * 60000 };
+      },
+    });
+    if (value) apply(await invoke("update_session", { id, start: value.start, end: value.end }));
+  }
+
   async function deleteSession(id) {
     apply(await invoke("delete_session", { id }));
+  }
+
+  // Opens a track's Audius page in the system browser — a plain <a href>
+  // would just navigate this app's own webview away instead.
+  async function openTrackLink(url) {
+    if (!url) return;
+    try {
+      await invoke("open_url", { url });
+    } catch (error) {
+      await uiNote("Couldn't open link", esc(String(error)), "OK");
+    }
   }
 
   async function exportData() {
@@ -164,6 +249,27 @@ export function createCommands({ state, ui, renderer, invoke }) {
     } catch (error) {
       await uiNote("Export failed", esc(String(error)), "OK");
     }
+  }
+
+  async function signInGoogle() {
+    try {
+      await invoke("sign_in_google");
+      // No apply() here — sign_in_google only opens the browser and returns;
+      // the real state update arrives later via the "state-changed" event
+      // once the deep-link callback completes the token exchange.
+    } catch (error) {
+      await uiNote("Sign-in failed", esc(String(error)), "OK");
+    }
+  }
+
+  async function signOut() {
+    apply(await invoke("sign_out"));
+  }
+
+  async function syncNow() {
+    // Fire-and-forget, like signInGoogle — the Rust side notifies via
+    // "state-changed" once the sync (syncing -> done) completes.
+    await invoke("sync_now");
   }
 
   function importData() {
@@ -222,6 +328,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
   return {
     addList,
     renameList,
+    reorderLists,
     deleteList,
     selectList,
     addTask,
@@ -231,9 +338,14 @@ export function createCommands({ state, ui, renderer, invoke }) {
     setEstimate,
     toggleDone,
     moveTask,
+    reorderTasks,
+    setAlbum,
+    moveTaskToAlbum,
     editLyrics,
     addSession,
+    editSession,
     deleteSession,
+    openTrackLink,
     exportData,
     importData,
     play,
@@ -241,6 +353,9 @@ export function createCommands({ state, ui, renderer, invoke }) {
     skipBreak,
     setMode,
     setConfigField,
+    signInGoogle,
+    signOut,
+    syncNow,
     apply,
     uiForm,
   };

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Segmented estimate bar — concepts</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+  .section{margin-bottom:44px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:620px}
+  table{background:var(--bg);border-radius:10px;overflow:hidden}
+
+  .seg-cell{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .seg-time{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* A — literal boxes, outlined, gaps between (closest to the sketch) */
+  .seg-a{width:160px;height:20px;border:1.5px solid #4d4d4d;border-radius:5px;display:flex;align-items:center;gap:2px;padding:2px;box-sizing:border-box}
+  .seg-a i{display:block;height:100%;border:1.5px solid var(--green);border-radius:2px;background:rgba(29,185,84,.15);flex:none}
+  .seg-a.over i{border-color:var(--red2)}
+
+  /* B — filled solid blocks on a quiet track, no outlines */
+  .seg-b{width:160px;height:8px;border-radius:4px;background:#2c2c2c;display:flex;gap:2px;overflow:hidden;flex:none}
+  .seg-b i{display:block;height:100%;background:var(--green);border-radius:1px}
+  .seg-b.over i{background:var(--red2)}
+
+  /* C — capped: only the most recent few segments shown individually,
+     everything older folds into one muted "earlier sessions" block */
+  .seg-c{width:160px;height:8px;border-radius:4px;background:#2c2c2c;display:flex;gap:2px;overflow:hidden;flex:none}
+  .seg-c i{display:block;height:100%;background:var(--green);border-radius:1px}
+  .seg-c i.merged{background:#5a5a5a}
+  .seg-c.over i{background:var(--red2)}
+
+  :root{ --red2:#e5484d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="section">
+    <p class="label">Add task — estimate up front</p>
+    <p class="cap">The "Add task" dialog gains a second, optional field. Skipping it works exactly like today (no bar shown for that task, just plain elapsed time) — nothing is forced.</p>
+    <div class="modal dlg" style="width:380px">
+      <div class="dtitle">New task</div>
+      <div class="ffield"><label>Name</label><input class="dinput" placeholder="Task name" value="Database migration from local to remote"></div>
+      <div class="ffield"><label>Estimate</label><input type="number" min="0" max="1000" step="0.25" value="4" placeholder="optional"> hours</div>
+      <div class="dfoot"><button class="btn">Cancel</button><button class="btn primary">Add task</button></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label">A · Literal boxes (closest to your sketch)</p>
+    <p class="cap">The estimate is the full width of the outer box. Each session becomes its own inset box, sized to how much of the estimate it used, with a visible gap between them. Reads very literally as "here's your budget, here's what filled it."</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="seg-a" title="3 sessions · 1h 33m left of 4h">
+            <i style="width:30px"></i><i style="width:54px"></i><i style="width:4px"></i>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 52m</span>
+          <span class="seg-a over" title="4 sessions · 12m over the 1h40m estimate">
+            <i style="width:36px"></i><i style="width:60px"></i><i style="width:40px"></i><i style="width:20px"></i>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">B · Filled blocks on a quiet track</p>
+    <p class="cap">Same idea, quieter execution: no outlines, just solid blocks on a thin recessed track — reads more like a native progress control than a wireframe. Turns red and the track fills fully once you're over the estimate.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="seg-b" title="3 sessions · 1h 33m left of 4h">
+            <i style="width:30px"></i><i style="width:54px"></i><i style="width:4px"></i>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 52m</span>
+          <span class="seg-b over" title="4 sessions · 12m over the 1h40m estimate">
+            <i style="width:44px"></i><i style="width:72px"></i><i style="width:32px"></i><i style="width:12px"></i>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">3</span></td><td class="tname">write onboarding docs</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">0m</span>
+          <span class="seg-b" title="No sessions yet · 3h estimate">
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">C · Capped, older sessions merged</p>
+    <p class="cap">Your sketch's example — "5h30m" of accumulated work — is more likely to come from many short sessions than three long ones. Past ~5 segments the bar would turn to visual noise, so older sessions fold into one muted block on the left; only the most recent few stay individually visible.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">clean up the notifications backlog</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">5h 30m</span>
+          <span class="seg-c" title="9 sessions · 30m left of 6h">
+            <i class="merged" style="width:60px"></i><i style="width:18px"></i><i style="width:22px"></i><i style="width:15px"></i><i style="width:15px"></i>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+</div>
+</body>
+</html>

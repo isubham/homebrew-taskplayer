@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="titlebar"></div>
+  <div id="titlebar" data-tauri-drag-region></div>
   <div id="navbar">
     <button id="navback" data-action="goBack" title="Back (⌘[)">‹</button>
     <button id="navfwd" data-action="goForward" title="Forward (⌘])">›</button>
@@ -15,6 +15,7 @@
   <div id="app">
     <aside class="side">
       <div class="brand"><span class="dot">▶</span><span class="brand-name">TaskPlayer</span><button class="brand-gear" id="sessBtn" data-action="openSessionsPage" title="All sessions">◷</button><button class="brand-gear" id="gear" data-action="openSettingsPage" title="Settings">⚙</button></div>
+      <div id="recentNav"></div>
       <h3>Your Lists</h3>
       <div id="lists"></div>
       <button class="add-btn" data-action="addList">＋ New list</button>
@@ -31,6 +32,7 @@
   </div>
 
   <div class="overlay" id="overlay" data-action="closeOverlay" data-overlay="detail"><div class="modal" id="modal"></div></div>
+  <div class="overlay" id="trkoverlay" data-action="closeOverlay" data-overlay="track"><div class="modal" id="trkmodal"></div></div>
   <div class="overlay" id="soverlay" data-action="closeOverlay" data-overlay="settings"><div class="modal" id="smodal"></div></div>
   <div class="overlay" id="lyroverlay" data-action="closeOverlay" data-overlay="lyrics"><div class="lyrpanel" id="lyrmodal"></div></div>
   <div class="overlay" id="doverlay"><div class="modal dlg" id="dmodal"></div></div>

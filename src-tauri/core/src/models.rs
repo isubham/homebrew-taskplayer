@@ -21,12 +21,20 @@ pub fn now_ms() -> i64 {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskList {
     pub id: String,
     pub name: String,
     pub emoji: String,
     pub color: String,
     pub order: i64,
+    /// ms epoch of last change — drives cross-device sync (last-write-wins).
+    #[serde(default)]
+    pub updated_at: i64,
+    /// Soft-delete tombstone; never sent to the frontend (deleted rows are
+    /// filtered out of every normal query before they'd reach a Snapshot).
+    #[serde(skip)]
+    pub deleted_at: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -41,12 +49,24 @@ pub struct Task {
     /// Estimated effort in minutes (user enters hours). None = no estimate.
     #[serde(default)]
     pub estimate_min: Option<i64>,
+    /// Freeform album/grouping name — related tasks within one list can share
+    /// an album, the way songs by one artist group into albums. None = a
+    /// "single" (shown in its own unlabeled section in the UI).
+    #[serde(default)]
+    pub album: Option<String>,
     /// When the task was marked complete (ms epoch). None = still to-do.
     #[serde(default)]
     pub completed_at: Option<i64>,
     /// Free-text description (shown as "lyrics" in the UI). None = none.
     #[serde(default)]
     pub description: Option<String>,
+    /// ms epoch of last change — drives cross-device sync (last-write-wins).
+    #[serde(default)]
+    pub updated_at: i64,
+    /// Soft-delete tombstone; never sent to the frontend (deleted rows are
+    /// filtered out of every normal query before they'd reach a Snapshot).
+    #[serde(skip)]
+    pub deleted_at: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -57,6 +77,13 @@ pub struct Session {
     pub start: i64,
     /// None while running
     pub end: Option<i64>,
+    /// ms epoch of last change — drives cross-device sync (last-write-wins).
+    #[serde(default)]
+    pub updated_at: i64,
+    /// Soft-delete tombstone; never sent to the frontend (deleted rows are
+    /// filtered out of every normal query before they'd reach a Snapshot).
+    #[serde(skip)]
+    pub deleted_at: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -96,13 +123,33 @@ pub struct RunState {
     pub last_task_id: Option<String>,
 }
 
+/// Signed-in Google/Supabase profile. Durable, rarely-changing state — lives
+/// in `Snapshot` alongside `config`/`run`, not in the ephemeral `Status` tick.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountInfo {
+    pub id: String,
+    pub email: String,
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub lists: Vec<TaskList>,
     pub tasks: Vec<Task>,
     pub sessions: Vec<Session>,
     pub config: SessionConfig,
     pub run: RunState,
+    pub account: Option<AccountInfo>,
+    /// true while a background sync push/pull is in flight. Lives here
+    /// (not in the lightweight `Status`/`tick` event) because the frontend
+    /// only ever listens to `state-changed` today, and sync is infrequent
+    /// enough (60s) that a full Snapshot rebuild per transition is cheap.
+    pub syncing: bool,
+    /// ms epoch of the last successful sync, if any
+    pub last_synced_at: Option<i64>,
 }
 
 /// A completed work segment ready to persist.

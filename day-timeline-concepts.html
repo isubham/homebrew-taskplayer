@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sessions page — "how my day went" timeline</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:700px;margin:0 auto}
+  .section{margin-bottom:52px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:640px;line-height:1.55}
+
+  :root{
+    --c-migrate:#1db954; --c-auth:#509bf5; --c-standup:#e5a83c; --c-docs:#b16ae7; --c-ci:#e5484d;
+  }
+
+  /* reuse the real sessions-page group header exactly as it exists today */
+  .demo-group{background:var(--bg);border-radius:10px;padding:16px 20px 20px}
+
+  /* ============ shared track mechanics ============ */
+  .daybar{position:relative;height:16px;border-radius:5px;background:#1c1c1c;overflow:hidden}
+  .daybar .seg{position:absolute;top:0;bottom:0;border-radius:2px;cursor:pointer}
+  .daybar .seg.live{animation:pulse 1.2s ease-in-out infinite}
+  .now-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.7;z-index:2}
+  .now-line::after{content:"now";position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);white-space:nowrap}
+  .ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:6px;font-variant-numeric:tabular-nums}
+
+  .daylegend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+  .daylegend .chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .daylegend .chip i{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:40px">One horizontal strip per day, sitting where the day's sessions already live on the Sessions page — right under the "Today · 2h 27m" header. Each session becomes a colored block positioned at its real start time and sized to its real duration (same list colors as the dots in the row list below it), so a glance at the strip alone tells you the shape of the day. All four variants use the same sample day: two migration sessions in the morning, a standup, an afternoon block, a short docs session, and a session still running now.</p>
+
+  <!-- ============ 1 ============ -->
+  <div class="section">
+    <p class="label">1 · Full 24h, midnight to midnight</p>
+    <p class="cap">The simplest version: the bar is always the full day, so "9am" and "9pm" always land in the same place no matter what happened that day. Ticks at 12a/6a/12p/6p/12a. Honest and predictable, at the cost of the overnight two-thirds of the bar usually sitting empty.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px" title="5 sessions, 9:15am–5:40pm">
+        <i class="seg" style="left:246px;width:23px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:275px;width:38px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:346px;width:14px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:373px;width:58px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:440px;width:7px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:453px;width:9px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:462px"></span>
+      </div>
+      <div class="ticks" style="width:640px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 2 ============ -->
+  <div class="section">
+    <p class="label">2 · Ruler with day/night shading</p>
+    <p class="cap">Same full 24h scale, but faint hourly gridlines and a darker overnight band (10pm–6am) give the empty stretch some texture instead of just being dead space — it reads as "asleep," not "missing data." Slightly busier, but answers "was this early morning or late night?" at a glance.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px;background:repeating-linear-gradient(90deg,#232323 0,#232323 1px,#1c1c1c 1px,#1c1c1c 26.66px)" title="5 sessions, 9:15am–5:40pm">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:160px;background:rgba(0,0,0,.35)"></div>
+        <div style="position:absolute;right:0;top:0;bottom:0;width:53px;background:rgba(0,0,0,.35)"></div>
+        <i class="seg" style="left:246px;width:23px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:275px;width:38px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:346px;width:14px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:373px;width:58px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:440px;width:7px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:453px;width:9px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:462px"></span>
+      </div>
+      <div class="ticks" style="width:640px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 3 ============ -->
+  <div class="section">
+    <p class="label">3 · Waking window only (6am–midnight)</p>
+    <p class="cap">Drops the overnight hours nobody's tracking anything in, so the same 640px now covers an 18h window instead of 24 — every session gets ~33% more room, short ones stop needing a minimum-width floor as often. Trade-off: the scale is day-to-day consistent but no longer literally "midnight to midnight," which is a small honesty cost for a lot of readability.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px" title="5 sessions, 9:15am–5:40pm">
+        <i class="seg" style="left:116px;width:30px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:154px;width:50px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:249px;width:18px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:285px;width:77px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:362px;width:9px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:391px;width:12px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:403px"></span>
+      </div>
+      <div class="ticks" style="width:640px"><span>6a</span><span>10a</span><span>2p</span><span>6p</span><span>10p</span><span>12a</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 4 ============ -->
+  <div class="section">
+    <p class="label">4 · Full 24h + color legend underneath</p>
+    <p class="cap">Same bar as #1, but paired with a small legend of which color is which task — useful once a day has 4-5 different tasks in it and the dots alone stop being enough to tell them apart without hovering each one. The row list below the strip still carries all the exact numbers; this is purely the "shape of the day" summary.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px" title="5 sessions, 9:15am–5:40pm">
+        <i class="seg" style="left:246px;width:23px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:275px;width:38px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:346px;width:14px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:373px;width:58px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:440px;width:7px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:453px;width:9px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:462px"></span>
+      </div>
+      <div class="ticks" style="width:640px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+      <div class="daylegend">
+        <span class="chip"><i style="background:var(--c-migrate)"></i>database migration</span>
+        <span class="chip"><i style="background:var(--c-standup)"></i>daily standup</span>
+        <span class="chip"><i style="background:var(--c-docs)"></i>write onboarding docs</span>
+        <span class="chip"><i style="background:var(--c-auth)"></i>refactor auth middleware · now</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

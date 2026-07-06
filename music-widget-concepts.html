@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Music widget — concepts</title>
+<style>
+  :root{
+    --bg:#121212; --bg2:#181818; --bg3:#242424; --elev:#2a2a2a;
+    --green:#1db954; --green-hi:#1ed760;
+    --text:#fff; --muted:#b3b3b3; --line:#2e2e2e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#000;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:32px 24px 80px}
+  h1{font-size:15px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 24px}
+  .controls{display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:10px;padding:12px 16px;margin-bottom:36px;flex-wrap:wrap}
+  .controls button{background:var(--bg3);border:1px solid #3a3a3a;color:var(--text);border-radius:20px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .controls button:hover{border-color:#6a6a6a}
+  .controls .hint{color:var(--muted);font-size:12px;margin-left:auto}
+  .section{margin-bottom:44px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:640px}
+  .bar{background:var(--bg2);border-radius:10px;height:64px;display:flex;align-items:center;padding:0 16px;max-width:420px}
+  button.icon{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:6px;display:grid;place-items:center;flex:none}
+  button.icon:hover{color:#fff;background:rgba(255,255,255,.08)}
+  select.native{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;appearance:none}
+
+  .mq{overflow:hidden;white-space:nowrap;position:relative;min-width:0;flex:1 1 auto}
+  .mq-inner{display:inline-block}
+  .mq.anim .mq-inner{animation:mqscroll linear infinite}
+  .mq:hover .mq-inner{animation-play-state:paused}
+  .mq-gap{display:inline-block;width:40px}
+  @keyframes mqscroll{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--mq-dist,0px)))}}
+
+  .art{position:relative;border-radius:6px;flex:none;display:grid;place-items:center;background:var(--elev);color:var(--muted)}
+  .art.playing{background:linear-gradient(135deg,var(--green),#0e7a37);color:#06371a}
+  .eq{position:absolute;display:none;align-items:flex-end;gap:2px;height:13px}
+  .art.playing .eq{display:flex}
+  .art.playing .note{opacity:0}
+  .eq i{width:3px;height:100%;background:#06371a;border-radius:1px;transform-origin:bottom;animation:eq 1s ease-in-out infinite}
+  .eq i:nth-child(1){animation-delay:-.2s} .eq i:nth-child(2){animation-delay:-.6s}
+  .eq i:nth-child(3){animation-delay:-.4s} .eq i:nth-child(4){animation-delay:-.8s}
+  @keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+
+  .vol{display:flex;align-items:center;gap:6px;flex:none}
+  .vol input[type=range]{width:56px;accent-color:var(--green);cursor:pointer}
+  .vol.hoverreveal input[type=range]{width:0;opacity:0;transition:width .18s ease,opacity .18s ease}
+  .vol.hoverreveal:hover input[type=range],.vol.hoverreveal:focus-within input[type=range]{width:56px;opacity:1}
+
+  .genre-pill{position:relative;flex:none;display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid #3a3a3a;color:var(--muted);border-radius:20px;padding:5px 10px;font-size:11px;cursor:pointer}
+  .bar:hover .genre-pill{color:#fff;border-color:#6a6a6a}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:none}
+
+  .popover{position:relative;flex:none}
+  .pop-panel{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--elev);border:1px solid #3a3a3a;border-radius:8px;padding:10px 8px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .popover.open .pop-panel{display:block}
+  .pop-panel input[type=range]{writing-mode:vertical-lr;direction:rtl;width:6px;height:70px;accent-color:var(--green)}
+</style>
+</head>
+<body>
+
+<h1>Now-playing widget — 4 directions</h1>
+<p class="sub">Same live data feeding all four. Use the controls to compare how each handles a long title, pause state, and volume.</p>
+
+<div class="controls">
+  <button data-action="toggle">▶︎ / ⏸ toggle play</button>
+  <button data-action="next">⇥ next demo track</button>
+  <span class="hint">try the long title — that's what the marquee is for</span>
+</div>
+
+<div class="section">
+  <p class="label">1 · Cleaned original</p>
+  <p class="cap">Closest to what you have now, just tightened: no "Focus music" label, marquee title, flat skip + volume icons, genre shrunk to a small pill.</p>
+  <div class="bar" id="v1"></div>
+</div>
+
+<div class="section">
+  <p class="label">2 · Spotify twin</p>
+  <p class="cap">Two-line meta like Spotify's real now-playing corner — title on top (marquee), artist + genre tag below in muted text. Volume slider hides until you hover it.</p>
+  <div class="bar" id="v2"></div>
+</div>
+
+<div class="section">
+  <p class="label">3 · Capsule</p>
+  <p class="cap">Everything about the track — equalizer dot, marquee title, genre switcher — lives inside one rounded capsule (closer to the pill shape in your screenshot). Transport controls sit outside it.</p>
+  <div class="bar" id="v3"></div>
+</div>
+
+<div class="section">
+  <p class="label">4 · Ultra compact</p>
+  <p class="cap">No album-art tile at all — just an inline note glyph and marquee text. Volume becomes a click-to-open popover instead of a fixed-width slider, so the whole thing takes the least horizontal space.</p>
+  <div class="bar" id="v4"></div>
+</div>
+
+<script>
+const GENRES = {
+  lofi: "Lo-Fi", ambient: "Ambient", classical: "Classical", jazz: "Jazz", electronic: "Electronic"
+};
+const TRACKS = [
+  { title: "Ambient Rainfall", artist: "Sula Bassana", genre: "ambient" },
+  { title: "Nocturnal Reflections (Extended Slow-Burn Mix)", artist: "Various Artists Collective", genre: "ambient" },
+  { title: "Warm Static", artist: "Field Tape", genre: "lofi" },
+  { title: "Midnight Study Session, pt. 4", artist: "Kudasai", genre: "lofi" },
+];
+const state = { idx: 0, playing: true, volume: 0.5, genre: "ambient" };
+
+const ICON_SKIP = `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>`;
+const ICON_VOL_HIGH = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="10 5 5 9 2 9 2 15 5 15 10 19 10 5"/><path d="M15 8.5a5 5 0 0 1 0 7"/><path d="M18 5a9 9 0 0 1 0 14"/></svg>`;
+const ICON_VOL_LOW = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="10 5 5 9 2 9 2 15 5 15 10 19 10 5"/><path d="M15 8.5a5 5 0 0 1 0 7"/></svg>`;
+const ICON_VOL_MUTE = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="10 5 5 9 2 9 2 15 5 15 10 19 10 5"/><line x1="17" y1="9" x2="22" y2="14"/><line x1="22" y1="9" x2="17" y2="14"/></svg>`;
+const ICON_NOTE = `<svg class="note" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+
+function volIcon(v){ return v === 0 ? ICON_VOL_MUTE : v < 0.5 ? ICON_VOL_LOW : ICON_VOL_HIGH; }
+function esc(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function track(){ return TRACKS[state.idx]; }
+
+function setupMarquee(container, text){
+  container.innerHTML = `<span class="mq-inner"><span class="a">${esc(text)}</span></span>`;
+  container.classList.remove('anim');
+  requestAnimationFrame(() => {
+    const inner = container.querySelector('.mq-inner');
+    const overflow = inner.scrollWidth > container.clientWidth;
+    if (overflow) {
+      inner.innerHTML = `<span class="a">${esc(text)}</span><span class="mq-gap"></span><span class="b">${esc(text)}</span>`;
+      const dist = container.querySelector('.a').scrollWidth + 40;
+      inner.style.setProperty('--mq-dist', dist + 'px');
+      inner.style.animationDuration = Math.max(6, dist / 26) + 's';
+      container.classList.add('anim');
+    }
+  });
+}
+
+function eqArt(size){
+  return `<div class="art ${state.playing ? 'playing' : ''}" style="width:${size}px;height:${size}px">
+    <span class="note">${ICON_NOTE}</span>
+    <span class="eq"><i></i><i></i><i></i><i></i></span>
+  </div>`;
+}
+
+function genreSelect(id){
+  return Object.entries(GENRES).map(([k,v]) => `<option value="${k}" ${k===state.genre?'selected':''}>${v}</option>`).join('');
+}
+
+function render1(){
+  const t = track();
+  const el = document.getElementById('v1');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;width:100%">
+      ${eqArt(36)}
+      <div class="mq" id="v1mq" style="max-width:130px"></div>
+      <label class="genre-pill" title="Change vibe">
+        <select class="native" id="v1genre">${genreSelect()}</select>
+        <span class="dot"></span><span>${GENRES[state.genre]}</span>
+      </label>
+      <button class="icon" data-action="next" title="Next track">${ICON_SKIP}</button>
+      <div class="vol">
+        <span class="icon" style="display:grid">${volIcon(state.volume)}</span>
+        <input type="range" min="0" max="1" step="0.05" value="${state.volume}" oninput="state.volume=+this.value">
+      </div>
+    </div>`;
+  setupMarquee(document.getElementById('v1mq'), state.playing ? `${t.title} — ${t.artist}` : "Not playing");
+  document.getElementById('v1genre').onchange = e => { state.genre = e.target.value; renderAll(); };
+}
+
+function render2(){
+  const t = track();
+  const el = document.getElementById('v2');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;width:100%">
+      ${eqArt(40)}
+      <div style="min-width:0;flex:1 1 auto;line-height:1.3">
+        <div class="mq" id="v2mq" style="font-size:13px;font-weight:600"></div>
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${state.playing ? esc(t.artist) + ' · ' + GENRES[t.genre] : 'Paused'}</div>
+      </div>
+      <button class="icon" data-action="next" title="Next track">${ICON_SKIP}</button>
+      <div class="vol hoverreveal">
+        <span class="icon" style="display:grid">${volIcon(state.volume)}</span>
+        <input type="range" min="0" max="1" step="0.05" value="${state.volume}" oninput="state.volume=+this.value">
+      </div>
+    </div>`;
+  setupMarquee(document.getElementById('v2mq'), state.playing ? t.title : "Not playing");
+}
+
+function render3(){
+  const t = track();
+  const el = document.getElementById('v3');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;width:100%">
+      <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border-radius:20px;padding:6px 6px 6px 12px;flex:1 1 auto;min-width:0">
+        <span class="dot" style="background:${state.playing ? 'var(--green)' : 'var(--muted)'}"></span>
+        <div class="mq" id="v3mq" style="font-size:12px;font-weight:600"></div>
+        <label class="genre-pill" style="background:var(--elev);padding:4px 8px" title="Change vibe">
+          <select class="native" id="v3genre">${genreSelect()}</select>
+          <span>${GENRES[state.genre]}</span>
+        </label>
+      </div>
+      <button class="icon" data-action="next" title="Next track">${ICON_SKIP}</button>
+      <div class="vol">
+        <span class="icon" style="display:grid">${volIcon(state.volume)}</span>
+        <input type="range" min="0" max="1" step="0.05" value="${state.volume}" oninput="state.volume=+this.value">
+      </div>
+    </div>`;
+  setupMarquee(document.getElementById('v3mq'), state.playing ? `${t.title} — ${t.artist}` : "Not playing");
+  document.getElementById('v3genre').onchange = e => { state.genre = e.target.value; renderAll(); };
+}
+
+function render4(){
+  const t = track();
+  const el = document.getElementById('v4');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;width:100%">
+      <span class="icon" style="display:grid;color:${state.playing ? 'var(--green)' : 'var(--muted)'}">${ICON_NOTE}</span>
+      <div class="mq" id="v4mq"></div>
+      <label class="genre-pill" style="padding:4px 6px" title="Change vibe">
+        <select class="native" id="v4genre">${genreSelect()}</select>
+        <span class="dot"></span>
+      </label>
+      <button class="icon" data-action="next" title="Next track">${ICON_SKIP}</button>
+      <div class="popover" id="v4pop">
+        <button class="icon" data-action="popvol" title="Volume">${volIcon(state.volume)}</button>
+        <div class="pop-panel"><input type="range" min="0" max="1" step="0.05" value="${state.volume}" oninput="state.volume=+this.value"></div>
+      </div>
+    </div>`;
+  setupMarquee(document.getElementById('v4mq'), state.playing ? `${t.title} — ${t.artist}` : "Not playing");
+  document.getElementById('v4genre').onchange = e => { state.genre = e.target.value; renderAll(); };
+}
+
+function renderAll(){ render1(); render2(); render3(); render4(); }
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  const pop = document.getElementById('v4pop');
+  if (!el || el.dataset.action !== 'popvol') pop.classList.remove('open');
+  if (!el) return;
+  if (el.dataset.action === 'next') { state.idx = (state.idx + 1) % TRACKS.length; renderAll(); }
+  if (el.dataset.action === 'toggle') { state.playing = !state.playing; renderAll(); }
+  if (el.dataset.action === 'popvol') { pop.classList.toggle('open'); }
+});
+
+renderAll();
+</script>
+</body>
+</html>

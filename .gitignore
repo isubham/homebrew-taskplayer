@@ -18,10 +18,12 @@ src-tauri/target/
 # Tauri (generated)
 src-tauri/gen/schemas/
 
-# Local runtime data (SQLite lives in the OS app-data dir, but ignore any local copies)
+# Local runtime data (SQLite + the auth session file live in the OS
+# app-data dir, but ignore any local copies)
 *.sqlite3
 *.sqlite
 *.db
+session.json
 
 # Editors / env
 .vscode/
@@ -29,3 +31,6 @@ src-tauri/gen/schemas/
 .env
 .env.*
 *.swp
+
+# Local Claude Code settings (machine-specific bash permissions, not project config)
+.claude/

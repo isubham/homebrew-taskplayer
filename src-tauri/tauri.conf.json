@@ -6,6 +6,13 @@
   "build": {
     "frontendDist": "../src"
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["taskplayer"]
+      }
+    }
+  },
   "app": {
     "withGlobalTauri": true,
     "windows": [
@@ -19,7 +26,8 @@
         "resizable": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "backgroundColor": "#121212"
+        "backgroundColor": "#121212",
+        "dragDropEnabled": false
       }
     ],
     "security": {

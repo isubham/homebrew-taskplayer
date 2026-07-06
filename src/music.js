@@ -27,11 +27,43 @@
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const streamUrl = (t) => `${BASE}/v1/tracks/${t.id}/stream?app_name=${APP}`;
 
+  // Audius is a decentralized network — `artwork["480x480"]` is a URL on
+  // whichever single content node happened to serve this API response, and
+  // individual community-run nodes go down/get slow/rate-limit hotlinking
+  // often enough that trusting just that one URL leaves art broken fairly
+  // regularly. `artwork.mirrors` lists alternate node hosts serving the same
+  // file at the same path, so this builds the full candidate list (primary
+  // first) for the UI to fall through on an image load error.
+  function artworkUrls(t) {
+    const primary = t.artwork && (t.artwork["480x480"] || t.artwork["150x150"]);
+    if (!primary) return [];
+    let path, origin;
+    try {
+      const u = new URL(primary);
+      path = u.pathname;
+      origin = u.origin;
+    } catch (e) {
+      return [primary];
+    }
+    const hosts = [origin, ...(t.artwork.mirrors || [])];
+    return [...new Set(hosts)].map((host) => `${host}${path}`);
+  }
+
   async function fetchTracks(genreKey) {
     const g = GENRES[genreKey] || GENRES.lofi;
     const map = (arr) => (arr || [])
       .filter((t) => t.is_streamable !== false && !t.is_delete && !t.is_stream_gated && t.duration > 30)
-      .map((t) => ({ id: t.id, title: t.title, artist: (t.user && t.user.name) || "Audius" }));
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        artist: (t.user && t.user.name) || "Audius",
+        // Full list of candidate cover-art URLs (primary node + mirrors) —
+        // see artworkUrls() above for why a single URL isn't reliable enough.
+        artworkUrls: artworkUrls(t),
+        // `permalink` from the API is relative (e.g. "/artist/track-title");
+        // audius.co is the actual site it resolves against.
+        permalink: t.permalink ? `https://audius.co${t.permalink}` : null,
+      }));
     try {
       let r = await fetch(`${BASE}/v1/tracks/trending?genre=${encodeURIComponent(g.genre)}&app_name=${APP}`);
       let list = r.ok ? map((await r.json()).data) : [];
@@ -51,8 +83,15 @@
       playing: !audio.paused,
       loading,
       genre: st.genre,
+      genreLabel: (GENRES[st.genre] || GENRES.lofi).label,
       volume: st.volume,
       name: loading ? "finding tracks…" : (t ? `${t.title} — ${t.artist}` : "Focus music"),
+      // Split-out fields for the track-details modal (title/artist/name above
+      // stay as-is for the marquee, which predates this and combines them).
+      title: t ? t.title : null,
+      artist: t ? t.artist : null,
+      artworkUrls: t ? t.artworkUrls : [],
+      permalink: t ? t.permalink : null,
     };
   }
   function emit() { onChange(snapshot()); }

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Segmented bar — overflow behavior</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+  .section{margin-bottom:44px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:620px}
+  .tradeoff{color:var(--muted);font-size:12px;margin:2px 0 14px;padding-left:14px;border-left:2px solid #3a3a3a}
+  table{background:var(--bg);border-radius:10px;overflow:hidden}
+  .seg-cell{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .seg-time{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  .bar{height:8px;border-radius:4px;background:#2c2c2c;display:flex;gap:2px;overflow:hidden;flex:none}
+  .bar i{display:block;height:100%;background:var(--green);border-radius:1px}
+
+  /* A — solid red cap: past the estimate, segment detail disappears entirely */
+  .bar.cap{width:160px}
+  .bar.cap.over{background:var(--red2)}
+  .bar.cap.over i{display:none}
+  .bar.cap.over::after{content:"";display:block;width:100%;height:100%;background:var(--red2);animation:pulse 1.2s ease-in-out infinite}
+
+  /* B — compress to fit: segments always fill the fixed track, proportions
+     stay relative to each other, whole track tints red once over */
+  .bar.compress{width:160px}
+  .bar.compress.over i{background:var(--red2)}
+
+  /* C — honest scale: track keeps growing past the 100% mark; a marker
+     shows exactly where the estimate was */
+  .bar-wrap{position:relative;display:inline-flex;align-items:center}
+  .bar.extend{width:160px}
+  .bar.extend i.pre{background:var(--green)}
+  .bar.extend i.post{background:var(--red2)}
+  .marker{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.5}
+
+  :root{ --red2:#e5484d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="section">
+    <p class="label">A · Solid red cap (simplest)</p>
+    <p class="cap">Under budget, segments show as before. The moment you cross the estimate, individual sessions stop mattering — the whole track just goes solid red and pulses, same treatment as the battery concept from before. Exact overage is a tooltip away, not shown spatially.</p>
+    <p class="tradeoff">Trade-off: once you're over, you lose the "which session pushed me over" detail — but that also means the bar never has to explain a confusing partial state.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 20m</span>
+          <span class="bar cap" title="3 sessions · 20m left of 1h40m"><i style="width:40px"></i><i style="width:60px"></i><i style="width:20px"></i></span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">write onboarding docs</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 52m</span>
+          <span class="bar cap over" title="4 sessions · 12m over the 1h40m estimate"></span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">B · Compress to fit</p>
+    <p class="cap">The track is always exactly full — segments resize to share whatever the new total is, so you can still see each session's relative share even once you're over. The whole thing tints red as soon as you cross 100%.</p>
+    <p class="tradeoff">Trade-off: the bar's scale quietly changes once you're over (a pixel stops meaning a fixed amount of time), which is a small honesty cost in exchange for keeping segment detail visible.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 20m</span>
+          <span class="bar compress" title="3 sessions · 20m left of 1h40m"><i style="width:40px"></i><i style="width:60px"></i><i style="width:20px"></i></span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">write onboarding docs</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 52m</span>
+          <span class="bar compress over" title="4 sessions · 12m over the 1h40m estimate"><i style="width:36px"></i><i style="width:59px"></i><i style="width:33px"></i><i style="width:16px"></i></span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">C · Honest scale, with a marker</p>
+    <p class="cap">The scale never changes — 1 pixel always equals the same amount of time. A thin white tick marks exactly where the estimate sits, sessions before it stay green, and anything after turns red. The track itself keeps growing as long as you keep working.</p>
+    <p class="tradeoff">Trade-off: most information-preserving option, but the bar is no longer a fixed width in the row — a task that's wildly over its estimate makes its own row wider than the others, which needs a sensible max-width/truncation rule so one runaway task can't stretch the whole table.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 20m</span>
+          <span class="bar-wrap"><span class="bar extend" title="3 sessions · 20m left of 1h40m"><i class="pre" style="width:40px"></i><i class="pre" style="width:60px"></i><i class="pre" style="width:20px"></i></span></span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">write onboarding docs</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 52m</span>
+          <span class="bar-wrap">
+            <span class="bar extend" style="width:192px" title="4 sessions · 12m over the 1h40m estimate"><i class="pre" style="width:48px"></i><i class="pre" style="width:80px"></i><i class="pre" style="width:32px"></i><i class="post" style="width:24px"></i></span>
+            <span class="marker" style="left:160px"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+</div>
+</body>
+</html>

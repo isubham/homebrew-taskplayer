@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>5h estimate, 2h + 2h + 3h logged</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+  .cap{color:var(--muted);font-size:13px;margin:14px 0 0;max-width:620px}
+  .cap b{color:var(--text)}
+  table{background:var(--bg);border-radius:10px;overflow:hidden}
+  .seg-cell{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .seg-time{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* height 8px is a shared track — session groups sit on top with real gaps
+     between them (CSS `gap`, not a spacer element) so each session is an
+     unmistakably separate rounded chip, even two green ones side by side */
+  .bar{height:8px;border-radius:4px;background:#2c2c2c;display:flex;gap:3px;overflow:hidden;flex:none}
+  .bar .seg{display:block;height:100%;border-radius:2px}
+  .bar .seg.g{background:var(--green)}
+  .bar .seg.r{background:var(--red2)}
+  /* the one session that straddles the estimate: green+red halves of the SAME
+     session sit flush against each other (no gap, square inner corners) —
+     only the outer edges of the pair are rounded, like one rounded chip */
+  .bar .pair{display:flex;height:100%}
+  .bar .pair .g{border-radius:2px 0 0 2px}
+  .bar .pair .r{border-radius:0 2px 2px 0}
+
+  :root{ --red2:#e5484d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <table><tbody>
+    <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+      <td class="r total seg-cell">
+        <span class="seg-time">7h 00m</span>
+        <span class="bar" title="3 sessions (2h, 2h, 3h) · 2h over the 5h estimate">
+          <i class="seg g" style="width:72px"></i>
+          <i class="seg g" style="width:72px"></i>
+          <span class="pair" style="width:108px">
+            <i class="g" style="width:36px"></i><i class="r" style="width:72px"></i>
+          </span>
+        </span>
+      </td></tr>
+  </tbody></table>
+
+  <p class="cap">Estimate: <b>5h</b>. Three logged sessions: <b>2h, 2h, 3h</b> — 7h total, 2h over.</p>
+  <p class="cap">Each session is now its own rounded chip with a real gap between it and the next — the two 2h sessions are clearly two separate blocks, not one continuous fill, even though both are green. The third session (3h) is the one that crosses the line: it's still a single unbroken chip (no gap inside it, since it's one session), just split in color right where the estimate falls — the first hour of it (4h→5h) stays green, the remaining 2h (5h→7h) turns red. Nothing resets or rescales: every pixel represents the same fixed amount of time throughout.</p>
+</div>
+</body>
+</html>

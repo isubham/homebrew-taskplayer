@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Task row concepts — battery + sessions</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:640px;margin:0 auto}
+  .section{margin-bottom:40px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 12px;max-width:600px}
+  table{background:var(--bg);border-radius:10px;overflow:hidden}
+
+  .rp{display:inline-flex;align-items:center;gap:4px}
+  .rp i{width:5px;height:5px;border-radius:50%;background:var(--muted);display:inline-block}
+  .rp-extra{font-size:11px;color:var(--muted)}
+
+  .bat{display:inline-flex;align-items:center;gap:6px}
+  .bat-shell{width:24px;height:12px;border:1.5px solid var(--muted);border-radius:3px;padding:1.5px;box-sizing:border-box;display:flex;overflow:hidden;position:relative}
+  .bat-shell::after{content:"";position:absolute;right:-4px;top:3px;width:2px;height:6px;background:var(--muted);border-radius:0 2px 2px 0}
+  .bat-fill{height:100%;border-radius:1px;background:var(--green)}
+  .bat.mid .bat-shell,.bat.mid .bat-shell::after{border-color:var(--amber2)}
+  .bat.mid .bat-fill{background:var(--amber2)}
+  .bat.low .bat-shell,.bat.low .bat-shell::after{border-color:var(--red2)}
+  .bat.low .bat-fill{background:var(--red2)}
+  .bat.over .bat-shell{border-color:var(--red2)}
+  .bat.over .bat-fill{background:var(--red2);animation:pulse 1.2s ease-in-out infinite}
+
+  .ring{width:20px;height:20px;flex:none}
+  .ring circle{fill:none;stroke-width:2.5}
+  .ring .track{stroke:#3a3a3a}
+  .ring .val{stroke:var(--green);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .3s ease}
+  .ring.mid .val{stroke:var(--amber2)}
+  .ring.low .val{stroke:var(--red2)}
+  .ring.over .val{stroke:var(--red2);animation:pulse 1.2s ease-in-out infinite}
+  .badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;
+    border-radius:5px;background:var(--bg3);color:var(--muted);font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .fuel-wrap{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+  .fuel-bar{width:120px;height:5px;border-radius:3px;background:#3a3a3a;position:relative;overflow:hidden}
+  .fuel-fill{position:absolute;left:0;top:0;height:100%;background:var(--green)}
+  .fuel-bar.mid .fuel-fill{background:var(--amber2)}
+  .fuel-bar.low .fuel-fill{background:var(--red2)}
+  .fuel-bar.over .fuel-fill{background:var(--red2);animation:pulse 1.2s ease-in-out infinite}
+  .fuel-tick{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.4)}
+  .fuel-label{font-size:12px;color:var(--muted)}
+
+  .min-row{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .min-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+  .min-dot.mid{background:var(--amber2)}
+  .min-dot.low{background:var(--red2)}
+  .min-dot.over{background:var(--red2);animation:pulse 1.2s ease-in-out infinite}
+  .min-time{font-weight:600}
+  .min-tally{color:var(--muted);font-size:12px}
+
+  :root{ --amber2:#e5a83c; --red2:#e5484d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="section">
+    <p class="label">1 · Battery pill + session dots</p>
+    <p class="cap">Closest to a literal battery: outline drains as budget runs out (green → amber → red, pulses once you're over). Sessions become a capped row of dots instead of "3 sessions" text.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="total"><span class="rp" title="3 sessions"><i></i><i></i><i></i></span></td>
+        <td class="r total"><span style="font-weight:600">2h 27m</span> <span class="bat high" title="1h 33m left of 4h"><span class="bat-shell"><span class="bat-fill" style="width:39%"></span></span></span></td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="total"><span class="rp" title="12 sessions"><i></i><i></i><i></i><i></i><span class="rp-extra">+8</span></span></td>
+        <td class="r total"><span style="font-weight:600">1h 52m</span> <span class="bat over" title="12m over the 2h estimate"><span class="bat-shell"><span class="bat-fill" style="width:100%"></span></span></span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">2 · Ring + count badge</p>
+    <p class="cap">A thin progress ring (same idea as Apple's activity rings) instead of a rectangular battery — reads as "budget remaining" without literally drawing a battery. Sessions become a small tabular badge, quieter than dots when counts run high.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="total"><span class="badge" title="3 sessions">3</span></td>
+        <td class="r total"><span style="display:inline-flex;align-items:center;gap:8px;justify-content:flex-end">
+          <span style="font-weight:600">2h 27m</span>
+          <svg class="ring high" viewBox="0 0 20 20" title="1h 33m left of 4h"><circle class="track" cx="10" cy="10" r="8"/><circle class="val" cx="10" cy="10" r="8" stroke-dasharray="50.3" stroke-dashoffset="19.6"/></svg>
+        </span></td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="total"><span class="badge" title="12 sessions">12</span></td>
+        <td class="r total"><span style="display:inline-flex;align-items:center;gap:8px;justify-content:flex-end">
+          <span style="font-weight:600">1h 52m</span>
+          <svg class="ring over" viewBox="0 0 20 20" title="12m over the 2h estimate"><circle class="track" cx="10" cy="10" r="8"/><circle class="val" cx="10" cy="10" r="8" stroke-dasharray="50.3" stroke-dashoffset="0"/></svg>
+        </span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">3 · One fuel bar, sessions as ticks</p>
+    <p class="cap">Merges both signals into a single object: a slim bar shows time consumed vs. the estimate, and faint tick marks along it show where each session ended — so session count and time-remaining live in one glance instead of two separate widgets.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td colspan="2" class="r total">
+          <div class="fuel-wrap">
+            <span class="fuel-label">2h 27m / 4h</span>
+            <div class="fuel-bar high" style="width:120px">
+              <div class="fuel-fill" style="width:61%"></div>
+              <div class="fuel-tick" style="left:20%"></div>
+              <div class="fuel-tick" style="left:41%"></div>
+            </div>
+          </div>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td colspan="2" class="r total">
+          <div class="fuel-wrap">
+            <span class="fuel-label">1h 52m / 1h 40m</span>
+            <div class="fuel-bar over" style="width:120px">
+              <div class="fuel-fill" style="width:100%"></div>
+            </div>
+          </div>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">4 · Text-only, dot + tally</p>
+    <p class="cap">No graphic shape at all — just the time, a single status dot (the whole "battery" reduced to one colored pixel), and the session count folded in as a small tally instead of its own column. The most restrained option.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total" colspan="2">
+          <span class="min-row">
+            <span class="min-tally" title="3 sessions">×3</span>
+            <span class="min-time">2h 27m</span>
+            <span class="min-dot high" title="1h 33m left of 4h"></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total" colspan="2">
+          <span class="min-row">
+            <span class="min-tally" title="12 sessions">×12</span>
+            <span class="min-time">1h 52m</span>
+            <span class="min-dot over" title="12m over the 2h estimate"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+</div>
+</body>
+</html>

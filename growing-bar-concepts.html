@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Segmented bar — growing past the estimate</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+  .section{margin-bottom:44px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 14px;max-width:620px}
+  table{background:var(--bg);border-radius:10px;overflow:hidden}
+  .seg-cell{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .seg-time{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .over-label{color:var(--red2);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .bar{height:8px;border-radius:4px;background:#2c2c2c;display:flex;overflow:hidden;flex:none}
+  .bar i{display:block;height:100%}
+  .bar i.g{background:var(--green)}
+  .bar i.r{background:var(--red2)}
+  .bar i.gap{background:transparent}
+
+  .bar-wrap{position:relative;display:inline-flex;align-items:center}
+  .marker{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.5}
+
+  .hatch{background-image:repeating-linear-gradient(45deg,var(--amber2) 0 3px,#3a2c14 3px 6px) !important}
+
+  :root{ --red2:#e5484d; --amber2:#e5a83c; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="section">
+    <p class="label">A · Marker + split segment, true scale</p>
+    <p class="cap">1 pixel always means the same amount of time, no rescaling. A thin marker sits at the estimate. Sessions before it are green; a session that straddles the line splits into a green part and a red part right at the crossing point, so you can see exactly which session pushed you over and by how much.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 55m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="3 sessions · 15m over the 1h40m estimate">
+              <i class="g" style="width:48px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:60px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:12px"></i><i class="r" style="width:18px"></i>
+            </span>
+            <span class="marker" style="left:120px"></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">database migration from local to remote</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">2h 27m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="3 sessions · 1h 33m left of 4h">
+              <i class="g" style="width:36px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:65px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:5px"></i>
+            </span>
+            <span class="marker" style="left:192px"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">B · Same, but capped so one task can't stretch the table</p>
+    <p class="cap">Identical to A up to about 1.5× the estimate. Past that, the bar stops growing and the remainder collapses into a plain "+2h 40m over" label — so a task that's wildly over its estimate still stands out, but can't make its row wider than everyone else's.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 55m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="3 sessions · 15m over the 1h40m estimate">
+              <i class="g" style="width:48px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:60px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:12px"></i><i class="r" style="width:18px"></i>
+            </span>
+            <span class="marker" style="left:120px"></span>
+          </span>
+        </td></tr>
+      <tr><td class="idx"><span class="num">2</span></td><td class="tname">chase down the flaky CI test</td>
+        <td class="r total seg-cell">
+          <span class="over-label">+2h 40m over</span>
+          <span class="seg-time">3h 10m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="6 sessions · 2h 40m over the 30m estimate" style="width:120px">
+              <i class="g" style="width:75px"></i><i class="r" style="width:43px"></i>
+            </span>
+            <span class="marker" style="left:75px"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">C · No marker line — color does all the talking</p>
+    <p class="cap">Same growth and split-segment behavior as A, just without the extra tick mark. One less element to render; the green→red transition on its own already tells you where the estimate was, so the marker may be redundant.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 55m</span>
+          <span class="bar" title="3 sessions · 15m over the 1h40m estimate">
+            <i class="g" style="width:48px"></i><i class="gap" style="width:2px"></i>
+            <i class="g" style="width:60px"></i><i class="gap" style="width:2px"></i>
+            <i class="g" style="width:12px"></i><i class="r" style="width:18px"></i>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <p class="label">D · Overage as a texture, not an alarm color</p>
+    <p class="cap">For anyone who treats an estimate as a loose guess rather than a deadline, solid red can feel like a scolding. This keeps green for on-plan time, but renders anything past the estimate as an amber diagonal hatch instead of alarm-red — still clearly "extra," read as neutral rather than a warning.</p>
+    <table><tbody>
+      <tr><td class="idx"><span class="num">1</span></td><td class="tname">refactor auth middleware</td>
+        <td class="r total seg-cell">
+          <span class="seg-time">1h 55m</span>
+          <span class="bar-wrap">
+            <span class="bar" title="3 sessions · 15m over the 1h40m estimate">
+              <i class="g" style="width:48px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:60px"></i><i class="gap" style="width:2px"></i>
+              <i class="g" style="width:12px"></i><i class="hatch" style="width:18px"></i>
+            </span>
+            <span class="marker" style="left:120px"></span>
+          </span>
+        </td></tr>
+    </tbody></table>
+  </div>
+
+</div>
+</body>
+</html>

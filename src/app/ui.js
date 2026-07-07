@@ -1,7 +1,19 @@
 import { esc } from "./utils.js";
 
 export function createUi() {
+  // #doverlay/#dmodal is a single shared dialog surface — uiConfirm, uiPrompt,
+  // uiNote, and every custom uiForm all render into it. That's fine as long
+  // as only one is ever open, but a dialog can itself contain a button that
+  // opens another (e.g. a "Delete" button inside an "Edit" dialog): without
+  // this, the second uiForm() call would overwrite the first's DOM out from
+  // under it while the first's keydown listener and pending Promise stay
+  // alive — the first dialog's Enter/Escape handler then fires later against
+  // elements that no longer exist. Tracking + auto-cancelling the previous
+  // dialog before opening a new one makes that nesting safe everywhere.
+  let cancelPending = null;
+
   function uiForm({ title, bodyHtml = "", confirmText = "OK", danger = false, focusSel = null, collect }) {
+    if (cancelPending) cancelPending();
     return new Promise((resolve) => {
       const overlay = document.getElementById("doverlay");
       const modal = document.getElementById("dmodal");
@@ -23,6 +35,7 @@ export function createUi() {
         overlay.classList.remove("show");
         overlay.onclick = null;
         document.removeEventListener("keydown", onKey);
+        if (cancelPending === cancel) cancelPending = null;
         resolve(result);
       }
 
@@ -32,6 +45,7 @@ export function createUi() {
       }
 
       const cancel = () => finish(null);
+      cancelPending = cancel;
 
       function onKey(event) {
         if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {

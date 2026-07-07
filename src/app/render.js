@@ -23,22 +23,84 @@ export function createRenderer({ state, helpers, actions }) {
   // Six-dot drag handle — the classic, instantly-recognizable "grab here" glyph.
   const GRIP_SVG = `<svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="14" r="1.3"/><circle cx="8" cy="14" r="1.3"/></svg>`;
 
-  const CLOCK_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+  // 15px — sized to the same visual weight as the 14px emoji glyphs beside
+  // them, both sitting in the fixed-width `.li-icon` column (see below) so
+  // every row's icon — Recent, Sessions, and every list — starts at the
+  // exact same x position instead of drifting per row.
+  const CLOCK_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+
+  // Same clock, sized for the Recent page's 160px `.hdr .cover` tile instead
+  // of the 16px sidebar icon column above — the other pages' covers (⚙, ◷,
+  // a list's emoji) are plain text glyphs that scale automatically with the
+  // tile's 62px font-size, but an SVG's width/height attributes don't, so
+  // reusing the small CLOCK_SVG here left it stranded at 15px in a 160px box.
+  const CLOCK_SVG_HERO = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+
+  // Feather's "list" glyph — distinct from Recent's clock face, reads as
+  // "a log of entries" which is exactly what the Sessions page is.
+  const SESSIONS_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+
+  // Spotify/Apple-Music-style sticky mini-header — sits above every .hdr
+  // as #main's first child (see the 4 page renderers below), always
+  // `position:sticky;top:0` (see CSS) but invisible at rest. It only fades
+  // in once the big header's own <h1> — the "artist name" — scrolls out of
+  // view; initStickyHeader() below is what watches for that.
+  const stickyBarHtml = (icon, name, playAction) => `
+    <div class="stickybar" id="stickybar">
+      <span class="sb-icon">${icon}</span>
+      <span class="sb-name">${name}</span>
+      ${playAction ? `<button class="sb-play" data-action="${playAction}" title="Play first task">▶</button>` : ""}
+    </div>`;
+
+  // Every page renderer fully replaces #main's innerHTML, which would
+  // otherwise orphan any previous IntersectionObserver (still watching a
+  // <h1> that no longer exists) and leak a new one on every re-render — so
+  // each of the 4 page renderers disconnects the last one via this before
+  // wiring up its own #stickybar/h1 pair.
+  let stickyObserver = null;
+  function initStickyHeader() {
+    if (stickyObserver) { stickyObserver.disconnect(); stickyObserver = null; }
+    const main = document.getElementById("main");
+    const bar = document.getElementById("stickybar");
+    const h1 = main?.querySelector(".hdr .info h1");
+    if (!main || !bar || !h1) return;
+    stickyObserver = new IntersectionObserver(
+      ([entry]) => bar.classList.toggle("show", !entry.isIntersecting),
+      { root: main, threshold: 0 }
+    );
+    stickyObserver.observe(h1);
+  }
 
   function renderSidebar() {
     if (!state.S) return;
     document.getElementById("recentNav").innerHTML = `
       <div class="list-item recent-item ${state.view === "recent" ? "active" : ""}" data-action="openRecentPage" title="Last 6 tasks played">
-        <span class="sq">${CLOCK_SVG}</span>
-        <span class="meta"><span>Recent</span></span>
+        <span class="li-icon">${CLOCK_SVG}</span>
+        <span class="li-label">Recent</span>
+      </div>
+      <div class="list-item recent-item ${state.view === "sessions" ? "active" : ""}" data-action="openSessionsPage" title="All sessions">
+        <span class="li-icon">${SESSIONS_SVG}</span>
+        <span class="li-label">Sessions</span>
       </div>`;
-    document.getElementById("lists").innerHTML = state.S.lists.map((listItem) => `
-      <div class="list-item ${state.view === "tasks" && listItem.id === state.activeListId ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="Drag to reorder · Double-click to edit">
+    // One line per list now — count replaces the old two-line "N tasks ·
+    // spent of estimate" meta text, which moves into the row's title
+    // tooltip instead of being always-on. `.list-grip` is positioned
+    // absolute (see CSS) precisely so it doesn't reserve flex space and
+    // throw list rows' `.li-icon` out of alignment with Recent/Sessions
+    // above, which have no grip at all.
+    document.getElementById("lists").innerHTML = state.S.lists.map((listItem) => {
+      const count = tasksForList(listItem.id).length;
+      const detail = `${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder, double-click to edit`;
+      const isActive = state.view === "tasks" && listItem.id === state.activeListId;
+      return `
+      <div class="list-item ${isActive ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="${esc(detail)}">
         <span class="list-grip" title="Drag to reorder">${GRIP_SVG}</span>
-        <span class="sq" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span>
-        <span class="meta"><span>${esc(listItem.name)}</span><small>${tasksForList(listItem.id).length} tasks · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))}</small></span>
+        <span class="li-icon">${listItem.emoji}</span>
+        <span class="li-label">${esc(listItem.name)}</span>
+        <span class="count">${count}</span>
         <button class="list-edit" title="Edit name, emoji &amp; color" data-action="editList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
 
   // Per-list accent: keyed off `listItem.color`, set directly on #main so
@@ -187,6 +249,7 @@ export function createRenderer({ state, helpers, actions }) {
       </div>` : "";
 
     main.innerHTML = `
+      ${stickyBarHtml(listItem.emoji, esc(listItem.name), "playFirst")}
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
         <div class="info"><small>Task List</small><h1>${esc(listItem.name)}</h1><div class="sub">${todo.length} to do${done.length ? " · " + done.length + " done" : ""} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} tracked</div></div>
@@ -199,6 +262,7 @@ export function createRenderer({ state, helpers, actions }) {
         : `<div class="empty">${all.length ? "All done here. 🎉" : "No tasks yet. Click <b>Add task</b> to start."}</div>`}
       ${completedGroup}
       <p class="note">Only one task runs at a time. The menu-bar item shows live minutes and toggles play/pause.</p>`;
+    initStickyHeader();
   }
 
   function renderPlayer() {
@@ -260,7 +324,6 @@ export function createRenderer({ state, helpers, actions }) {
     renderPlayer();
     if (state.openTaskId) renderDetail();
     document.getElementById("gear")?.classList.toggle("on", state.view === "settings");
-    document.getElementById("sessBtn")?.classList.toggle("on", state.view === "sessions");
     const navBackButton = document.getElementById("navback");
     const navForwardButton = document.getElementById("navfwd");
     if (navBackButton) navBackButton.disabled = !state.navBack.length;
@@ -594,6 +657,7 @@ export function createRenderer({ state, helpers, actions }) {
   function renderSettingsPage() {
     if (!state.S) return;
     document.getElementById("main").innerHTML = `
+      ${stickyBarHtml("⚙", "Settings")}
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#5a5a5a,#2e2e2e)">⚙</div>
         <div class="info"><small>App</small><h1>Settings</h1><div class="sub">Focus session, data, and about</div></div>
@@ -612,6 +676,7 @@ export function createRenderer({ state, helpers, actions }) {
         </section>
         <section>${aboutSectionHtml()}</section>
       </div>`;
+    initStickyHeader();
   }
 
   function dayLabel(ts) {
@@ -927,11 +992,13 @@ export function createRenderer({ state, helpers, actions }) {
     </div>`;
 
     document.getElementById("main").innerHTML = `
+      ${stickyBarHtml("◷", "Sessions")}
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#2e7d4f,#0c3f26)">◷</div>
         <div class="info"><small>History</small><h1>Sessions</h1><div class="sub">${items.length} session${items.length === 1 ? "" : "s"} across all tasks</div></div>
       </div>
       <div class="sessions-page">${periodTabs}${body}</div>`;
+    initStickyHeader();
   }
 
   // "Recent" — a pinned sidebar entry (not a real list) that opens a
@@ -986,14 +1053,16 @@ export function createRenderer({ state, helpers, actions }) {
     }).join("");
 
     document.getElementById("main").innerHTML = `
+      ${stickyBarHtml(CLOCK_SVG, "Recent")}
       <div class="hdr" data-tauri-drag-region>
-        <div class="cover" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c);color:var(--muted)">${CLOCK_SVG}</div>
+        <div class="cover" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c);color:var(--muted)">${CLOCK_SVG_HERO}</div>
         <div class="info"><small>History</small><h1>Recent</h1><div class="sub">Last ${entries.length} task${entries.length === 1 ? "" : "s"} played, across all lists</div></div>
       </div>
       ${entries.length
         ? `<table><thead><tr><th class="idx">#</th><th>Task</th><th class="r">Progress</th><th class="rwhen">Last played</th></tr></thead>
            <tbody>${rows}</tbody></table>`
         : `<div class="empty">No tasks played yet. Press play on a task to start tracking.</div>`}`;
+    initStickyHeader();
   }
 
   const M_NOTE_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;

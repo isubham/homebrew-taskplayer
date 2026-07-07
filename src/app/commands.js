@@ -54,7 +54,10 @@ export function createCommands({ state, ui, renderer, invoke }) {
         <div class="ffield"><label>Preview</label><span id="stylePreview" style="${previewStyle(current.color)}">${chosenEmoji}</span></div>
         <div class="ffield"><label>Name</label><input type="text" id="listNameIn" value="${esc(current.name)}" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
         <div class="ffield" style="align-items:flex-start"><label>Emoji</label><div class="emoji-grid" id="emojiGrid">${emojiGridHtml}</div></div>
-        <div class="ffield"><label>Color</label><input type="color" id="listColorIn" value="${esc(current.color)}"></div>`,
+        <div class="ffield"><label>Color</label><input type="color" id="listColorIn" value="${esc(current.color)}"></div>
+        <div style="margin:18px 22px 0;padding-top:14px;border-top:1px solid var(--line)">
+          <button type="button" class="danger" data-action="deleteList" data-id="${id}">Delete list</button>
+        </div>`,
       collect: () => {
         const name = document.getElementById("listNameIn").value.trim();
         if (!name) return undefined;

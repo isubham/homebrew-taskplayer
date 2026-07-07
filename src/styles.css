@@ -67,25 +67,31 @@ body{
 .brand-gear.on{color:#fff;background:var(--bg3)}
 .brand .dot{width:24px;height:24px;border-radius:50%;background:var(--green);display:grid;place-items:center;color:#000;font-size:12px}
 .side h3{color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin:20px 10px 10px}
-.list-item{position:relative;display:flex;align-items:center;gap:12px;padding:11px 10px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:600;font-size:14px}
+/* Single-line, native-sidebar rows (Finder/Music.app style): a fixed-width
+   icon column, a truncating label, and — for lists — a trailing count pill.
+   No boxed/tinted tile behind the icon; the icon (or emoji) carries its own
+   color, so Recent, Sessions, and every list line up on the exact same
+   baseline and the exact same icon x-position. */
+.list-item{position:relative;display:flex;align-items:center;gap:9px;padding:6px 8px 6px 11px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500;font-size:13px}
 .list-item:hover,.list-item.active{color:#fff;background:var(--bg3)}
 .list-item{transition:background .15s ease,color .15s ease,transform .1s ease}
 .list-item:active{transform:scale(.985)}
 @media (prefers-reduced-motion:reduce){.list-item:active{transform:none}}
-.list-item .sq{width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font-size:15px;flex:none}
-.list-item .meta{display:flex;flex-direction:column;line-height:1.2;overflow:hidden;flex:1}
-.list-item .meta small{color:var(--muted);font-weight:500;font-size:11px}
-/* "Recent" — pinned above Your Lists, not a real list so its tile is a
-   neutral clock glyph instead of a colored emoji square */
-.recent-item .sq{background:var(--bg3);color:var(--muted)}
-.recent-item .sq svg{display:block}
+.list-item .li-icon{width:16px;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;color:var(--muted)}
+.list-item:hover .li-icon,.list-item.active .li-icon{color:inherit}
+.list-item .li-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-item .count{flex:none;color:var(--muted);font-weight:500;font-size:10px;background:var(--bg3);border-radius:999px;padding:1px 7px;text-align:center}
+.list-item:hover .count,.list-item.active .count{background:var(--elev)}
 .list-edit{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:3px 6px;border-radius:5px;opacity:0;flex:none}
 .list-item:hover .list-edit{opacity:1}
 .list-edit:hover{color:#fff;background:var(--elev)}
 
-/* drag handle for reordering lists in the sidebar — hidden until hovered so
-   it doesn't compete visually with the emoji tile at rest */
-.list-grip{flex:none;display:flex;align-items:center;color:var(--muted);opacity:0;cursor:grab}
+/* Drag handle for reordering lists — absolutely positioned (not a flex
+   item) so it overlays the row's left padding on hover instead of
+   reserving layout space at rest. A reserved-space grip would push every
+   list row's `.li-icon` a few px right of Recent/Sessions above (which
+   have no grip), breaking the shared icon column this layout depends on. */
+.list-grip{position:absolute;left:1px;top:50%;transform:translateY(-50%);display:flex;align-items:center;color:var(--muted);opacity:0;cursor:grab}
 .list-item:hover .list-grip{opacity:.55}
 .list-grip:hover{opacity:1}
 .list-item:active .list-grip,.list-item.dragging .list-grip{cursor:grabbing}
@@ -152,9 +158,40 @@ body{
 .daylegend .chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .daylegend .chip i{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
 /* Main */
-.main{grid-area:main;overflow-y:auto;border-radius:10px;background:linear-gradient(180deg,#3a3a3a 0%,var(--bg) 300px)}
-.hdr{padding:56px 32px 28px;display:flex;align-items:flex-end;gap:26px;-webkit-app-region:drag}
+.main{grid-area:main;overflow-y:auto;border-radius:10px;background:var(--bg)}
+/* Wash — keyed off the active list's --accent (set by render.js's
+   setAccent(), per-list) so each list's header reads as that list's color
+   instead of a fixed grey. On the header itself (not .main above), sized
+   to its own box (0%/100%) so the color is fully contained to the
+   artist/list-details block and can't bleed into the toolbar or task rows
+   below it. Falls back to the old grey on pages with no accent (Settings,
+   Sessions, Recent — see clearAccent()). */
+.hdr{padding:56px 32px 28px;display:flex;align-items:flex-end;gap:26px;-webkit-app-region:drag;background:linear-gradient(180deg,var(--accent,#3a3a3a) 0%,var(--bg) 100%)}
 .hdr button,.toolbar button{-webkit-app-region:no-drag}
+/* Sticky mini-header — a permanently `position:sticky` first child of
+   #main (see stickyBarHtml()/initStickyHeader() in render.js), invisible
+   at rest and faded in only once the big header's own <h1> has scrolled
+   out of view, so the list/page name stays put once its full-size title
+   is gone. Opaque bg since content keeps scrolling underneath it.
+   Left padding is 84px, not 32 — #navbar (the back/forward buttons) is
+   `position:fixed;top:18px;left:280px`, floating independently of scroll
+   right at .main's own left edge, two 28px circles + 6px gap = 62px wide.
+   .hdr avoids it with 56px of top padding, but the whole point of this bar
+   is to stay short, so it clears navbar horizontally instead: 84px puts
+   the icon safely right of x≈342 (280+62) with room to spare.
+   Fixed 44px height + no vertical padding (align-items:center does the
+   centering) so its content's vertical center lands exactly where
+   navbar's does: navbar is top:18px + 28px tall = center at 32px from the
+   viewport; .main itself starts 10px down (#app's own padding), so a
+   44px-tall row centered from .main's top puts its content at 10+22=32px
+   too — same line as the nav buttons, not just clear of them left-right. */
+.stickybar{position:sticky;top:0;z-index:5;height:44px;display:flex;align-items:center;gap:12px;padding:0 32px 0 84px;background:var(--bg2);border-bottom:1px solid var(--line);opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .18s ease,transform .18s ease;-webkit-app-region:drag}
+.stickybar.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.stickybar .sb-icon{flex:none;width:20px;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
+.stickybar .sb-icon svg{display:block}
+.stickybar .sb-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:15px}
+.stickybar .sb-play{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent,var(--green));color:var(--accent-ink,#000);border:none;font-size:12px;cursor:pointer;-webkit-app-region:no-drag}
+.stickybar .sb-play:hover{transform:scale(1.06)}
 .hdr .cover{width:160px;height:160px;border-radius:8px;display:grid;place-items:center;font-size:62px;box-shadow:0 14px 38px rgba(0,0,0,.55);flex:none}
 .hdr .info small{font-size:12px;letter-spacing:.06em;font-weight:700}
 .hdr .info h1{margin:14px 0 16px;font-size:64px;font-weight:800;letter-spacing:-.04em;line-height:1}
@@ -165,20 +202,34 @@ body{
 .pill{background:none;border:1px solid #555;color:#fff;padding:8px 15px;border-radius:20px;font-weight:600;cursor:pointer}
 .pill:hover{border-color:#fff}
 .pill.muted{color:var(--muted)}
-table{width:100%;border-collapse:collapse;margin-top:16px;padding:0 16px}
+/* max-width, not just width:100% — on a very wide window, table-layout:auto
+   hands whichever column has the least content (the Progress/time column,
+   often just "0m") a chunk of the leftover space anyway, stranding it far
+   from the task name it belongs to. Capping the row itself keeps name and
+   time close together regardless of how wide the actual window is. */
+table{width:100%;max-width:1120px;border-collapse:collapse;margin-top:16px;padding:0 16px}
 thead th{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:8px 24px;border-bottom:1px solid var(--line);font-weight:600}
 th.r,td.r{text-align:right}
 tbody tr:hover{background:var(--bg3)}
 tbody td{padding:14px 24px;font-size:14px}
-.idx{color:var(--muted);width:44px;position:relative}
+/* padding-left nudges the row number right of tbody td's usual 24px so it
+   sits roughly under the album tile above it (.albhead's icon starts at
+   32px, table's own left padding + td padding only put the digit at ~40px)
+   — reads as "these rows belong to that album" instead of just happening
+   to share a left edge. */
+.idx{color:var(--muted);width:44px;position:relative;padding-left:40px}
 /* number and play/pause glyph share one fixed-width box so hover doesn't reflow the row */
 .idx .num,.idx .go{display:inline-block;width:18px;text-align:center;line-height:1}
 tbody tr:hover .idx .num{display:none}
 tbody tr:hover .idx .go{display:inline-block}
 .idx .go{display:none;background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:0}
 /* drag handle — sits in the cell's own left padding gutter, invisible until
-   the row is hovered so the list reads exactly the same as before at rest */
-.grip{position:absolute;left:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;
+   the row is hovered so the list reads exactly the same as before at rest.
+   left:12px, not 4 — .idx's padding-left grew to 40px to indent the row
+   number under the album tile above it, and the grip stayed pinned near
+   the table's outer edge, leaving it looking stranded in a cramped sliver
+   of space instead of sitting comfortably in that wider gutter. */
+.grip{position:absolute;left:12px;top:50%;transform:translateY(-50%);display:flex;align-items:center;
   color:var(--muted);opacity:0;cursor:grab;transition:opacity .15s}
 tbody tr:hover .grip{opacity:.55}
 .grip:hover{opacity:1}
@@ -208,7 +259,11 @@ tr.playing .idx .num{font-weight:700}
    header (tile color hashed from the album name, see utils.js albumColor)
    and its own table so track numbering restarts per album; tasks with no
    album collect into a trailing "Singles" section instead. */
-.albhead{display:flex;align-items:center;gap:10px;padding:22px 32px 6px;margin:0}
+/* Same max-width as the table below it — .alb-meta is flex:1, so on a wide
+   window it was stretching edge-to-edge and flinging .alb-play (the ▶) all
+   the way out to the far right, disconnected from the album name/count it
+   belongs with. */
+.albhead{display:flex;align-items:center;gap:10px;padding:22px 32px 6px;margin:0;max-width:1120px}
 .albhead:first-of-type{padding-top:4px}
 .albhead .alb-tile{width:36px;height:36px;border-radius:6px;display:grid;place-items:center;font-size:16px;flex:none}
 .albhead .alb-meta{flex:1;min-width:0}
@@ -217,12 +272,12 @@ tr.playing .idx .num{font-weight:700}
 .alb-play{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:50%;flex:none;display:grid;place-items:center}
 .alb-play:hover{color:#fff;background:rgba(255,255,255,.08)}
 table.albrows{margin-top:4px}
-.singles-tag{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:22px 32px 0}
+.singles-tag{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:22px 32px 0;max-width:1120px}
 /* Drop targets for moving a task into/out of an album by dragging it onto
    the section header itself (not just an existing row) — an album header,
    or the "Singles" label / its empty-state placeholder when an album has
    pulled every task out of Singles. */
-.empty-singles{margin:6px 32px 0;padding:14px;border:1px dashed #444;border-radius:8px;color:var(--muted);font-size:12px;text-align:center}
+.empty-singles{margin:6px 32px 0;max-width:1120px;padding:14px;border:1px dashed #444;border-radius:8px;color:var(--muted);font-size:12px;text-align:center}
 .albhead.drop-zone-over,.singles-tag.drop-zone-over,.empty-singles.drop-zone-over{outline:2px dashed var(--green);outline-offset:-2px;border-radius:8px}
 /* Recent page: which list a task belongs to, shown as a small tag under
    its name since tasks here can come from any list. */
@@ -280,7 +335,7 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .donebtn{display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--green);color:var(--green);padding:5px 13px;border-radius:16px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
 .donebtn:hover{background:var(--green);color:#062b14}
 /* Completed group */
-.cgroup{padding:2px 30px 6px}
+.cgroup{padding:2px 30px 6px;max-width:1120px}
 .chead{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:12px 2px 6px;border-top:1px solid var(--line)}
 .chead:hover{color:#fff}
 .chev{display:inline-block;transition:transform .2s}

@@ -1,5 +1,16 @@
 import { esc } from "./utils.js";
 
+// Curated set for the "Edit list" emoji picker — common categories a task
+// list tends to fall into (work, home, fitness, creative, ...), rather than
+// a full system emoji keyboard, which would need its own search/scroll UI
+// far beyond what a small dialog can hold.
+const LIST_EMOJIS = [
+  "📁", "🎯", "📚", "💼", "🏠", "🎨", "🎵", "🏋️",
+  "🛒", "✈️", "💰", "🧠", "🍳", "🌱", "🐾", "❤️",
+  "🎮", "📷", "🧹", "🔧", "📝", "💻", "🎓", "🧘",
+  "⚽", "🎬", "🌟", "🔥", "✅", "📌", "🗂️", "🛠️",
+];
+
 export function createCommands({ state, ui, renderer, invoke }) {
   const { uiPrompt, uiConfirm, uiNote } = ui;
 
@@ -20,10 +31,62 @@ export function createCommands({ state, ui, renderer, invoke }) {
     if (name) apply(await invoke("add_list", { name }));
   }
 
-  async function renameList(id) {
+  async function editList(id) {
     const current = list(id);
-    const name = await uiPrompt("Rename list", current ? current.name : "");
-    if (name) apply(await invoke("rename_list", { id, name }));
+    if (!current) return;
+    // Falls back to the first picker option if the list's current emoji
+    // isn't one of the curated choices (e.g. an older custom one), so the
+    // grid always shows something selected rather than nothing highlighted.
+    let chosenEmoji = LIST_EMOJIS.includes(current.emoji) ? current.emoji : LIST_EMOJIS[0];
+    const emojiGridHtml = LIST_EMOJIS.map(
+      (e) => `<button type="button" class="emoji-opt${e === chosenEmoji ? " sel" : ""}" data-emoji="${e}">${e}</button>`
+    ).join("");
+    const previewStyle = (color) => `background:${color}22;color:${color};width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font-size:15px;flex:none`;
+    // `uiForm` mutates the DOM synchronously before it returns its (still
+    // pending) promise — see ui.js — so it's safe to grab these elements and
+    // wire them up here, right after the call, rather than needing ui.js to
+    // expose some kind of "onMount" hook just for this one dialog.
+    const formPromise = uiForm({
+      title: "Edit list",
+      confirmText: "Save",
+      focusSel: "#listNameIn",
+      bodyHtml: `
+        <div class="ffield"><label>Preview</label><span id="stylePreview" style="${previewStyle(current.color)}">${chosenEmoji}</span></div>
+        <div class="ffield"><label>Name</label><input type="text" id="listNameIn" value="${esc(current.name)}" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
+        <div class="ffield" style="align-items:flex-start"><label>Emoji</label><div class="emoji-grid" id="emojiGrid">${emojiGridHtml}</div></div>
+        <div class="ffield"><label>Color</label><input type="color" id="listColorIn" value="${esc(current.color)}"></div>`,
+      collect: () => {
+        const name = document.getElementById("listNameIn").value.trim();
+        if (!name) return undefined;
+        const color = document.getElementById("listColorIn").value;
+        return { name, emoji: chosenEmoji, color };
+      },
+    });
+    // The grid's own highlighted tile and the color swatch both show the
+    // current pick, but neither made it obvious *something changed* when
+    // clicked — this preview is the one place both come together, updated
+    // live so picking either one has an immediate, unambiguous result.
+    const preview = document.getElementById("stylePreview");
+    const colorInput = document.getElementById("listColorIn");
+    const grid = document.getElementById("emojiGrid");
+    grid?.addEventListener("click", (event) => {
+      const btn = event.target.closest(".emoji-opt");
+      if (!btn) return;
+      chosenEmoji = btn.dataset.emoji;
+      grid.querySelectorAll(".emoji-opt.sel").forEach((el) => el.classList.remove("sel"));
+      btn.classList.add("sel");
+      if (preview) preview.textContent = chosenEmoji;
+    });
+    colorInput?.addEventListener("input", () => {
+      if (preview) preview.style.cssText = previewStyle(colorInput.value);
+    });
+    const value = await formPromise;
+    if (!value) return;
+    // Name lives on a separate command from emoji/color (matches the
+    // backend's existing rename_list vs. the new set_list_style) — both
+    // fire from this one dialog, so just apply the final snapshot.
+    await invoke("rename_list", { id, name: value.name });
+    apply(await invoke("set_list_style", { id, emoji: value.emoji, color: value.color }));
   }
 
   async function deleteList(id) {
@@ -272,6 +335,14 @@ export function createCommands({ state, ui, renderer, invoke }) {
     await invoke("sync_now");
   }
 
+  async function fullSync() {
+    // Same fire-and-forget shape as syncNow, but resets the incremental
+    // cursors first so this sync re-checks everything instead of trusting
+    // "updated_at > cursor" — the fix for a row from another device that
+    // never showed up here.
+    await invoke("full_sync");
+  }
+
   function importData() {
     if (!state.S) return;
     const input = document.getElementById("importFile");
@@ -327,7 +398,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
 
   return {
     addList,
-    renameList,
+    editList,
     reorderLists,
     deleteList,
     selectList,
@@ -356,6 +427,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     signInGoogle,
     signOut,
     syncNow,
+    fullSync,
     apply,
     uiForm,
   };

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sessions page — day / week / month views</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:700px;margin:0 auto}
+  .section{margin-bottom:56px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:640px;line-height:1.55}
+
+  :root{ --c-taskify:#e5484d; --c-meetings:#e5a83c; --c-docs:#b16ae7; }
+
+  .demo-group{background:var(--bg);border-radius:10px;padding:16px 20px 20px}
+
+  .period-tabs{display:flex;gap:6px;margin-bottom:18px}
+  .period-tabs button{background:none;border:1px solid #444;color:var(--muted);font-size:12px;font-weight:600;padding:6px 16px;border-radius:20px;cursor:pointer}
+  .period-tabs button.active{background:var(--green);border-color:var(--green);color:#000}
+
+  .chev{width:14px;flex:none;text-align:center;color:var(--muted);font-size:10px}
+  .task-badge{color:var(--muted);font-size:11px;background:var(--bg3);border-radius:8px;padding:2px 7px;flex:none;white-space:nowrap}
+  .sub-sess{display:flex;align-items:center;gap:12px;padding:7px 6px 7px 32px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .sub-sess:hover{background:var(--bg3);border-radius:6px}
+  .sub-range{flex:1}
+  .sub-dur{width:72px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+
+  /* week — stacked mini day-bars */
+  .weekrows{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+  .weekrow{display:flex;align-items:center;gap:10px}
+  .weekrow .wlabel{width:78px;flex:none;font-size:12px;color:var(--muted)}
+  .weekrow .wbar{position:relative;flex:1;height:10px;border-radius:4px;background:#1c1c1c;overflow:hidden}
+  .weekrow .wbar i{position:absolute;top:0;bottom:0;border-radius:2px}
+  .weekrow .wtotal{width:52px;flex:none;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)}
+
+  /* week — equalizer-style stacked columns */
+  .eqrow{display:flex;align-items:flex-end;gap:10px;height:100px;padding:0 4px;margin-bottom:8px}
+  .eqcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .eqbar{width:100%;max-width:34px;border-radius:4px 4px 0 0;display:flex;flex-direction:column-reverse;overflow:hidden}
+  .eqbar i{width:100%;display:block}
+  .eqcol .eqlabel{font-size:11px;color:var(--muted)}
+  .eqcol .eqval{font-size:11px;color:var(--text);font-variant-numeric:tabular-nums}
+
+  /* month — calendar heatmap */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px}
+  .cal .dow{font-size:10px;color:var(--muted);text-align:center;padding-bottom:2px}
+  .cal .cell{aspect-ratio:1;border-radius:4px;background:#1c1c1c}
+  .cal .cell.pad{background:transparent}
+
+  /* month — daily bar row */
+  .monthbars{display:flex;align-items:flex-end;gap:2px;height:90px;margin-bottom:8px}
+  .monthbars .mbar{flex:1;border-radius:2px 2px 0 0;background:var(--c-taskify)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:36px">Today's page is one "day" strip at a time, newest first. Adding Week and Month means: (1) a period switcher at the top of the page, and (2) new aggregate visuals to replace the 24h bar, since "midnight to midnight" stops being the right shape once you're looking at 7 or 30 days. The task rollup list underneath stays the same component in all three — it just re-groups by the wider window, and expanding a task shows one row per day instead of one row per raw session (a week can easily have 15+ sessions of the same task; day-by-day is the readable granularity, not session-by-session).</p>
+
+  <div class="period-tabs">
+    <button class="active">Day</button>
+    <button>Week</button>
+    <button>Month</button>
+  </div>
+
+  <!-- ============ WEEK A ============ -->
+  <div class="section">
+    <p class="label">Week · option A — stacked mini day-bars</p>
+    <p class="cap">Same 24h-scale bar you already have, just seven of them stacked (one per day, Mon–Sun), each still showing real session shape and color. Familiar and literal — you can see "that Wednesday was basically empty" at a glance — but it's the busiest-looking of the four options.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>This week</h4><span class="sess-total">9h 00m</span></div>
+      <div class="weekrows">
+        <div class="weekrow"><span class="wlabel">Mon 6/30</span><div class="wbar"><i style="left:37%;width:8%;background:var(--c-taskify)"></i></div><span class="wtotal">2h 00m</span></div>
+        <div class="weekrow"><span class="wlabel">Tue 7/1</span><div class="wbar"><i style="left:20%;width:4%;background:var(--c-meetings)"></i><i style="left:58%;width:5%;background:var(--c-taskify)"></i></div><span class="wtotal">1h 30m</span></div>
+        <div class="weekrow"><span class="wlabel">Wed 7/2</span><div class="wbar"><i style="left:62%;width:3%;background:var(--c-docs)"></i></div><span class="wtotal">45m</span></div>
+        <div class="weekrow"><span class="wlabel">Thu 7/3</span><div class="wbar"><i style="left:15%;width:6%;background:var(--c-taskify)"></i><i style="left:60%;width:3%;background:var(--c-taskify)"></i></div><span class="wtotal">2h 15m</span></div>
+        <div class="weekrow"><span class="wlabel">Fri 7/4</span><div class="wbar"><i style="left:40%;width:5%;background:var(--c-taskify)"></i></div><span class="wtotal">1h 15m</span></div>
+        <div class="weekrow"><span class="wlabel">Sat 7/5</span><div class="wbar"></div><span class="wtotal" style="color:var(--muted)">—</span></div>
+        <div class="weekrow"><span class="wlabel">Sun 7/6</span><div class="wbar"><i style="left:70%;width:5%;background:var(--c-meetings)"></i></div><span class="wtotal">1h 15m</span></div>
+      </div>
+
+      <div class="sess task-row">
+        <span class="chev">▾</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">4 days</span>
+        <span class="sess-dur">4h 45m</span></div>
+      <div class="sub-sess"><span class="sub-range">Mon 6/30</span><span class="sub-dur">2h 00m</span></div>
+      <div class="sub-sess"><span class="sub-range">Tue 7/1</span><span class="sub-dur">55m</span></div>
+      <div class="sub-sess"><span class="sub-range">Thu 7/3</span><span class="sub-dur">1h 20m</span></div>
+      <div class="sub-sess"><span class="sub-range">Fri 7/4</span><span class="sub-dur">30m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-meetings)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="task-badge">2 days</span>
+        <span class="sess-dur">1h 45m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="sess-list">Docs</span>
+        <span class="task-badge">1 day</span>
+        <span class="sess-dur">45m</span></div>
+    </div>
+  </div>
+
+  <!-- ============ WEEK B ============ -->
+  <div class="section">
+    <p class="label">Week · option B — one column per day, stacked by task</p>
+    <p class="cap">A small bar chart: seven columns, bar height is that day's total, each column's own colors stacked to show the task mix. Reads faster than seven full-width bars, and scales better if Month reuses the same chart shape (below) — the "how full was each day" comparison is the point, not exact minute-by-minute placement within the day.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>This week</h4><span class="sess-total">9h 00m</span></div>
+      <div class="eqrow">
+        <div class="eqcol"><div class="eqbar" style="height:80px"><i style="height:100%;background:var(--c-taskify)"></i></div><span class="eqval">2h 00m</span><span class="eqlabel">Mon</span></div>
+        <div class="eqcol"><div class="eqbar" style="height:60px"><i style="height:63%;background:var(--c-taskify)"></i><i style="height:37%;background:var(--c-meetings)"></i></div><span class="eqval">1h 30m</span><span class="eqlabel">Tue</span></div>
+        <div class="eqcol"><div class="eqbar" style="height:30px"><i style="height:100%;background:var(--c-docs)"></i></div><span class="eqval">45m</span><span class="eqlabel">Wed</span></div>
+        <div class="eqcol"><div class="eqbar" style="height:90px"><i style="height:100%;background:var(--c-taskify)"></i></div><span class="eqval">2h 15m</span><span class="eqlabel">Thu</span></div>
+        <div class="eqcol"><div class="eqbar" style="height:50px"><i style="height:100%;background:var(--c-taskify)"></i></div><span class="eqval">1h 15m</span><span class="eqlabel">Fri</span></div>
+        <div class="eqcol"><div class="eqbar" style="height:2px;background:#1c1c1c"></div><span class="eqval" style="color:var(--muted)">—</span><span class="eqlabel">Sat</span></div>
+        <div class="eqcol"><div class="eqbar" style="height:50px"><i style="height:100%;background:var(--c-meetings)"></i></div><span class="eqval">1h 15m</span><span class="eqlabel">Sun</span></div>
+      </div>
+
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">4 days</span>
+        <span class="sess-dur">4h 45m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-meetings)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="task-badge">2 days</span>
+        <span class="sess-dur">1h 45m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="sess-list">Docs</span>
+        <span class="task-badge">1 day</span>
+        <span class="sess-dur">45m</span></div>
+    </div>
+  </div>
+
+  <!-- ============ MONTH A ============ -->
+  <div class="section">
+    <p class="label">Month · option A — calendar heatmap</p>
+    <p class="cap">GitHub-contributions style: one cell per day, shading = hours tracked that day (darker line color = more time), laid out as a real calendar so weekday/weekend patterns jump out. Best "shape of the month" view, but it's a summary only — click a cell to jump into that day's Day view rather than expanding inline, since 30 individual day-rows would be a lot to also list below.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>July 2026</h4><span class="sess-total">38h 20m</span></div>
+      <div class="cal">
+        <span class="dow">S</span><span class="dow">M</span><span class="dow">T</span><span class="dow">W</span><span class="dow">T</span><span class="dow">F</span><span class="dow">S</span>
+        <span class="cell pad"></span><span class="cell pad"></span><span class="cell pad"></span>
+        <span class="cell" style="background:#c23a3e" title="Jul 1 · 2h 00m"></span>
+        <span class="cell" style="background:#7a2b2e" title="Jul 2 · 1h 10m"></span>
+        <span class="cell" style="background:#3a2323" title="Jul 3 · 30m"></span>
+        <span class="cell" style="background:#e5484d" title="Jul 4 · 2h 40m"></span>
+        <span class="cell" style="background:#4a2b6b" title="Jul 5 · 1h 05m"></span>
+        <span class="cell" style="background:#1c1c1c" title="Jul 6 · —"></span>
+        <span class="cell" style="background:#7a2b2e" title="Jul 7 · 1h 20m"></span>
+        <span class="cell" style="background:#c23a3e" title="Jul 8 · 2h 00m"></span>
+        <span class="cell" style="background:#3a2323" title="Jul 9 · 30m"></span>
+        <span class="cell" style="background:#e5484d" title="Jul 10 · 2h 30m"></span>
+        <span class="cell" style="background:#4a2b6b" title="Jul 11 · 1h 00m"></span>
+        <span class="cell" style="background:#1c1c1c" title="Jul 12 · —"></span>
+        <span class="cell" style="background:#7a2b2e" title="Jul 13 · 1h 15m"></span>
+        <span class="cell" style="background:#c23a3e" title="Jul 14 · 2h 05m"></span>
+        <span class="cell" style="background:#7a2b2e" title="Jul 15 · 1h 10m"></span>
+        <span class="cell" style="background:#e5484d" title="Jul 16 · 2h 20m"></span>
+        <span class="cell" style="background:#3a2323" title="Jul 17 · 25m"></span>
+        <span class="cell" style="background:#1c1c1c" title="Jul 18 · —"></span>
+        <span class="cell" style="background:#4a2b6b" title="Jul 19 · 55m"></span>
+      </div>
+
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">14 days</span>
+        <span class="sess-dur">22h 10m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-meetings)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="task-badge">9 days</span>
+        <span class="sess-dur">8h 30m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="sess-list">Docs</span>
+        <span class="task-badge">5 days</span>
+        <span class="sess-dur">7h 40m</span></div>
+    </div>
+  </div>
+
+  <!-- ============ MONTH B ============ -->
+  <div class="section">
+    <p class="label">Month · option B — daily bar row (continuation of week option B)</p>
+    <p class="cap">Same column-chart idea as Week option B, just ~30 thin columns instead of 7 — reads like a sparkline of the month. Keeps one consistent chart shape across Week and Month (only the column count changes), at the cost of losing the calendar's weekday alignment — a Saturday and a Tuesday look the same here.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>July 2026</h4><span class="sess-total">38h 20m</span></div>
+      <div class="monthbars">
+        <div class="mbar" style="height:60%"></div><div class="mbar" style="height:35%"></div><div class="mbar" style="height:15%"></div><div class="mbar" style="height:80%"></div><div class="mbar" style="height:30%"></div><div class="mbar" style="height:0"></div><div class="mbar" style="height:40%"></div>
+        <div class="mbar" style="height:60%"></div><div class="mbar" style="height:15%"></div><div class="mbar" style="height:75%"></div><div class="mbar" style="height:30%"></div><div class="mbar" style="height:0"></div><div class="mbar" style="height:38%"></div><div class="mbar" style="height:62%"></div>
+        <div class="mbar" style="height:35%"></div><div class="mbar" style="height:70%"></div><div class="mbar" style="height:12%"></div><div class="mbar" style="height:0"></div><div class="mbar" style="height:28%"></div><div class="mbar" style="height:55%"></div><div class="mbar" style="height:40%"></div>
+        <div class="mbar" style="height:20%"></div><div class="mbar" style="height:65%"></div><div class="mbar" style="height:0"></div><div class="mbar" style="height:45%"></div><div class="mbar" style="height:30%"></div><div class="mbar" style="height:55%"></div><div class="mbar" style="height:15%"></div>
+        <div class="mbar" style="height:38%"></div><div class="mbar" style="height:60%"></div><div class="mbar" style="height:10%"></div>
+      </div>
+      <div class="ticks" style="margin-top:0;margin-bottom:12px"><span>Jul 1</span><span>Jul 8</span><span>Jul 15</span><span>Jul 22</span><span>Jul 31</span></div>
+
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">14 days</span>
+        <span class="sess-dur">22h 10m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-meetings)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="task-badge">9 days</span>
+        <span class="sess-dur">8h 30m</span></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

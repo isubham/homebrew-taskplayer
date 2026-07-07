@@ -23,6 +23,24 @@ fn rest_url(table: &str) -> String {
     format!("{SUPABASE_URL}/rest/v1/{table}")
 }
 
+/// How far to rewind the pull cursor below "now" on every pull, instead of
+/// advancing it all the way to the puller's own clock reading.
+///
+/// `updated_at` is stamped by whichever device made the edit, using that
+/// device's own clock at *creation* time — there's no server-side trigger
+/// setting it on arrival. So a row can be created on device B, sit unpushed
+/// for a few seconds/minutes (offline, or just waiting for its periodic sync
+/// tick), and only reach Supabase *after* device A already advanced its
+/// pull_cursor past that row's timestamp. From then on `updated_at > cursor`
+/// excludes that row forever — not even a manual re-sync recovers it, since
+/// the row's timestamp never changes.
+///
+/// Keeping the cursor a few minutes behind "now" instead re-scans that
+/// window on every pull, catching the race. Re-applying an already-seen row
+/// is a no-op: `upsert_from_remote`'s `ON CONFLICT ... WHERE excluded.updated_at
+/// > x.updated_at` only writes if it's actually newer.
+const PULL_REWIND_MS: i64 = 5 * 60 * 1000;
+
 // ---- wire shapes ----
 //
 // Deliberately separate from the `core` models: these mirror the Postgres
@@ -231,7 +249,11 @@ fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
     if changed {
         db.upsert_from_remote(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
     }
-    db.set_pull_cursor(now).map_err(|e| e.to_string())?;
+    // Rewind below "now" rather than advancing straight to it — see
+    // `PULL_REWIND_MS` for why. `.max(cursor)` keeps this monotonic even if
+    // the rewind window would otherwise put it behind where we already are
+    // (e.g. right after a fresh sign-in, or an unusual backward clock jump).
+    db.set_pull_cursor((now - PULL_REWIND_MS).max(cursor)).map_err(|e| e.to_string())?;
     Ok(changed)
 }
 

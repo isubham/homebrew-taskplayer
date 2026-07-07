@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sessions page — one ruler, three zoom levels</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 90px}
+  .wrap{max-width:700px;margin:0 auto}
+  .section{margin-bottom:56px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:640px;line-height:1.55}
+  .rule{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:640px;line-height:1.6;border-left:2px solid var(--green);padding-left:14px}
+
+  :root{ --c-taskify:#e5484d; --c-meetings:#e5a83c; --c-docs:#b16ae7; }
+
+  .demo-group{background:var(--bg);border-radius:10px;padding:16px 20px 20px}
+
+  .period-tabs{display:flex;gap:6px;margin-bottom:18px}
+  .period-tabs button{background:none;border:1px solid #444;color:var(--muted);font-size:12px;font-weight:600;padding:6px 16px;border-radius:20px;cursor:pointer}
+  .period-tabs button.active{background:var(--green);border-color:var(--green);color:#000}
+
+  .chev{width:14px;flex:none;text-align:center;color:var(--muted);font-size:10px}
+  .task-badge{color:var(--muted);font-size:11px;background:var(--bg3);border-radius:8px;padding:2px 7px;flex:none;white-space:nowrap}
+  .sub-sess{display:flex;align-items:center;gap:12px;padding:7px 6px 7px 32px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .sub-sess:hover{background:var(--bg3);border-radius:6px}
+  .sub-range{flex:1}
+  .sub-dur{width:72px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+
+  .track{position:relative;height:16px;border-radius:5px;background:#1c1c1c;overflow:hidden}
+  .track .seg{position:absolute;top:0;bottom:0;border-radius:2px}
+  .now-needle{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.7;z-index:2}
+
+  .ruler-day{position:relative;height:6px;margin:0 0 4px;opacity:1;
+    background:repeating-linear-gradient(90deg,var(--muted) 0,var(--muted) 1px,transparent 1px,transparent 4.16667%) top/100% 6px no-repeat,
+                repeating-linear-gradient(90deg,rgba(179,179,179,.4) 0,rgba(179,179,179,.4) 1px,transparent 1px,transparent 1.04167%) top/100% 3px no-repeat}
+  .ruler-week{position:relative;height:6px;margin:0 0 4px;
+    background:repeating-linear-gradient(90deg,var(--muted) 0,var(--muted) 1px,transparent 1px,transparent 14.2857%) top/100% 6px no-repeat,
+                repeating-linear-gradient(90deg,rgba(179,179,179,.4) 0,rgba(179,179,179,.4) 1px,transparent 1px,transparent 3.5714%) top/100% 3px no-repeat}
+
+  .ruler-month{position:relative;height:26px;margin:0 0 4px}
+  .ruler-month .mweek{position:absolute;top:0;bottom:0;width:1px;background:var(--muted)}
+  .ruler-month .mday{position:absolute;bottom:0;border-radius:1px;opacity:.85}
+
+  .labels{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-bottom:12px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:8px">One idea instead of three: Day, Week, and Month are the same ruler, re-zoomed — not three different chart types glued together. The same grammar repeats at every level: a continuous track spanning the period, colored session blocks positioned at their true elapsed-time location, a two-tier tick ruler underneath (bold ticks at the coarse unit, faint ticks at the fine unit), and a white "now" needle. Only the unit changes — and it nests: <b style="color:var(--text)">this level's faint minor tick is exactly next level's bold major tick.</b> Day's hour ticks (major) are made of quarter-hour ticks (minor). Week's day ticks (major) are made of quarter-day ticks (minor) — the same four marks that are Day's own major labels. Month's week ticks (major) are made of day ticks (minor) — the same marks that are Week's own major ticks. Zoom out and you're always looking at the same instrument, one click further from the dial.</p>
+
+  <div class="period-tabs">
+    <button class="active">Day</button>
+    <button>Week</button>
+    <button>Month</button>
+  </div>
+
+  <!-- ============ DAY (anchor) ============ -->
+  <div class="section">
+    <p class="label">Day — the anchor</p>
+    <p class="cap">What you already shipped. Major tick = hour, minor tick = 15 min. This is the unit everything else scales from.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>Today</h4><span class="sess-total">2h 17m</span></div>
+      <div class="track" style="width:640px">
+        <i class="seg" style="left:96px;width:38px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:148px;width:24px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:184px;width:10px;background:var(--c-taskify)"></i>
+        <span class="now-needle" style="left:196px"></span>
+      </div>
+      <div class="ruler-day" style="width:640px"></div>
+      <div class="labels" style="width:640px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+
+      <div class="sess task-row">
+        <span class="chev">▾</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">1 session</span>
+        <span class="sess-dur">1h 10m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">UI Refinements · recording…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">4 sessions</span>
+        <span class="sess-dur">1h 07m</span></div>
+    </div>
+  </div>
+
+  <!-- ============ WEEK ============ -->
+  <div class="section">
+    <p class="label">Week — same track, wider window, one level out</p>
+    <p class="cap">Nothing new is invented: it's the identical track and ruler, just spanning 7 days instead of 1. Real sessions still sit at their true position (a 9am Tuesday block lands 1/7 + 9/24 of the way across) — at this width a session is still wide enough to read as a shape, so the track keeps doing its job unaided. Major tick = day (bold, labeled Mon–Sun). Minor tick = quarter-day — the exact same four marks Day view uses as its own major hour-labels (12a/6a/12p/6p), just now living one level down as texture.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>This week</h4><span class="sess-total">9h 00m</span></div>
+      <div class="track" style="width:640px">
+        <i class="seg" style="left:18px;width:14px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:105px;width:5px;background:var(--c-meetings)"></i>
+        <i class="seg" style="left:130px;width:8px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:197px;width:4px;background:var(--c-docs)"></i>
+        <i class="seg" style="left:283px;width:10px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:302px;width:6px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:376px;width:7px;background:var(--c-taskify)"></i>
+        <i class="seg" style="left:507px;width:6px;background:var(--c-meetings)"></i>
+        <span class="now-needle" style="left:557px"></span>
+      </div>
+      <div class="ruler-week" style="width:640px"></div>
+      <div class="labels" style="width:640px"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span><span>Mon</span></div>
+
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">4 days</span>
+        <span class="sess-dur">4h 45m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-meetings)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="task-badge">2 days</span>
+        <span class="sess-dur">1h 45m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="sess-list">Docs</span>
+        <span class="task-badge">1 day</span>
+        <span class="sess-dur">45m</span></div>
+    </div>
+  </div>
+
+  <!-- ============ MONTH ============ -->
+  <div class="section">
+    <p class="label">Month — the ruler takes over the track's job</p>
+    <p class="cap">Same instrument, but honestly: a 45-minute session is 0.15% of a 31-day track — under a pixel, so the colored track from Day and Week would just go dark and lie by omission. Rather than bolt on a fourth, different chart, the ruler's own minor ticks (still "1 per day," still nested inside Week's major ticks, unchanged position) pick up the one channel they were never using at closer zoom: height. Each day-tick grows with that day's total and tints toward its dominant list — the tick becomes the bar. Major ticks (weeks) stay pure structure, same as always. The now-needle still crosses it, same as always.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:10px"><h4>July 2026</h4><span class="sess-total">38h 20m</span></div>
+
+      <div class="ruler-month" style="width:640px">
+        <span class="mweek" style="left:0px"></span>
+        <span class="mweek" style="left:145px"></span>
+        <span class="mweek" style="left:290px"></span>
+        <span class="mweek" style="left:434px"></span>
+        <span class="mweek" style="left:579px"></span>
+
+        <span class="mday" style="left:21px;width:14px;height:16px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:41px;width:14px;height:9px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:62px;width:14px;height:4px;background:var(--c-docs)"></span>
+        <span class="mday" style="left:83px;width:14px;height:21px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:104px;width:14px;height:8px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:124px;width:14px;height:1px;background:#444"></span>
+        <span class="mday" style="left:145px;width:14px;height:11px;background:var(--c-meetings)"></span>
+
+        <span class="mday" style="left:166px;width:14px;height:16px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:187px;width:14px;height:4px;background:var(--c-docs)"></span>
+        <span class="mday" style="left:207px;width:14px;height:19px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:228px;width:14px;height:8px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:249px;width:14px;height:1px;background:#444"></span>
+        <span class="mday" style="left:269px;width:14px;height:10px;background:var(--c-meetings)"></span>
+        <span class="mday" style="left:290px;width:14px;height:14px;background:var(--c-taskify)"></span>
+
+        <span class="mday" style="left:311px;width:14px;height:18px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:331px;width:14px;height:9px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:352px;width:14px;height:1px;background:#444"></span>
+        <span class="mday" style="left:373px;width:14px;height:7px;background:var(--c-docs)"></span>
+        <span class="mday" style="left:393px;width:14px;height:15px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:414px;width:14px;height:10px;background:var(--c-meetings)"></span>
+        <span class="mday" style="left:434px;width:14px;height:6px;background:var(--c-taskify)"></span>
+
+        <span class="mday" style="left:455px;width:14px;height:17px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:476px;width:14px;height:1px;background:#444"></span>
+        <span class="mday" style="left:497px;width:14px;height:12px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:517px;width:14px;height:8px;background:var(--c-docs)"></span>
+        <span class="mday" style="left:538px;width:14px;height:14px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:558px;width:14px;height:9px;background:var(--c-meetings)"></span>
+        <span class="mday" style="left:579px;width:14px;height:1px;background:#444"></span>
+
+        <span class="mday" style="left:600px;width:14px;height:11px;background:var(--c-taskify)"></span>
+        <span class="mday" style="left:619px;width:14px;height:6px;background:var(--c-taskify)"></span>
+        <span class="now-needle" style="left:607px;top:-4px;bottom:-2px"></span>
+      </div>
+      <div class="labels" style="width:640px"><span>Jul 1</span><span>Jul 8</span><span>Jul 15</span><span>Jul 22</span><span>Jul 29</span></div>
+
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-taskify)"></span>
+        <span class="sess-name">database migration from local to rem…</span>
+        <span class="sess-list">Taskify</span>
+        <span class="task-badge">14 days</span>
+        <span class="sess-dur">22h 10m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-meetings)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="task-badge">9 days</span>
+        <span class="sess-dur">8h 30m</span></div>
+      <div class="sess task-row">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="sess-list">Docs</span>
+        <span class="task-badge">5 days</span>
+        <span class="sess-dur">7h 40m</span></div>
+    </div>
+  </div>
+
+  <p class="rule">The recursive rule, stated plainly: <b style="color:var(--text)">zoom out one level, and the old major tick becomes the new minor tick's neighborhood.</b> Day's hour → Week's quarter-day-within-a-day. Week's day → Month's day-within-a-week. It's the same reason a clock face doesn't need a separate widget for "hours" and "minutes" — one hand is just the other, slowed down by 12. Practically: the day/week track math you already wrote (position = elapsed / period-length) doesn't change per view, only <code>period-length</code> and the tick unit do — so this isn't three components to build and maintain, it's one, parameterized.</p>
+
+</div>
+</body>
+</html>

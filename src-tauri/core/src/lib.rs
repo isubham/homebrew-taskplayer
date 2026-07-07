@@ -4,6 +4,7 @@
 //! any platform, and is reused by the macOS app shell in `../src`.
 
 pub mod db;
+mod migrations;
 pub mod models;
 pub mod timer;
 

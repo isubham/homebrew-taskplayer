@@ -65,6 +65,10 @@ pub fn extract_code(callback_url: &str) -> Option<String> {
 pub struct Session {
     pub access_token: String,
     pub refresh_token: String,
+    /// Seconds until `access_token` expires, as reported by Supabase at
+    /// issue time — lets callers schedule a refresh *before* expiry instead
+    /// of only reacting to a 401 after the fact.
+    pub expires_in: i64,
     pub account: AccountInfo,
 }
 
@@ -72,7 +76,16 @@ pub struct Session {
 struct TokenResponse {
     access_token: String,
     refresh_token: String,
+    // Supabase always sends this, but default to its standard 1-hour lifetime
+    // rather than 0 if it's ever missing — 0 would read as "already expired"
+    // and cause the caller to refresh on every single sync tick.
+    #[serde(default = "default_expires_in")]
+    expires_in: i64,
     user: SupabaseUser,
+}
+
+fn default_expires_in() -> i64 {
+    3600
 }
 
 #[derive(Debug, Deserialize)]
@@ -95,7 +108,12 @@ fn to_session(token: TokenResponse) -> Session {
         name: metadata_str(&token.user.user_metadata, &["full_name", "name"]),
         avatar_url: metadata_str(&token.user.user_metadata, &["avatar_url", "picture"]),
     };
-    Session { access_token: token.access_token, refresh_token: token.refresh_token, account }
+    Session {
+        access_token: token.access_token,
+        refresh_token: token.refresh_token,
+        expires_in: token.expires_in,
+        account,
+    }
 }
 
 fn client() -> reqwest::blocking::Client {

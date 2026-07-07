@@ -13,7 +13,7 @@ export function bootstrapApp() {
     const { event, element, id, value, key, overlay, view, listId, mode } = payload;
     switch (action) {
       case "addList": return commands.addList();
-      case "renameList": return commands.renameList(id);
+      case "editList": return commands.editList(id);
       case "deleteList": return commands.deleteList(id);
       case "selectList": return commands.selectList(id);
       case "addTask": return commands.addTask();
@@ -29,6 +29,8 @@ export function bootstrapApp() {
       case "moveTaskToAlbum": return commands.moveTaskToAlbum(id, value);
       case "editLyrics": return commands.editLyrics(id);
       case "addSession": return commands.addSession(id);
+      case "toggleSessionGroup": return renderer.toggleSessionGroup(payload.day, id);
+      case "setSessionsPeriod": return renderer.setSessionsPeriod(value);
       case "editSession": return commands.editSession(id);
       case "deleteSession": return commands.deleteSession(id);
       case "exportData": return commands.exportData();
@@ -36,6 +38,7 @@ export function bootstrapApp() {
       case "signInGoogle": return commands.signInGoogle();
       case "signOut": return commands.signOut();
       case "syncNow": return commands.syncNow();
+      case "fullSync": return commands.fullSync();
       case "play": return commands.play(id);
       case "stop": return commands.stop();
       case "skipBreak": return commands.skipBreak();

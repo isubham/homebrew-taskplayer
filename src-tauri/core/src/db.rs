@@ -23,35 +23,12 @@ impl Db {
         Ok(db)
     }
 
+    /// Runs the ordered migration list in `crate::migrations` — see that
+    /// module for how versioning + idempotency work. Replaces what used to
+    /// be a single growing function of `let _ = conn.execute("ALTER TABLE
+    /// ...")` calls that silently swallowed every error, real ones included.
     fn migrate(&self) -> rusqlite::Result<()> {
-        self.conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL, emoji TEXT, color TEXT, ord INTEGER);
-             CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY, list_id TEXT NOT NULL, name TEXT NOT NULL, depth TEXT, ord INTEGER, est INTEGER, done INTEGER, descr TEXT);
-             CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, task_id TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER);
-             CREATE INDEX IF NOT EXISTS idx_tasks_list ON tasks(list_id);
-             CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id);
-             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);",
-        )?;
-        // add columns to databases created before these features (errors if the
-        // column already exists — safe to ignore)
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN est INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN done INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN descr TEXT", []);
-        let _ = self.conn.execute("ALTER TABLE lists ADD COLUMN updated_at INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE lists ADD COLUMN deleted_at INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN updated_at INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN deleted_at INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE sessions ADD COLUMN updated_at INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE sessions ADD COLUMN deleted_at INTEGER", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN album TEXT", []);
-        // ALTER TABLE ADD COLUMN leaves existing rows NULL, not defaulted —
-        // backfill so `updated_at` (non-nullable in the Rust model) never
-        // fails to deserialize for databases created before this migration.
-        let now = now_ms();
-        let _ = self.conn.execute("UPDATE lists SET updated_at=?1 WHERE updated_at IS NULL", params![now]);
-        let _ = self.conn.execute("UPDATE tasks SET updated_at=?1 WHERE updated_at IS NULL", params![now]);
-        let _ = self.conn.execute("UPDATE sessions SET updated_at=?1 WHERE updated_at IS NULL", params![now]);
-        Ok(())
+        crate::migrations::run(&self.conn)
     }
 
     // ---- Lists ----
@@ -87,6 +64,17 @@ impl Db {
     pub fn rename_list(&self, id: &str, name: &str) -> rusqlite::Result<()> {
         self.conn
             .execute("UPDATE lists SET name=?1, updated_at=?2 WHERE id=?3", params![name, now_ms(), id])?;
+        Ok(())
+    }
+
+    /// User-chosen emoji + background color for a list, set together from
+    /// the same "Edit list" dialog — separate from `rename_list` since the
+    /// name field submits independently of these two.
+    pub fn set_list_style(&self, id: &str, emoji: &str, color: &str) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE lists SET emoji=?1, color=?2, updated_at=?3 WHERE id=?4",
+            params![emoji, color, now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -484,11 +472,19 @@ impl Db {
             config: self.get_config(),
             run: self.get_run(),
             account: self.get_account(),
-            // `syncing`/`last_synced_at` are live, in-memory AppState —
-            // Db has no way to know them; main.rs's build_snapshot()
-            // (the one actually used at runtime) fills in the real values.
+            // `syncing`/`last_synced_at`/`last_sync_error` are live, in-memory
+            // AppState — Db has no way to know them; main.rs's
+            // build_snapshot() (the one actually used at runtime) fills in
+            // the real values.
             syncing: false,
             last_synced_at: None,
+            last_sync_error: None,
+            // Same story as syncing/last_synced_at: this constructor is
+            // test-only (main.rs's build_snapshot() is the real runtime
+            // path), so there's no meaningful app version to report here —
+            // using this crate's own version would be misleading, since
+            // `taskplayer-core` is versioned independently of the app binary.
+            app_version: String::new(),
         })
     }
 

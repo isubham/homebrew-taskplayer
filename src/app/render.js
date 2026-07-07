@@ -33,26 +33,73 @@ export function createRenderer({ state, helpers, actions }) {
         <span class="meta"><span>Recent</span></span>
       </div>`;
     document.getElementById("lists").innerHTML = state.S.lists.map((listItem) => `
-      <div class="list-item ${state.view === "tasks" && listItem.id === state.activeListId ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="Drag to reorder · Double-click to rename">
+      <div class="list-item ${state.view === "tasks" && listItem.id === state.activeListId ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="Drag to reorder · Double-click to edit">
         <span class="list-grip" title="Drag to reorder">${GRIP_SVG}</span>
         <span class="sq" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span>
         <span class="meta"><span>${esc(listItem.name)}</span><small>${tasksForList(listItem.id).length} tasks · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))}</small></span>
-        <button class="list-edit" title="Rename" data-action="renameList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
+        <button class="list-edit" title="Edit name, emoji &amp; color" data-action="editList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
       </div>`).join("");
+  }
+
+  // Per-list accent: keyed off `listItem.color`, set directly on #main so
+  // the header wash, the big play button, the playing-row highlight, and
+  // the toolbar's "Add task" pill hover all pick it up through CSS
+  // `var(--accent, ...fallback)` rules — and so every other page (Settings,
+  // Sessions, Recent) automatically stays plain green, since none of those
+  // set it. Hex + alpha-suffix strings (not `color-mix()`) to match how the
+  // rest of the app already tints things — Big Sur's WebKit predates
+  // `color-mix()` support.
+  // `.play-all`'s glyph used to be a hardcoded black, safe when the button
+  // was always the fixed Spotify green — now it's an arbitrary color from
+  // the list's own picker (any hex the native color input allows, including
+  // near-black), so black-on-black is a real possibility. WCAG relative
+  // luminance decides black vs. white ink; this isn't chasing an exact
+  // contrast ratio, just picking the readable side.
+  function relativeLuminance(hex) {
+    const clean = hex.replace("#", "");
+    const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+    const n = parseInt(full, 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function setAccent(main, color) {
+    main.style.setProperty("--accent", color);
+    main.style.setProperty("--accent-soft", `${color}1f`);
+    main.style.setProperty("--accent-softer", `${color}29`);
+    // 0.179 isn't a round-number guess — it's the luminance where black-ink
+    // and white-ink contrast ratios cross over (solving (L+.05)/.05 =
+    // 1.05/(L+.05) against the WCAG formula), so this is the actual
+    // higher-contrast pick either side of it, not an approximation. It also
+    // happens to keep every existing PALETTE color (including the default
+    // green) on black ink exactly as before — only genuinely dark custom
+    // colors flip to white.
+    main.style.setProperty("--accent-ink", relativeLuminance(color) > 0.179 ? "#000" : "#fff");
+  }
+  function clearAccent(main) {
+    main.style.removeProperty("--accent");
+    main.style.removeProperty("--accent-soft");
+    main.style.removeProperty("--accent-softer");
+    main.style.removeProperty("--accent-ink");
   }
 
   function renderMain() {
     if (!state.S) return;
-    if (state.view === "settings") return renderSettingsPage();
-    if (state.view === "sessions") return renderSessionsPage();
-    if (state.view === "recent") return renderRecentPage();
+    const main = document.getElementById("main");
+    if (state.view === "settings") { clearAccent(main); return renderSettingsPage(); }
+    if (state.view === "sessions") { clearAccent(main); return renderSessionsPage(); }
+    if (state.view === "recent") { clearAccent(main); return renderRecentPage(); }
 
     const listItem = activeList();
-    const main = document.getElementById("main");
     if (!listItem) {
+      clearAccent(main);
       main.innerHTML = `<div class="empty">Create a list to get started.</div>`;
       return;
     }
+    setAccent(main, listItem.color);
 
     const all = tasksForList(listItem.id);
     const todo = all.filter((task) => !task.completedAt);
@@ -172,7 +219,7 @@ export function createRenderer({ state, helpers, actions }) {
       return;
     }
 
-    litRender(html`<div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div><div><div class="t">${task.name}</div><div class="l">${listItem.name}${running ? "" : " · paused"}</div></div>`, np);
+    litRender(html`<div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div><div><div class="t"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${listItem.name}">${task.name}</span></div><div class="l"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${listItem.name}</span>${running ? "" : " · paused"}</div></div>`, np);
 
     if (!running) {
       const timerTarget = targetMs();
@@ -380,8 +427,8 @@ export function createRenderer({ state, helpers, actions }) {
       : `<div class="entry"><span class="when">No sessions logged yet</span><span class="dur">—</span></div>`;
     document.getElementById("modal").innerHTML = `
       <div class="top"><div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
-        <div><h2>${esc(task.name)} <button class="editbtn" title="Rename" data-action="renameTask" data-id="${task.id}">✎</button></h2>
-          <div class="m">${esc(listItem.name)} · ${taskSessions(task.id).length + (working ? 1 : 0)} sessions${task.depth ? " · " + task.depth : ""}</div>
+        <div><h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span> <button class="editbtn" title="Rename" data-action="renameTask" data-id="${task.id}">✎</button></h2>
+          <div class="m"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span> · ${taskSessions(task.id).length + (working ? 1 : 0)} sessions${task.depth ? " · " + task.depth : ""}</div>
           <div class="big" id="detailTotal" style="color:${listItem.color}">${fmt(taskTotal(task.id))}${task.estimateMin ? `<span class="of"> / ${fmtEst(task.estimateMin)}</span>` : ""}</div>
           <div class="estrow">${task.estimateMin ? `<div class="estbar ${estPct(task, taskTotal) >= 100 ? "done" : ""}"><span style="width:${estPct(task, taskTotal)}%"></span></div><span class="estpct">${estPct(task, taskTotal)}%</span>` : ""}<button class="linkbtn" data-action="setEstimate" data-id="${task.id}">${task.estimateMin ? "Edit estimate" : "＋ Add estimate"}</button></div>
         </div>
@@ -416,13 +463,14 @@ export function createRenderer({ state, helpers, actions }) {
       closeLyrics();
       return;
     }
+    const listItem = list(task.listId);
     const description = (task.description || "").trim();
     const body = description
       ? description.split(/\n{2,}/).map((paragraph) => `<p>${esc(paragraph).replace(/\n/g, "<br>")}</p>`).join("")
       : `<p class="dim">No lyrics yet — add a note, the goal, or links for this task.</p>`;
     document.getElementById("lyrmodal").innerHTML = `
       <div class="lyr-hd">
-        <span class="lyr-lab">♪ Lyrics · ${esc(task.name)}</span>
+        <span class="lyr-lab">♪ Lyrics · ${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span>` : esc(task.name)}</span>
         <button class="lyr-ed" data-action="editLyrics" data-id="${task.id}">${description ? "Edit" : "＋ Add"}</button>
         <button class="lyr-x" data-action="closeLyrics">×</button>
       </div>
@@ -456,8 +504,8 @@ export function createRenderer({ state, helpers, actions }) {
       <div class="lab">Now playing</div>
       <div class="np-card np-info">
         <div class="np-art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}88)">${listItem.emoji}</div>
-        <h2>${esc(task.name)}</h2>
-        <div class="m">${esc(listItem.name)} · ${status}${task.estimateMin ? " · est " + fmtEst(task.estimateMin) : ""}</div>
+        <h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span></h2>
+        <div class="m"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span> · ${status}${task.estimateMin ? " · est " + fmtEst(task.estimateMin) : ""}</div>
         ${running ? `<div class="acts"><button class="donebtn" data-action="toggleDone" data-id="${task.id}">✓ Mark as done</button></div>` : ""}
       </div>
       <div class="np-card">
@@ -486,11 +534,14 @@ export function createRenderer({ state, helpers, actions }) {
     const avatar = account.avatarUrl
       ? `<img class="acct-avatar" src="${esc(account.avatarUrl)}" alt="">`
       : `<div class="acct-avatar acct-avatar-fallback">${esc((account.name || account.email || "?")[0].toUpperCase())}</div>`;
+    const syncFailed = !state.S.syncing && !!state.S.lastSyncError;
     const syncLabel = state.S.syncing
       ? "Syncing…"
-      : state.S.lastSyncedAt
-        ? `Synced ${whenLabel(state.S.lastSyncedAt)}`
-        : "Not synced yet";
+      : syncFailed
+        ? `Sync failed: ${esc(state.S.lastSyncError)}`
+        : state.S.lastSyncedAt
+          ? `Synced ${whenLabel(state.S.lastSyncedAt)}`
+          : "Not synced yet";
     return `<h4>Account</h4>
       <div class="acct-row">
         ${avatar}
@@ -499,8 +550,9 @@ export function createRenderer({ state, helpers, actions }) {
       <div class="setrow">
         <button class="pill" data-action="signOut">Sign out</button>
         <button class="pill" data-action="syncNow" ${state.S.syncing ? "disabled" : ""}>${state.S.syncing ? "⟳ Syncing…" : "⟳ Sync now"}</button>
+        <button class="pill" data-action="fullSync" ${state.S.syncing ? "disabled" : ""} title="Re-checks every list, task, and session against your account instead of just what's changed recently — use this if something synced on another device isn't showing up here">${state.S.syncing ? "⟳ Syncing…" : "⟳ Full sync"}</button>
       </div>
-      <p class="hint">${syncLabel}</p>`;
+      <p class="hint${syncFailed ? " hint-error" : ""}">${syncLabel}</p>`;
   }
 
   function sessionControlsHtml() {
@@ -543,7 +595,7 @@ export function createRenderer({ state, helpers, actions }) {
           </div>
           <p class="hint">Importing replaces all current data and can't be undone.</p>
         </section>
-        <section><h4>About</h4><p class="hint" style="margin-top:0">TaskPlayer 0.1.0 — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p></section>
+        <section><h4>About</h4><p class="hint" style="margin-top:0">TaskPlayer ${esc(state.S.appVersion || "")} — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p></section>
       </div>`;
   }
 
@@ -556,6 +608,34 @@ export function createRenderer({ state, helpers, actions }) {
     return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   }
 
+  // Which "task" rows are expanded on the sessions page, keyed
+  // `${dayKey}:${taskId}` so the same task on two different days toggles
+  // independently. Lives only in this closure (not persisted state) since
+  // it's pure UI — resets on reload, same as scroll position would.
+  const expandedSessionGroups = new Set();
+  function toggleSessionGroup(scopeKey, taskId) {
+    const key = `${scopeKey}:${taskId}`;
+    if (expandedSessionGroups.has(key)) expandedSessionGroups.delete(key);
+    else expandedSessionGroups.add(key);
+    renderSessionsPage();
+  }
+
+  // Day / Week / Month is a zoom level, not a different feature — pure UI
+  // state, same lifetime as expandedSessionGroups above.
+  let sessionsPeriod = "day";
+  function setSessionsPeriod(period) {
+    sessionsPeriod = period;
+    renderSessionsPage();
+  }
+
+  function weekStartOf(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    const diffFromMonday = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - diffFromMonday);
+    return d.getTime();
+  }
+
   function renderSessionsPage() {
     if (!state.S) return;
     const now = Date.now();
@@ -566,88 +646,277 @@ export function createRenderer({ state, helpers, actions }) {
     }
     items.sort((a, b) => b.start - a.start);
 
-    const dayKey = (ts) => {
-      const date = new Date(ts);
-      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    };
-    const groups = [];
-    let currentGroup = null;
-    for (const item of items) {
-      const key = dayKey(item.start);
-      if (!currentGroup || currentGroup.key !== key) {
-        currentGroup = { key, ts: item.start, items: [] };
-        groups.push(currentGroup);
-      }
-      currentGroup.items.push(item);
-    }
-
-    const todayKey = dayKey(now);
     const TRACK_PX = 640;
-    const minutesOfDay = (ts) => {
-      const date = new Date(ts);
-      return date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
-    };
+    const rowActionsFor = (item) => (item.live || !item.id) ? `<span class="entry-del"></span>`
+      : `<button class="entry-edit" title="Edit session" data-action="editSession" data-id="${item.id}">✎</button><button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${item.id}">×</button>`;
 
-    // "How my day went" — one 24h strip per group. Every session becomes a
-    // colored block positioned at its real start time and sized to its real
-    // duration (midnight-to-midnight, same scale every day), colored by the
-    // same list color as its row's dot below it.
-    function buildDayBar(group) {
-      const segs = group.items.map((item) => {
+    // One ruler mechanism for every zoom level: position is always
+    // `elapsed-since-period-start / period-length`, so Day and Week are the
+    // exact same function — only periodMs and the major/minor tick units
+    // change. Month can't keep real session slivers legible at that width
+    // (a 45min session is <0.2% of a 31-day track), so it gets its own
+    // builder below — see buildMonthRuler — rather than forcing a fourth
+    // chart type into this one.
+    function buildTrackAndRuler(periodItems, periodStart, periodMs, majorMs, minorMs, labels, nowInRange) {
+      const segs = periodItems.map((item) => {
         const task = findTask(item.taskId);
         const listItem = task ? list(task.listId) : null;
-        const startMin = minutesOfDay(item.start);
-        const endMin = Math.min(1440, item.end ? minutesOfDay(item.end) : minutesOfDay(now));
-        const left = (startMin / 1440) * TRACK_PX;
-        const width = Math.max(2, ((endMin - startMin) / 1440) * TRACK_PX);
+        const startFrac = Math.max(0, (item.start - periodStart) / periodMs);
+        const endFrac = Math.min(1, ((item.end ?? now) - periodStart) / periodMs);
+        const left = startFrac * TRACK_PX;
+        const width = Math.max(2, (endFrac - startFrac) * TRACK_PX);
         const label = task ? esc(task.name) : "(deleted task)";
         const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${item.end ? new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}`;
-        return {
-          html: `<i class="seg${item.live ? " live" : ""}" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;background:${listItem ? listItem.color : "#555"}" title="${label} · ${range} · ${fmt((item.end ?? now) - item.start)}"></i>`,
-          label, color: listItem ? listItem.color : "#555", live: !!item.live,
-        };
-      });
-      const nowLine = group.key === todayKey ? `<span class="now-line" style="left:${((minutesOfDay(now) / 1440) * TRACK_PX).toFixed(1)}px"></span>` : "";
+        return `<i class="seg${item.live ? " live" : ""}" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;background:${listItem ? listItem.color : "#555"}" title="${label} · ${range} · ${fmt((item.end ?? now) - item.start)}"></i>`;
+      }).join("");
 
-      const seen = new Set();
-      const legend = segs.filter((s) => {
-        if (seen.has(s.label)) return false;
-        seen.add(s.label);
-        return true;
-      }).map((s) => `<span class="chip"><i style="background:${s.color}"></i>${s.label}${s.live ? " · now" : ""}</span>`).join("");
+      const nowNeedle = nowInRange ? `<span class="now-line" style="left:${(((now - periodStart) / periodMs) * TRACK_PX).toFixed(1)}px"></span>` : "";
 
-      return `<div class="daybar" style="width:${TRACK_PX}px">${segs.map((s) => s.html).join("")}${nowLine}</div>
-        <div class="ticks" style="width:${TRACK_PX}px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
-        <div class="daylegend">${legend}</div>`;
+      // Bold tick at every major unit, faint tick at every minor unit — the
+      // minor unit here is always the major unit of the next zoom level in
+      // (Day's hour = Week's minor; Week's day = Month's minor).
+      const ruler = [];
+      for (let ms = minorMs; ms < periodMs; ms += minorMs) {
+        const isMajor = ms % majorMs === 0;
+        ruler.push(`<i class="rtick${isMajor ? " major" : ""}" style="left:${((ms / periodMs) * TRACK_PX).toFixed(1)}px"></i>`);
+      }
+
+      return `<div class="daybar" style="width:${TRACK_PX}px">${segs}${nowNeedle}</div>
+        <div class="dayruler" style="width:${TRACK_PX}px">${ruler.join("")}</div>
+        <div class="ticks" style="width:${TRACK_PX}px">${labels.map((l) => `<span>${l}</span>`).join("")}</div>`;
     }
 
-    const body = items.length ? groups.map((group) => {
-      const total = group.items.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
-      const rows = group.items.map((item) => {
+    // Month: the track's job (show real session shape) gets handed to the
+    // ruler itself. Same "one tick per unit, nested inside the level
+    // above" grammar as buildTrackAndRuler — day-ticks nested inside
+    // week-ticks — but each day-tick now grows with that day's total and
+    // tints toward whichever list got the most time, since a bare sliver
+    // would round to nothing at this width. No separate colored track.
+    function buildMonthRuler(monthItems, monthStart, daysInMonth) {
+      const dayTotals = new Map();
+      for (const item of monthItems) {
+        const dayIdx = Math.floor((item.start - monthStart) / 86400000);
+        if (dayIdx < 0 || dayIdx >= daysInMonth) continue;
+        const dur = (item.end ?? now) - item.start;
+        const entry = dayTotals.get(dayIdx) || { total: 0, byList: new Map() };
+        entry.total += dur;
         const task = findTask(item.taskId);
+        const listId = task ? task.listId : "none";
+        entry.byList.set(listId, (entry.byList.get(listId) || 0) + dur);
+        dayTotals.set(dayIdx, entry);
+      }
+      const maxTotal = Math.max(1, ...Array.from(dayTotals.values()).map((e) => e.total));
+      const dayWidth = TRACK_PX / daysInMonth;
+
+      const bars = [];
+      for (let d = 0; d < daysInMonth; d++) {
+        const entry = dayTotals.get(d);
+        const left = d * dayWidth + dayWidth * 0.15;
+        const width = Math.max(3, dayWidth * 0.7);
+        const dateLabel = new Date(monthStart + d * 86400000).toLocaleDateString([], { month: "short", day: "numeric" });
+        if (!entry || entry.total <= 0) {
+          bars.push(`<span class="mday" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;height:2px;background:#3a3a3a" title="${dateLabel} · no tracked time"></span>`);
+          continue;
+        }
+        let bestList = null, bestMs = -1;
+        for (const [listId, ms] of entry.byList) if (ms > bestMs) { bestMs = ms; bestList = listId; }
+        const listItem = bestList && bestList !== "none" ? list(bestList) : null;
+        const height = Math.max(3, Math.round((entry.total / maxTotal) * 22));
+        bars.push(`<span class="mday" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;height:${height}px;background:${listItem ? listItem.color : "#888"}" title="${dateLabel} · ${fmtLong(entry.total)}"></span>`);
+      }
+
+      // Week-boundary majors: real Mondays that fall inside the month, plus
+      // the 1st itself so the leading partial week still gets a divider.
+      const firstDow = new Date(monthStart).getDay();
+      const offsetToMonday = (8 - firstDow) % 7;
+      const majors = [];
+      const labels = [];
+      if (offsetToMonday !== 0) {
+        majors.push(`<span class="mweek" style="left:0px"></span>`);
+        labels.push(new Date(monthStart).toLocaleDateString([], { month: "short", day: "numeric" }));
+      }
+      for (let d = offsetToMonday; d < daysInMonth; d += 7) {
+        majors.push(`<span class="mweek" style="left:${((d / daysInMonth) * TRACK_PX).toFixed(1)}px"></span>`);
+        labels.push(new Date(monthStart + d * 86400000).toLocaleDateString([], { month: "short", day: "numeric" }));
+      }
+
+      const periodMs = daysInMonth * 86400000;
+      const nowInRange = now >= monthStart && now < monthStart + periodMs;
+      const nowNeedle = nowInRange ? `<span class="now-line" style="left:${(((now - monthStart) / periodMs) * TRACK_PX).toFixed(1)}px;top:-4px;bottom:-2px"></span>` : "";
+
+      return `<div class="monthruler" style="width:${TRACK_PX}px">${majors.join("")}${bars.join("")}${nowNeedle}</div>
+        <div class="ticks" style="width:${TRACK_PX}px">${labels.map((l) => `<span>${l}</span>`).join("")}</div>`;
+    }
+
+    // Shared by all three periods: one row per task, ranked by time spent.
+    // "session" granularity (Day view) expands to each session's exact time
+    // range with edit/delete actions. "day" granularity (Week/Month) expands
+    // to one row per calendar day instead — a month of daily standups would
+    // otherwise be 20+ near-identical timestamp rows; editing a specific
+    // session is still one tap away in Day view.
+    function buildTaskRollup(scopeKey, scopeItems, granularity) {
+      const byTask = new Map();
+      for (const item of scopeItems) {
+        const key = item.taskId ?? "";
+        if (!byTask.has(key)) byTask.set(key, []);
+        byTask.get(key).push(item);
+      }
+      const taskGroups = Array.from(byTask.values()).sort((a, b) => {
+        const totalA = a.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const totalB = b.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        return totalB - totalA;
+      });
+
+      return taskGroups.map((groupItems) => {
+        const taskId = groupItems[0].taskId;
+        const task = findTask(taskId);
         const listItem = task ? list(task.listId) : null;
-        const time = new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-        const rowActions = (item.live || !item.id) ? `<span class="entry-del"></span>`
-          : `<button class="entry-edit" title="Edit session" data-action="editSession" data-id="${item.id}">✎</button><button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${item.id}">×</button>`;
-        return `<div class="sess ${item.live ? "live" : ""}">
+        const groupTotal = groupItems.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const anyLive = groupItems.some((item) => item.live);
+        const name = `${task ? esc(task.name) : "(deleted task)"}${anyLive ? " · recording…" : ""}`;
+        const groupKey = `${scopeKey}:${taskId}`;
+        const expanded = expandedSessionGroups.has(groupKey);
+
+        let badge, subRows;
+        if (granularity === "session") {
+          badge = `${groupItems.length} session${groupItems.length === 1 ? "" : "s"}`;
+          subRows = expanded ? groupItems.map((item) => {
+            const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${item.end ? new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}`;
+            return `<div class="sub-sess">
+              <span class="sub-range">${range}</span>
+              <span class="sub-dur">${fmt((item.end ?? now) - item.start)}</span>${rowActionsFor(item)}</div>`;
+          }).join("") : "";
+        } else {
+          const byDay = new Map();
+          for (const item of groupItems) {
+            const d = new Date(item.start);
+            const dKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            const dur = (item.end ?? now) - item.start;
+            const e = byDay.get(dKey) || { ts: item.start, total: 0 };
+            e.total += dur;
+            byDay.set(dKey, e);
+          }
+          const days = Array.from(byDay.values()).sort((a, b) => b.ts - a.ts);
+          badge = `${days.length} day${days.length === 1 ? "" : "s"}`;
+          subRows = expanded ? days.map((d) => `<div class="sub-sess">
+            <span class="sub-range">${dayLabel(d.ts)}</span>
+            <span class="sub-dur">${fmtLong(d.total)}</span></div>`).join("") : "";
+        }
+
+        const listLink = (text) => listItem
+          ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${text}</span>`
+          : text;
+        const header = `<div class="sess task-row ${anyLive ? "live" : ""}" data-action="toggleSessionGroup" data-day="${scopeKey}" data-id="${taskId}">
+          <span class="chev">${expanded ? "▾" : "▸"}</span>
           <span class="sess-dot" style="background:${listItem ? listItem.color : "#555"}"></span>
-          <span class="sess-name">${task ? esc(task.name) : "(deleted task)"}${item.live ? " · recording…" : ""}</span>
-          <span class="sess-list">${listItem ? esc(listItem.name) : ""}</span>
-          <span class="sess-time">${time}</span>
-          <span class="sess-dur">${fmt((item.end ?? now) - item.start)}</span>${rowActions}</div>`;
+          <span class="sess-name">${listLink(name)}</span>
+          <span class="sess-list">${listItem ? listLink(esc(listItem.name)) : ""}</span>
+          <span class="task-badge">${badge}</span>
+          <span class="sess-dur">${fmtLong(groupTotal)}</span></div>`;
+        return `${header}${subRows}`;
       }).join("");
-      return `<section class="sess-group">
-        <div class="sess-head"><h4>${dayLabel(group.ts)}</h4><span class="sess-total">${fmtLong(total)}</span></div>
-        ${buildDayBar(group)}
-        ${rows}</section>`;
-    }).join("") : `<div class="empty">No sessions yet. Press play on a task to start tracking.</div>`;
+    }
+
+    let body;
+    if (!items.length) {
+      body = `<div class="empty">No sessions yet. Press play on a task to start tracking.</div>`;
+    } else if (sessionsPeriod === "week") {
+      const weekMs = 7 * 86400000;
+      const weeks = new Map();
+      for (const item of items) {
+        const ws = weekStartOf(item.start);
+        if (!weeks.has(ws)) weeks.set(ws, []);
+        weeks.get(ws).push(item);
+      }
+      const nowWeekStart = weekStartOf(now);
+      const weekKeys = Array.from(weeks.keys()).sort((a, b) => b - a);
+      body = weekKeys.map((ws) => {
+        const weekItems = weeks.get(ws);
+        const total = weekItems.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const label = ws === nowWeekStart ? "This week" : ws === nowWeekStart - weekMs ? "Last week"
+          : `Week of ${new Date(ws).toLocaleDateString([], { month: "short", day: "numeric" })}`;
+        const ruler = buildTrackAndRuler(weekItems, ws, weekMs, 86400000, 21600000,
+          ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"], ws === nowWeekStart);
+        const rows = buildTaskRollup(`w${ws}`, weekItems, "day");
+        return `<section class="sess-group">
+          <div class="sess-head"><h4>${label}</h4><span class="sess-total">${fmtLong(total)}</span></div>
+          ${ruler}
+          ${rows}</section>`;
+      }).join("");
+    } else if (sessionsPeriod === "month") {
+      const months = new Map();
+      for (const item of items) {
+        const d = new Date(item.start);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!months.has(key)) months.set(key, []);
+        months.get(key).push(item);
+      }
+      const nowD = new Date(now);
+      const nowKey = `${nowD.getFullYear()}-${nowD.getMonth()}`;
+      const lastD = new Date(nowD.getFullYear(), nowD.getMonth() - 1, 1);
+      const lastKey = `${lastD.getFullYear()}-${lastD.getMonth()}`;
+      const monthKeys = Array.from(months.keys()).sort((a, b) => {
+        const [ay, am] = a.split("-").map(Number);
+        const [by, bm] = b.split("-").map(Number);
+        return (by * 12 + bm) - (ay * 12 + am);
+      });
+      body = monthKeys.map((key) => {
+        const [y, m] = key.split("-").map(Number);
+        const monthStart = new Date(y, m, 1).getTime();
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        const monthItems = months.get(key);
+        const total = monthItems.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const label = key === nowKey ? "This month" : key === lastKey ? "Last month"
+          : new Date(y, m, 1).toLocaleDateString([], { month: "long", year: "numeric" });
+        const ruler = buildMonthRuler(monthItems, monthStart, daysInMonth);
+        const rows = buildTaskRollup(`m${key}`, monthItems, "day");
+        return `<section class="sess-group">
+          <div class="sess-head"><h4>${label}</h4><span class="sess-total">${fmtLong(total)}</span></div>
+          ${ruler}
+          ${rows}</section>`;
+      }).join("");
+    } else {
+      const dayKey = (ts) => {
+        const date = new Date(ts);
+        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      };
+      const groups = [];
+      let currentGroup = null;
+      for (const item of items) {
+        const key = dayKey(item.start);
+        if (!currentGroup || currentGroup.key !== key) {
+          currentGroup = { key, ts: item.start, items: [] };
+          groups.push(currentGroup);
+        }
+        currentGroup.items.push(item);
+      }
+      const todayKey = dayKey(now);
+      body = groups.map((group) => {
+        const total = group.items.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const dayStart = new Date(group.ts);
+        dayStart.setHours(0, 0, 0, 0);
+        const ruler = buildTrackAndRuler(group.items, dayStart.getTime(), 86400000, 3600000, 900000,
+          ["12a", "6a", "12p", "6p", "12a"], group.key === todayKey);
+        const rows = buildTaskRollup(group.key, group.items, "session");
+        return `<section class="sess-group">
+          <div class="sess-head"><h4>${dayLabel(group.ts)}</h4><span class="sess-total">${fmtLong(total)}</span></div>
+          ${ruler}
+          ${rows}</section>`;
+      }).join("");
+    }
+
+    const periodTabs = `<div class="period-tabs">
+      <button class="${sessionsPeriod === "day" ? "active" : ""}" data-action="setSessionsPeriod" data-value="day">Day</button>
+      <button class="${sessionsPeriod === "week" ? "active" : ""}" data-action="setSessionsPeriod" data-value="week">Week</button>
+      <button class="${sessionsPeriod === "month" ? "active" : ""}" data-action="setSessionsPeriod" data-value="month">Month</button>
+    </div>`;
 
     document.getElementById("main").innerHTML = `
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#2e7d4f,#0c3f26)">◷</div>
         <div class="info"><small>History</small><h1>Sessions</h1><div class="sub">${items.length} session${items.length === 1 ? "" : "s"} across all tasks</div></div>
       </div>
-      <div class="sessions-page">${body}</div>`;
+      <div class="sessions-page">${periodTabs}${body}</div>`;
   }
 
   // "Recent" — a pinned sidebar entry (not a real list) that opens a
@@ -693,8 +962,8 @@ export function createRenderer({ state, helpers, actions }) {
           <span class="num">${index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to ${live ? "stop" : "start"}">${live ? "⏸" : "▶"}</button>
         </td>
         <td class="tname">
-          <div>${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</div>
-          <span class="list-tag"><i style="background:${listItem ? listItem.color : "#555"}"></i>${listItem ? esc(listItem.name) : ""}</span>
+          <div>${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span>` : esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</div>
+          <span class="list-tag"><i style="background:${listItem ? listItem.color : "#555"}"></i>${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span>` : ""}</span>
         </td>
         <td class="r bar-cell">${barCell}</td>
         <td class="rwhen">${when}</td>
@@ -887,6 +1156,8 @@ export function createRenderer({ state, helpers, actions }) {
     renderSettings,
     renderSettingsPage,
     renderSessionsPage,
+    toggleSessionGroup,
+    setSessionsPeriod,
     renderRecentPage,
     openRecentPage,
     renderMusic,

@@ -150,6 +150,16 @@ pub struct Snapshot {
     pub syncing: bool,
     /// ms epoch of the last successful sync, if any
     pub last_synced_at: Option<i64>,
+    /// Error message from the most recent sync attempt, if it failed. Cleared
+    /// as soon as a later attempt succeeds. Lets the Settings UI distinguish
+    /// "actually synced" from "silently failing every cycle" instead of both
+    /// looking identical.
+    pub last_sync_error: Option<String>,
+    /// App version (from Cargo.toml at compile time via env!("CARGO_PKG_VERSION")
+    /// in main.rs) — the Settings "About" section reads this instead of a
+    /// hardcoded string, so it can never drift out of sync with a real release
+    /// the way a hand-typed version number in the UI can.
+    pub app_version: String,
 }
 
 /// A completed work segment ready to persist.

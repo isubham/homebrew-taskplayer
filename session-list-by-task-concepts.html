@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sessions page — grouping the list by task</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:700px;margin:0 auto}
+  .section{margin-bottom:56px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:640px;line-height:1.55}
+
+  :root{
+    --c-migrate:#1db954; --c-auth:#509bf5; --c-standup:#e5a83c; --c-docs:#b16ae7;
+  }
+
+  .demo-group{background:var(--bg);border-radius:10px;padding:16px 20px 20px}
+
+  .daybar{position:relative;height:16px;border-radius:5px;background:#1c1c1c;overflow:hidden}
+  .daybar .seg{position:absolute;top:0;bottom:0;border-radius:2px;cursor:pointer}
+  .daybar .seg.live{animation:pulse 1.2s ease-in-out infinite}
+  .now-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.7;z-index:2}
+  .dayruler{position:relative;height:6px;margin:0 0 4px;
+    background:repeating-linear-gradient(90deg,var(--muted) 0,var(--muted) 1px,transparent 1px,transparent 4.16667%) top/100% 6px no-repeat;
+    opacity:.45}
+  .ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:6px;font-variant-numeric:tabular-nums}
+
+  .task-badge{font-size:11px;color:var(--muted);background:var(--bg3);border-radius:8px;padding:1px 7px;white-space:nowrap;flex:none}
+
+  .totals-strip{display:flex;gap:14px;flex-wrap:wrap;padding:0 6px 10px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+  .totals-strip .chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .totals-strip .chip i{width:7px;height:7px;border-radius:2px;display:inline-block;flex:none}
+
+  .chev{font-size:11px;color:var(--muted);width:16px;flex:none;text-align:center;cursor:pointer}
+  .sub-sess{display:flex;justify-content:space-between;padding:5px 0;margin-left:38px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+  .sub-sess:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="cap" style="margin-bottom:44px">Three ways to show "how much time went to each task" in the sessions list — right now the list under the bar is purely chronological, one row per session, and the only way to see two sessions of the same task add up is to hover both colored blocks on the bar above. Same sample day throughout: two migration sessions, a standup, an afternoon migration block, a docs session, and one still running.</p>
+
+  <!-- ============ 1 ============ -->
+  <div class="section">
+    <p class="label">1 · Per-task totals, replacing the chronological list</p>
+    <p class="cap">One row per task instead of one row per session: dot, name, session count, total time for the day. Cleanest read of "where did today go" — but exact start/end times per session are gone from this list; they still live in the bar's hover tooltip above.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px" title="5 sessions, 9:15am–5:40pm">
+        <i class="seg" style="left:246px;width:23px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:275px;width:38px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:346px;width:14px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:373px;width:58px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:440px;width:7px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:453px;width:9px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:462px"></span>
+      </div>
+      <div class="dayruler" style="width:640px"></div>
+      <div class="ticks" style="width:640px;margin-top:0;margin-bottom:12px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-migrate)"></span>
+        <span class="sess-name">database migration</span>
+        <span class="task-badge">3 sessions</span>
+        <span class="sess-dur">4h 25m</span>
+      </div>
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-standup)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="task-badge">1 session</span>
+        <span class="sess-dur">30m</span>
+      </div>
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="task-badge">1 session</span>
+        <span class="sess-dur">15m</span>
+      </div>
+      <div class="sess live">
+        <span class="sess-dot" style="background:var(--c-auth)"></span>
+        <span class="sess-name">refactor auth middleware · recording…</span>
+        <span class="task-badge">now</span>
+        <span class="sess-dur">20m</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 ============ -->
+  <div class="section">
+    <p class="label">2 · Keep the chronological rows, add a totals strip above</p>
+    <p class="cap">Least disruptive: every row already on the page today stays exactly where it is. A thin strip above the list — same idea as the color legend under the bar, but with time appended — answers the per-task total without removing per-session detail.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px" title="5 sessions, 9:15am–5:40pm">
+        <i class="seg" style="left:246px;width:23px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:275px;width:38px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:346px;width:14px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:373px;width:58px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:440px;width:7px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:453px;width:9px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:462px"></span>
+      </div>
+      <div class="dayruler" style="width:640px"></div>
+      <div class="ticks" style="width:640px;margin-top:0;margin-bottom:12px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+
+      <div class="totals-strip">
+        <span class="chip"><i style="background:var(--c-migrate)"></i>database migration · 4h 25m</span>
+        <span class="chip"><i style="background:var(--c-standup)"></i>daily standup · 30m</span>
+        <span class="chip"><i style="background:var(--c-docs)"></i>write onboarding docs · 15m</span>
+        <span class="chip"><i style="background:var(--c-auth)"></i>refactor auth middleware · 20m so far</span>
+      </div>
+
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-migrate)"></span>
+        <span class="sess-name">database migration</span>
+        <span class="sess-list">Backend</span>
+        <span class="sess-time">9:15am</span>
+        <span class="sess-dur">50m</span>
+      </div>
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-migrate)"></span>
+        <span class="sess-name">database migration</span>
+        <span class="sess-list">Backend</span>
+        <span class="sess-time">10:20am</span>
+        <span class="sess-dur">1h 25m</span>
+      </div>
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-standup)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-list">Meetings</span>
+        <span class="sess-time">1:00pm</span>
+        <span class="sess-dur">30m</span>
+      </div>
+      <div class="sess">
+        <span class="sess-dot" style="background:var(--c-migrate)"></span>
+        <span class="sess-name">database migration</span>
+        <span class="sess-list">Backend</span>
+        <span class="sess-time">2:00pm</span>
+        <span class="sess-dur">2h 10m</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 ============ -->
+  <div class="section">
+    <p class="label">3 · Grouped and expandable</p>
+    <p class="cap">Collapsed, each task is one row with a total — same as #1. Click a task to expand its individual sessions with times, in place, without leaving the list. Best of both, at the cost of a click-state to build and keep in sync with edits/deletes.</p>
+    <div class="demo-group">
+      <div class="sess-head" style="border:none;padding-bottom:12px;margin-bottom:0"><h4>Today</h4><span class="sess-total">2h 27m</span></div>
+      <div class="daybar" style="width:640px" title="5 sessions, 9:15am–5:40pm">
+        <i class="seg" style="left:246px;width:23px;background:var(--c-migrate)" title="database migration · 9:15–10:05am · 50m"></i>
+        <i class="seg" style="left:275px;width:38px;background:var(--c-migrate)" title="database migration · 10:20–11:45am · 1h 25m"></i>
+        <i class="seg" style="left:346px;width:14px;background:var(--c-standup)" title="daily standup · 1:00–1:30pm · 30m"></i>
+        <i class="seg" style="left:373px;width:58px;background:var(--c-migrate)" title="database migration · 2:00–4:10pm · 2h 10m"></i>
+        <i class="seg" style="left:440px;width:7px;background:var(--c-docs)" title="write onboarding docs · 4:30–4:45pm · 15m"></i>
+        <i class="seg live" style="left:453px;width:9px;background:var(--c-auth)" title="refactor auth middleware · 5:00pm–now · 20m so far"></i>
+        <span class="now-line" style="left:462px"></span>
+      </div>
+      <div class="dayruler" style="width:640px"></div>
+      <div class="ticks" style="width:640px;margin-top:0;margin-bottom:12px"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+
+      <div style="border-bottom:1px solid var(--line)">
+        <div class="sess" style="border-bottom:none;cursor:pointer">
+          <span class="chev">▾</span>
+          <span class="sess-dot" style="background:var(--c-migrate)"></span>
+          <span class="sess-name">database migration</span>
+          <span class="sess-dur">4h 25m</span>
+        </div>
+        <div class="sub-sess"><span>9:15 – 10:05am</span><span>50m</span></div>
+        <div class="sub-sess"><span>10:20 – 11:45am</span><span>1h 25m</span></div>
+        <div class="sub-sess"><span>2:00 – 4:10pm</span><span>2h 10m</span></div>
+      </div>
+      <div class="sess" style="cursor:pointer">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-standup)"></span>
+        <span class="sess-name">daily standup</span>
+        <span class="sess-dur">30m</span>
+      </div>
+      <div class="sess" style="cursor:pointer">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-docs)"></span>
+        <span class="sess-name">write onboarding docs</span>
+        <span class="sess-dur">15m</span>
+      </div>
+      <div class="sess live" style="cursor:pointer">
+        <span class="chev">▸</span>
+        <span class="sess-dot" style="background:var(--c-auth)"></span>
+        <span class="sess-name">refactor auth middleware · recording…</span>
+        <span class="sess-dur">20m</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

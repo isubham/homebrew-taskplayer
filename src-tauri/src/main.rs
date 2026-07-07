@@ -28,9 +28,11 @@ struct AppState {
     /// PKCE verifier for the in-flight sign-in attempt, if any. Only one
     /// sign-in flow happens at a time, so a single slot is enough.
     pending_pkce: Mutex<Option<auth::Pkce>>,
-    /// Current Supabase session access token, if signed in. The refresh
-    /// token lives in `data_dir/session.json` (see auth.rs), never here.
-    access_token: Mutex<Option<String>>,
+    /// Current Supabase session access token, if signed in, plus when it
+    /// expires — so the sync loop can refresh it proactively instead of
+    /// only reacting once a request comes back 401. The refresh token
+    /// itself lives in `data_dir/session.json` (see auth.rs), never here.
+    access_token: Mutex<Option<AccessToken>>,
     sync_status: Mutex<SyncStatus>,
     /// Whether the focus-music widget is currently playing. Mirrored from
     /// the frontend (music.js's `<audio>` element lives entirely in the
@@ -46,7 +48,28 @@ struct AppState {
 struct SyncStatus {
     syncing: bool,
     last_synced_at: Option<i64>,
+    last_sync_error: Option<String>,
 }
+
+#[derive(Clone)]
+struct AccessToken {
+    token: String,
+    /// Wall-clock ms (same epoch as `now_ms()`) at which Supabase considers
+    /// this token expired.
+    expires_at_ms: i64,
+}
+
+/// How long before actual expiry to proactively refresh — gives the refresh
+/// request itself, plus any clock drift, enough headroom that a sync never
+/// has to fall back to the reactive 401-retry path in the common case.
+const REFRESH_SKEW_MS: i64 = 5 * 60 * 1000;
+
+/// Shown whenever we discover the session can't be used and the user will
+/// need to re-authenticate — kept as one constant so `sync_now`, the
+/// proactive-refresh path, and the startup silent refresh all say the same
+/// thing.
+const SESSION_EXPIRED_MSG: &str =
+    "Not signed in (your session expired) — sign out and sign back in.";
 
 // ---- snapshot / status builders ----
 fn build_snapshot(state: &AppState) -> Snapshot {
@@ -61,6 +84,8 @@ fn build_snapshot(state: &AppState) -> Snapshot {
         account: db.get_account(),
         syncing: sync_status.syncing,
         last_synced_at: sync_status.last_synced_at,
+        last_sync_error: sync_status.last_sync_error,
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
     }
 }
 
@@ -203,10 +228,12 @@ fn do_stop_at(state: &AppState, at_ms: i64) {
     let _ = db.set_run(&run);
 }
 
-/// Common tail of both the sign-in callback and the startup silent refresh:
-/// persist the refresh token, remember the access token in memory, cache
-/// the profile, and notify the frontend.
-fn apply_session(app: &AppHandle, session: auth::Session) {
+/// Persists the refresh token, remembers the access token (+ its expiry) in
+/// memory, and caches the profile. Shared by the sign-in callback, the
+/// startup silent refresh, and every later proactive/reactive re-refresh —
+/// none of those besides sign-in should also trigger a sync themselves (see
+/// `apply_session` for the one that does).
+fn store_session(app: &AppHandle, session: auth::Session) {
     let state = app.state::<AppState>();
     if let Err(e) = auth::save_refresh_token(&state.data_dir, &session.refresh_token) {
         // Not fatal — this run stays signed in via the in-memory access
@@ -214,13 +241,56 @@ fn apply_session(app: &AppHandle, session: auth::Session) {
         // launch if the write never succeeds (e.g. a full disk).
         eprintln!("failed to save the refresh token: {e}");
     }
-    *state.access_token.lock().unwrap() = Some(session.access_token);
-    {
-        let db = state.db.lock().unwrap();
-        let _ = db.set_account(Some(&session.account));
-    }
+    let expires_at_ms = now_ms() + session.expires_in.max(0) * 1000;
+    *state.access_token.lock().unwrap() =
+        Some(AccessToken { token: session.access_token, expires_at_ms });
+    let db = state.db.lock().unwrap();
+    let _ = db.set_account(Some(&session.account));
+}
+
+/// Common tail of both the sign-in callback and the startup silent refresh:
+/// store the new session, then immediately push+pull once.
+fn apply_session(app: &AppHandle, session: auth::Session) {
+    store_session(app, session);
     push(app);
     run_sync(app);
+}
+
+/// Loads the stored refresh token and exchanges it for a new session,
+/// storing the result. Used both proactively (token nearing expiry) and
+/// reactively (a request already came back 401). Returns the fresh access
+/// token so the caller doesn't have to re-lock state to read it back.
+fn do_refresh(app: &AppHandle) -> Result<String, String> {
+    let state = app.state::<AppState>();
+    let refresh_token =
+        auth::load_refresh_token(&state.data_dir).ok_or_else(|| "no stored refresh token".to_string())?;
+    let session = auth::refresh_session(&refresh_token)?;
+    let token = session.access_token.clone();
+    store_session(app, session);
+    Ok(token)
+}
+
+/// Returns a definitely-usable access token, refreshing first if the current
+/// one is missing or within `REFRESH_SKEW_MS` of expiring. `None` covers two
+/// distinct cases the caller treats the same way (don't attempt a sync):
+/// already signed out (no error, matches the old silent no-op), or a refresh
+/// that just failed (session cleared + `last_sync_error` set + UI notified).
+fn ensure_fresh_token(app: &AppHandle) -> Option<String> {
+    let state = app.state::<AppState>();
+    let current = state.access_token.lock().unwrap().clone()?;
+    if now_ms() < current.expires_at_ms - REFRESH_SKEW_MS {
+        return Some(current.token);
+    }
+    match do_refresh(app) {
+        Ok(token) => Some(token),
+        Err(e) => {
+            eprintln!("proactive token refresh failed, signing out: {e}");
+            *state.access_token.lock().unwrap() = None;
+            state.sync_status.lock().unwrap().last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
+            push(app);
+            None
+        }
+    }
 }
 
 /// Runs one push+pull cycle if signed in; no-ops silently otherwise. Safe to
@@ -228,21 +298,50 @@ fn apply_session(app: &AppHandle, session: auth::Session) {
 /// here already runs on one, never the main/event thread.
 fn run_sync(app: &AppHandle) {
     let state = app.state::<AppState>();
-    let Some(access_token) = state.access_token.lock().unwrap().clone() else { return };
+    let Some(mut access_token) = ensure_fresh_token(app) else { return };
     let Some(user_id) = state.db.lock().unwrap().get_account().map(|a| a.id) else { return };
 
     state.sync_status.lock().unwrap().syncing = true;
     push(app);
 
-    let result = {
+    let mut result = {
         let db = state.db.lock().unwrap();
         sync::sync_once(&db, &access_token, &user_id)
     };
 
+    // The proactive refresh above covers the common case, but if the token
+    // was revoked, clock-skewed, or expired mid-request anyway, treat a 401
+    // as one last chance: refresh and retry once before giving up.
+    if matches!(&result, Err(e) if e.contains("HTTP 401")) {
+        match do_refresh(app) {
+            Ok(new_token) => {
+                access_token = new_token;
+                let db = state.db.lock().unwrap();
+                result = sync::sync_once(&db, &access_token, &user_id);
+            }
+            Err(e) => {
+                eprintln!("token refresh after 401 failed, signing out: {e}");
+                *state.access_token.lock().unwrap() = None;
+            }
+        }
+    }
+
     {
         let mut status = state.sync_status.lock().unwrap();
         status.syncing = false;
-        status.last_synced_at = Some(now_ms());
+        match &result {
+            // Only a real success moves "last synced" forward and clears any
+            // prior error — this used to run unconditionally, so the UI's
+            // "Synced just now" looked identical whether sync was working or
+            // silently failing every single cycle.
+            Ok(_) => {
+                status.last_synced_at = Some(now_ms());
+                status.last_sync_error = None;
+            }
+            Err(e) => {
+                status.last_sync_error = Some(e.clone());
+            }
+        }
     }
 
     if let Err(e) = &result {
@@ -272,6 +371,16 @@ fn rename_list(app: AppHandle, state: State<AppState>, id: String, name: String)
     {
         let db = state.db.lock().unwrap();
         let _ = db.rename_list(&id, &name);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn set_list_style(app: AppHandle, state: State<AppState>, id: String, emoji: String, color: String) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_list_style(&id, &emoji, &color);
     }
     push(&app);
     build_snapshot(state.inner())
@@ -626,6 +735,54 @@ fn sign_out(app: AppHandle, state: State<AppState>) -> Snapshot {
 /// inside `run_sync` notifies the frontend once the sync finishes.
 #[tauri::command]
 fn sync_now(app: AppHandle) {
+    // `state.S.account` (what the Settings page uses to decide whether to
+    // show "Sync now" at all) comes from the local DB's cached AccountInfo —
+    // it says nothing about whether the in-memory access token is actually
+    // valid right now. If the startup silent refresh failed (expired/
+    // revoked refresh token, no network at launch, etc.), the app still
+    // looks signed in here while `run_sync`'s own `access_token` guard
+    // returns immediately, before `syncing` is ever set — so the button
+    // used to do literally nothing: no spinner, no error, no feedback.
+    // Surface that case explicitly instead of silently no-op'ing.
+    let state = app.state::<AppState>();
+    if state.access_token.lock().unwrap().is_none() {
+        {
+            let mut status = state.sync_status.lock().unwrap();
+            status.last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
+        }
+        push(&app);
+        return;
+    }
+    std::thread::spawn(move || run_sync(&app));
+}
+
+/// Resets both cursors to the epoch so the next `run_sync` re-pulls (and
+/// re-pushes) everything from scratch, instead of trusting the incremental
+/// `updated_at > cursor` watermarks. Safe to run any time — every apply on
+/// either side is an idempotent upsert (`ON CONFLICT ... WHERE
+/// excluded.updated_at > x.updated_at`), so re-sending rows that are already
+/// in sync is just wasted bandwidth, never a correctness problem. Shared by
+/// the manual "Full sync" button and the hourly automatic safety net.
+fn reset_sync_cursors(state: &AppState) {
+    let db = state.db.lock().unwrap();
+    let _ = db.set_push_cursor(0);
+    let _ = db.set_pull_cursor(0);
+}
+
+/// Escape hatch for exactly the "other device's row never showed up" case —
+/// see `reset_sync_cursors`.
+#[tauri::command]
+fn full_sync(app: AppHandle) {
+    let state = app.state::<AppState>();
+    if state.access_token.lock().unwrap().is_none() {
+        {
+            let mut status = state.sync_status.lock().unwrap();
+            status.last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
+        }
+        push(&app);
+        return;
+    }
+    reset_sync_cursors(state.inner());
     std::thread::spawn(move || run_sync(&app));
 }
 
@@ -804,10 +961,21 @@ fn main() {
                 let dir = dir.clone();
                 std::thread::spawn(move || {
                     let Some(refresh_token) = auth::load_refresh_token(&dir) else { return };
-                    if let Err(e) = auth::refresh_session(&refresh_token).map(|s| apply_session(&handle, s)) {
-                        // Fail closed: never crash/hang on a missing or
-                        // corrupt session file — just stay signed out.
-                        eprintln!("silent session refresh failed, staying signed out: {e}");
+                    match auth::refresh_session(&refresh_token) {
+                        Ok(session) => apply_session(&handle, session),
+                        Err(e) => {
+                            // Fail closed: never crash/hang on a missing,
+                            // corrupt, or already-rotated-out session file —
+                            // just stay signed out. This used to only log to
+                            // stderr, so the very first `sync_now` afterward
+                            // was the only place the user ever found out —
+                            // surface it immediately instead.
+                            eprintln!("silent session refresh failed, staying signed out: {e}");
+                            let state = handle.state::<AppState>();
+                            state.sync_status.lock().unwrap().last_sync_error =
+                                Some(SESSION_EXPIRED_MSG.to_string());
+                            push(&handle);
+                        }
                     }
                 });
             }
@@ -938,6 +1106,27 @@ fn main() {
                 run_sync(&sync_handle);
             });
 
+            // --- hourly background loop: full resync safety net ---
+            // The 60s loop above is incremental (`updated_at > cursor`) —
+            // fast, but with one known edge case: a row created on another
+            // device can be pushed *after* this device already advanced its
+            // pull_cursor past that row's timestamp (see `PULL_REWIND_MS` in
+            // sync.rs). The 5-minute rewind window there closes the common
+            // case; this is the broader safety net for anything that still
+            // slips through, without requiring the user to remember the
+            // manual "Full sync" button exists. Silent no-op while signed
+            // out, same as the regular 60s sync — this runs unattended, so
+            // it shouldn't surface anything the user didn't ask for.
+            let full_sync_handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(60 * 60));
+                let state = full_sync_handle.state::<AppState>();
+                if state.access_token.lock().unwrap().is_some() {
+                    reset_sync_cursors(state.inner());
+                }
+                run_sync(&full_sync_handle);
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -960,6 +1149,7 @@ fn main() {
             get_snapshot,
             add_list,
             rename_list,
+            set_list_style,
             reorder_lists,
             delete_list,
             add_task,
@@ -985,6 +1175,7 @@ fn main() {
             sign_in_google,
             sign_out,
             sync_now,
+            full_sync,
             open_main,
             set_music_playing,
             open_url

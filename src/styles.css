@@ -122,6 +122,13 @@ body{
 .sess-time{color:var(--muted);font-size:12px;width:78px;text-align:right;font-variant-numeric:tabular-nums}
 .sess-dur{width:72px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .sess.live .sess-dur,.sess.live .sess-name{color:var(--green)}
+.chev{width:14px;flex:none;text-align:center;color:var(--muted);font-size:10px}
+.task-row{cursor:pointer}
+.task-badge{color:var(--muted);font-size:11px;background:var(--bg3);border-radius:8px;padding:2px 7px;flex:none;white-space:nowrap}
+.sub-sess{display:flex;align-items:center;gap:12px;padding:7px 6px 7px 32px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.sub-sess:hover{background:var(--bg3);border-radius:6px}
+.sub-range{flex:1}
+.sub-dur{width:72px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
 /* "How my day went" — one 24h (midnight-to-midnight) strip per day group,
    sessions as colored blocks positioned at their real start time, same
    list colors as the .sess-dot rows below. Sits between the day header
@@ -130,6 +137,16 @@ body{
 .daybar .seg{position:absolute;top:0;bottom:0;border-radius:2px;cursor:pointer}
 .daybar .seg.live{animation:pulse 1.2s ease-in-out infinite}
 .now-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.7}
+.dayruler{position:relative;height:6px;margin:0 0 4px}
+.dayruler .rtick{position:absolute;top:0;width:1px;height:3px;background:var(--muted);opacity:.45}
+.dayruler .rtick.major{height:6px;opacity:.85}
+.monthruler{position:relative;height:26px;margin:0 0 4px}
+.monthruler .mweek{position:absolute;top:0;bottom:0;width:1px;background:var(--muted);opacity:.5}
+.monthruler .mday{position:absolute;bottom:0;border-radius:1px 1px 0 0}
+.period-tabs{display:flex;gap:6px;margin-bottom:16px}
+.period-tabs button{background:none;border:1px solid #444;color:var(--muted);font-size:12px;font-weight:600;padding:6px 16px;border-radius:20px;cursor:pointer}
+.period-tabs button:hover{border-color:#666}
+.period-tabs button.active{background:var(--green);border-color:var(--green);color:#000}
 .ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-bottom:10px;font-variant-numeric:tabular-nums}
 .daylegend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .daylegend .chip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
@@ -211,6 +228,12 @@ table.albrows{margin-top:4px}
    its name since tasks here can come from any list. */
 .list-tag{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:11px;color:var(--muted);font-weight:500}
 .list-tag i{width:6px;height:6px;border-radius:50%;flex:none;display:inline-block}
+/* Task titles and list names that jump to the owning list — used wherever
+   a task shows up away from its own list's page (Sessions, Recent, Now
+   Playing, task detail, lyrics), so color/weight are left untouched and
+   only the hover affordance is added. */
+.list-link{cursor:pointer}
+.list-link:hover{text-decoration:underline}
 .rwhen{color:var(--muted);font-size:12px;white-space:nowrap;text-align:right;width:110px}
 tr.playing .rwhen{color:var(--green)}
 .tag{margin-left:8px;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:800;text-transform:uppercase}
@@ -387,6 +410,7 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .fld{display:flex;align-items:center;gap:8px;margin:8px 0;color:var(--muted);font-size:13px}
 .fld input{width:70px;background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:7px 9px}
 .hint{color:#6a6a6a;font-size:12px;margin-top:12px;line-height:1.5}
+.hint-error{color:var(--red2,#e5484d)}
 /* in-app dialog (WKWebView has no window.prompt) */
 #doverlay{z-index:70}
 .dlg{width:min(400px,90vw)}

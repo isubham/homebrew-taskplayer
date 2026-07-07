@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>List header concepts — Spotify-style color wash</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body{margin:0;background:#000;padding:28px 24px 80px}
+  .wrap{max-width:920px;margin:0 auto}
+  .section{margin-bottom:56px}
+  .label{font-size:12px;font-weight:700;color:var(--green-hi);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+  .cap{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:720px;line-height:1.5}
+
+  /* Right now every list's header uses the same flat grey wash
+     (`.main{background:linear-gradient(180deg,#3a3a3a 0%,var(--bg) 300px)}`)
+     no matter which list is open — only the little cover square picks up
+     the list's own color. Real Spotify colors the *whole* header from the
+     art. These three mocks all key the header off `listItem.color` instead,
+     each a different amount of "loud". */
+  .demo-row{display:flex;gap:18px;flex-wrap:wrap}
+  .demo-card{flex:1;min-width:260px;max-width:290px;background:#000;border-radius:14px;overflow:hidden;border:1px solid #232323;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+  .mini-hdr{position:relative;padding:26px 20px 16px;display:flex;align-items:flex-end;gap:14px;overflow:hidden}
+  .mini-cover{width:60px;height:60px;border-radius:7px;display:grid;place-items:center;font-size:26px;flex:none;position:relative;z-index:1;box-shadow:0 10px 22px rgba(0,0,0,.55)}
+  .mini-info{position:relative;z-index:1;min-width:0}
+  .mini-info small{display:block;font-size:10px;letter-spacing:.08em;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,.75)}
+  .mini-info h2{margin:6px 0 3px;font-size:21px;font-weight:800;letter-spacing:-.02em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mini-info .sub{font-size:11px;font-weight:700;color:rgba(255,255,255,.8)}
+  .mini-toolbar{padding:12px 20px;display:flex;align-items:center;gap:12px;background:var(--bg)}
+  .mini-play{width:36px;height:36px;border-radius:50%;background:var(--green);border:none;color:#000;font-size:14px;box-shadow:0 6px 14px rgba(0,0,0,.4);flex:none;display:grid;place-items:center;cursor:pointer}
+  .mini-pill{background:none;border:1px solid #555;color:#fff;padding:5px 12px;border-radius:16px;font-size:11px;font-weight:700}
+  .mini-rows{padding:2px 0 14px;background:var(--bg)}
+  .mini-row{display:flex;align-items:center;gap:10px;padding:7px 20px;font-size:12.5px;color:var(--muted)}
+  .mini-row .n{width:14px;color:inherit;font-variant-numeric:tabular-nums}
+  .mini-row .nm{flex:1;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mini-row .tm{font-variant-numeric:tabular-nums}
+  .mini-row.on{color:#fff}
+  .mini-row.on .n{font-weight:700}
+
+  /* --- Variant 1: full-bleed wash, straight from the color --- */
+  .v1 .mini-hdr{background:linear-gradient(180deg, var(--c) 0%, #000 100%)}
+
+  /* --- Variant 2: soft glow behind the cover, dark card otherwise --- */
+  .v2 .mini-hdr{background:#0d0d0d}
+  .v2 .mini-hdr::before{content:"";position:absolute;inset:-30%;
+    background:radial-gradient(circle at 26% 30%, var(--c) 0%, transparent 62%);
+    filter:blur(6px);opacity:.85;z-index:0}
+
+  /* --- Variant 3: color becomes the whole accent, not just the header —
+     play button, active row, and the toolbar pill all pick it up too,
+     instead of every list sharing the same green */
+  .v3 .mini-hdr{background:linear-gradient(160deg, var(--c) 0%, #111 88%)}
+  .v3 .mini-play{background:var(--c);color:#fff;box-shadow:0 6px 14px color-mix(in srgb, var(--c) 60%, transparent)}
+  .v3 .mini-row.on{background:color-mix(in srgb, var(--c) 16%, transparent);color:var(--c)}
+  .v3 .mini-row.on .nm{color:var(--c)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="section">
+    <p class="label">1 · Full-bleed wash</p>
+    <p class="cap">The simplest fix: swap the header's fixed grey gradient for one keyed off <code>listItem.color</code> — strong at the top, fading to black by the toolbar. Costs nothing structurally (same <code>.main</code> rule, just a variable instead of a hardcoded grey), and it's the single biggest reason today's header reads the same for every list.</p>
+    <div class="demo-row">
+      <div class="demo-card v1" style="--c:#8d67ab">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#8d67ab,#8d67ab55)">🎯</div>
+          <div class="mini-info"><small>List</small><h2>Deep Work</h2><span class="sub">6 tasks · 14h 20m of 20h</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row on"><span class="n">▶</span><span class="nm">write migration plan</span><span class="tm">1h 40m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">review PR queue</span><span class="tm">32m</span></div>
+        </div>
+      </div>
+      <div class="demo-card v1" style="--c:#f59b23">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#f59b23,#f59b2355)">🛒</div>
+          <div class="mini-info"><small>List</small><h2>Errands</h2><span class="sub">3 tasks · 1h 10m</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row"><span class="n">1</span><span class="nm">pick up dry cleaning</span><span class="tm">15m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">renew car registration</span><span class="tm">25m</span></div>
+        </div>
+      </div>
+      <div class="demo-card v1" style="--c:#509bf5">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#509bf5,#509bf555)">📚</div>
+          <div class="mini-info"><small>List</small><h2>Reading</h2><span class="sub">4 tasks · 3h 05m</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row"><span class="n">1</span><span class="nm">finish ch. 4 — Designing Data-Intensive Apps</span><span class="tm">50m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">Stripe API changelog</span><span class="tm">18m</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label">2 · Soft glow behind the cover</p>
+    <p class="cap">Quieter option if a full wash feels too loud across a whole workday of glancing at this window: the card stays near-black, and the color shows up as a soft blurred glow seated behind the cover art — reads as "this list has a color" without tinting the whole header.</p>
+    <div class="demo-row">
+      <div class="demo-card v2" style="--c:#8d67ab">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#8d67ab,#8d67ab55)">🎯</div>
+          <div class="mini-info"><small>List</small><h2>Deep Work</h2><span class="sub">6 tasks · 14h 20m of 20h</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row on"><span class="n">▶</span><span class="nm">write migration plan</span><span class="tm">1h 40m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">review PR queue</span><span class="tm">32m</span></div>
+        </div>
+      </div>
+      <div class="demo-card v2" style="--c:#f59b23">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#f59b23,#f59b2355)">🛒</div>
+          <div class="mini-info"><small>List</small><h2>Errands</h2><span class="sub">3 tasks · 1h 10m</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row"><span class="n">1</span><span class="nm">pick up dry cleaning</span><span class="tm">15m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">renew car registration</span><span class="tm">25m</span></div>
+        </div>
+      </div>
+      <div class="demo-card v2" style="--c:#509bf5">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#509bf5,#509bf555)">📚</div>
+          <div class="mini-info"><small>List</small><h2>Reading</h2><span class="sub">4 tasks · 3h 05m</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row"><span class="n">1</span><span class="nm">finish ch. 4 — Designing Data-Intensive Apps</span><span class="tm">50m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">Stripe API changelog</span><span class="tm">18m</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label">3 · Color as the whole accent, not just the header</p>
+    <p class="cap">The boldest option: the list's color replaces green everywhere on that list's page — the big play button, the active/playing row, the toolbar pill hover. Every list gets its own accent instead of all of them sharing the same Spotify green; green stays exactly where it is today in Settings and the global player bar, so "focus mode" still always reads as green from across the room.</p>
+    <div class="demo-row">
+      <div class="demo-card v3" style="--c:#8d67ab">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#8d67ab,#8d67ab55)">🎯</div>
+          <div class="mini-info"><small>List</small><h2>Deep Work</h2><span class="sub">6 tasks · 14h 20m of 20h</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row on"><span class="n">▶</span><span class="nm">write migration plan</span><span class="tm">1h 40m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">review PR queue</span><span class="tm">32m</span></div>
+        </div>
+      </div>
+      <div class="demo-card v3" style="--c:#f59b23">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#f59b23,#f59b2355)">🛒</div>
+          <div class="mini-info"><small>List</small><h2>Errands</h2><span class="sub">3 tasks · 1h 10m</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row on"><span class="n">▶</span><span class="nm">pick up dry cleaning</span><span class="tm">15m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">renew car registration</span><span class="tm">25m</span></div>
+        </div>
+      </div>
+      <div class="demo-card v3" style="--c:#509bf5">
+        <div class="mini-hdr">
+          <div class="mini-cover" style="background:linear-gradient(135deg,#509bf5,#509bf555)">📚</div>
+          <div class="mini-info"><small>List</small><h2>Reading</h2><span class="sub">4 tasks · 3h 05m</span></div>
+        </div>
+        <div class="mini-toolbar"><button class="mini-play">▶</button><button class="mini-pill">＋ Add task</button></div>
+        <div class="mini-rows">
+          <div class="mini-row on"><span class="n">▶</span><span class="nm">finish ch. 4 — Designing Data-Intensive Apps</span><span class="tm">50m</span></div>
+          <div class="mini-row"><span class="n">2</span><span class="nm">Stripe API changelog</span><span class="tm">18m</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label">Which to build</p>
+    <p class="cap">1 is the closest to real Spotify and the easiest lift — one CSS rule, reading a value the app already stores. 2 is safer if a full color wash feels like too much for something meant to stay in the background all day. 3 is a bigger, more opinionated change (touches the play button, row highlight, and toolbar everywhere) but makes the emoji/color picker you can already set per list actually mean something beyond the sidebar square.</p>
+  </div>
+
+</div>
+</body>
+</html>

@@ -15,6 +15,7 @@
     "core:window:allow-minimize",
     "core:webview:default",
     "deep-link:default",
-    "opener:default"
+    "opener:default",
+    "updater:default"
   ]
 }

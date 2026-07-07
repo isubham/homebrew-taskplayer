@@ -14,6 +14,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_updater::UpdaterExt;
 
 use taskplayer_core::models::now_ms;
 use taskplayer_core::{
@@ -40,6 +41,10 @@ struct AppState {
     /// `set_music_playing` command, purely so the tray menu's music toggle
     /// label can read "Pause music" vs. "Play music" correctly.
     music_playing: Mutex<bool>,
+    /// The update `check_for_update` last found, if any and not yet consumed
+    /// by `install_update`. A single slot is enough — only one "is there an
+    /// update" round-trip is ever in flight from the Settings page at a time.
+    pending_update: Mutex<Option<tauri_plugin_updater::Update>>,
     /// OS app-data directory — also where the SQLite file and session.json live.
     data_dir: PathBuf,
 }
@@ -813,6 +818,55 @@ fn open_url(app: AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateInfo {
+    version: String,
+    notes: Option<String>,
+}
+
+/// Asks the configured endpoint (Casks/taskplayer.rb's own GitHub Releases —
+/// see `scripts/release.sh`) whether a newer signed build exists. Stashes the
+/// `Update` handle (it carries the download URL + signature) in `AppState`
+/// so `install_update` doesn't have to re-check; the frontend only ever
+/// sees the plain version/notes, never the handle itself.
+#[tauri::command]
+async fn check_for_update(app: AppHandle, state: State<'_, AppState>) -> Result<Option<UpdateInfo>, String> {
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    match updater.check().await.map_err(|e| e.to_string())? {
+        Some(update) => {
+            let info = UpdateInfo { version: update.version.clone(), notes: update.body.clone() };
+            *state.pending_update.lock().unwrap() = Some(update);
+            Ok(Some(info))
+        }
+        None => {
+            *state.pending_update.lock().unwrap() = None;
+            Ok(None)
+        }
+    }
+}
+
+/// Downloads + installs whatever `check_for_update` last found, then
+/// restarts. Errors (network drop mid-download, signature mismatch, disk
+/// full) surface to the Settings page instead of leaving the app in a half
+/// -updated state; nothing here touches the user's data — `AppState`'s SQLite
+/// handle is untouched by the app-bundle swap, which is the whole point of
+/// updating the .app rather than reinstalling.
+#[tauri::command]
+async fn install_update(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let update = state
+        .pending_update
+        .lock()
+        .unwrap()
+        .take()
+        .ok_or_else(|| "No update ready to install — check for updates again.".to_string())?;
+    update
+        .download_and_install(|_chunk_len, _total_len| {}, || {})
+        .await
+        .map_err(|e| e.to_string())?;
+    app.restart();
+}
+
 /// After a delete, drop any run-state references to tasks that no longer exist:
 /// reset entirely if the active task is gone, and forget the remembered task if
 /// it's gone (so the paused player doesn't point at a ghost).
@@ -912,6 +966,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // --- open the SQLite database in the OS app-data dir ---
             let dir = app
@@ -931,6 +986,7 @@ fn main() {
                 access_token: Mutex::new(None),
                 sync_status: Mutex::new(SyncStatus::default()),
                 music_playing: Mutex::new(false),
+                pending_update: Mutex::new(None),
                 data_dir: dir.clone(),
             });
 
@@ -1178,7 +1234,9 @@ fn main() {
             full_sync,
             open_main,
             set_music_playing,
-            open_url
+            open_url,
+            check_for_update,
+            install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running TaskPlayer");

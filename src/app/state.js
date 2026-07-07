@@ -16,6 +16,12 @@ export function createAppState() {
     // modal (opened by a click, not a music state push) has something to
     // render from at any time.
     lastMusic: null,
+    // Self-update (Settings > About) — purely transient UI state, same as
+    // the fields above. `updateInfo` holds the last `{version, notes}` a
+    // check found (cleared once installed or dismissed by re-checking).
+    checkingForUpdate: false,
+    installingUpdate: false,
+    updateInfo: null,
   };
 
   const list = (id) => state.S?.lists.find((item) => item.id === id);

@@ -1,7 +1,7 @@
 import { bootstrapApp } from "./app/bootstrap.js";
 
 (async function init() {
-  const { appState, renderer } = bootstrapApp();
+  const { appState, renderer, commands } = bootstrapApp();
   const { invoke } = window.__TAURI__.core;
   const { listen } = window.__TAURI__.event;
 
@@ -47,4 +47,11 @@ import { bootstrapApp } from "./app/bootstrap.js";
     else window.Music?.play?.();
   });
   await listen("music-next", () => window.Music?.next?.());
+
+  // Check for a newer signed build a few seconds after launch — late enough
+  // to not compete with the initial paint/DB load above, silent enough that
+  // "you're already up to date" never interrupts anyone. If it does find
+  // one, checkForUpdates still always shows the confirm dialog itself
+  // (that's the whole point) — `silent` only swallows the no-op case.
+  setTimeout(() => commands.checkForUpdates({ silent: true }), 4000);
 })();

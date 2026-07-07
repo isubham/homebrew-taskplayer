@@ -343,6 +343,59 @@ export function createCommands({ state, ui, renderer, invoke }) {
     await invoke("full_sync");
   }
 
+  // Self-update — checks the endpoint configured in tauri.conf.json (the
+  // repo's own GitHub Releases, see scripts/release.sh), and if it finds a
+  // newer signed build, always asks before doing anything: this can be
+  // triggered silently on launch (see main.js), so the "you're up to date"
+  // no-op message is the only part `silent` suppresses — an actual update
+  // still always surfaces the confirm dialog below, launch or not.
+  async function checkForUpdates({ silent = false } = {}) {
+    state.checkingForUpdate = true;
+    renderer.renderSettingsPage();
+    try {
+      const info = await invoke("check_for_update");
+      state.updateInfo = info || null;
+      state.checkingForUpdate = false;
+      renderer.renderSettingsPage();
+      if (info) {
+        await promptInstallUpdate();
+      } else if (!silent) {
+        await uiNote("You're up to date", `TaskPlayer ${esc(state.S?.appVersion || "")} is the newest version.`);
+      }
+    } catch (error) {
+      state.checkingForUpdate = false;
+      renderer.renderSettingsPage();
+      if (!silent) await uiNote("Couldn't check for updates", esc(String(error)), "OK");
+    }
+  }
+
+  async function promptInstallUpdate() {
+    const info = state.updateInfo;
+    if (!info) return;
+    const notes = (info.notes || "").trim();
+    // Not uiConfirm — that wrapper is hard-coded `danger: true` (red button),
+    // meant for destructive actions like deleting a task. Installing an
+    // update isn't dangerous, so this builds the same shape by hand.
+    const ok = await uiForm({
+      title: `Update to ${info.version}?`,
+      confirmText: "Download & install",
+      bodyHtml: `<div class="dbody">TaskPlayer will download it and restart.${notes ? `<br><br><span style="color:#fff">${esc(notes)}</span>` : ""}</div>`,
+      collect: () => true,
+    });
+    if (!ok) return;
+    state.installingUpdate = true;
+    renderer.renderSettingsPage();
+    try {
+      await invoke("install_update");
+      // Rust calls app.restart() right after a successful install, so the
+      // app relaunches on its own — this line is only reached on failure.
+    } catch (error) {
+      state.installingUpdate = false;
+      renderer.renderSettingsPage();
+      await uiNote("Update failed", esc(String(error)), "OK");
+    }
+  }
+
   function importData() {
     if (!state.S) return;
     const input = document.getElementById("importFile");
@@ -428,6 +481,8 @@ export function createCommands({ state, ui, renderer, invoke }) {
     signOut,
     syncNow,
     fullSync,
+    checkForUpdates,
+    promptInstallUpdate,
     apply,
     uiForm,
   };

@@ -22,7 +22,12 @@
 #   scripts/release.sh --force ...        # skip the clean-tree/branch checks
 #
 # Must run on macOS — `tauri build` only produces a .app/.dmg there, and
-# this script relies on macOS's `shasum`/`ditto`.
+# this script relies on macOS's `shasum`.
+#
+# One-time setup before this will work at all: scripts/generate-update-key.sh
+# (creates the keypair the self-updater uses to verify releases — see
+# src-tauri/tauri.conf.json's plugins.updater.pubkey, which starts out as a
+# placeholder this script refuses to release with).
 
 set -euo pipefail
 
@@ -85,7 +90,7 @@ while [ $# -gt 0 ]; do
     --yes|-y) ASSUME_YES=1 ;;
     --skip-build) SKIP_BUILD=1 ;;
     --force) FORCE=1 ;;
-    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     [0-9]*.[0-9]*.[0-9]*) VERSION="$1" ;;
     *) die "Unrecognized argument: $1 (expected a version like 0.3.0, or a flag)" ;;
   esac
@@ -102,7 +107,6 @@ TAG="v$VERSION"
 
 require_cmd npm
 require_cmd cargo
-require_cmd tar
 require_cmd shasum
 require_cmd git
 require_cmd awk
@@ -117,7 +121,19 @@ fi
 if [ "$FORCE" != 1 ]; then
   [ -z "$(git status --porcelain)" ] || die "Working tree isn't clean. Commit/stash first, or pass --force."
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-  [ "$BRANCH" = "main" ] || warn "You're on '$BRANCH', not 'main'. (--force to skip this check silently next time.)"
+  # actions/checkout leaves CI runners in detached HEAD ("HEAD" here) even
+  # when the workflow ran off main — that's expected there, not a mistake.
+  if [ "$BRANCH" != "main" ] && [ "${GITHUB_ACTIONS:-}" != "true" ]; then
+    warn "You're on '$BRANCH', not 'main'. (--force to skip this check silently next time.)"
+  fi
+fi
+
+if grep -qF "REPLACE_WITH_PUBKEY_FROM_TAURI_SIGNER_GENERATE" src-tauri/tauri.conf.json; then
+  die "src-tauri/tauri.conf.json still has the placeholder updater pubkey. Run scripts/generate-update-key.sh once, paste the printed public key in, and commit that before releasing."
+fi
+
+if [ "$SKIP_BUILD" != 1 ] && [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+  die "TAURI_SIGNING_PRIVATE_KEY isn't set — the build would produce an app the self-updater can't verify. Run: export TAURI_SIGNING_PRIVATE_KEY=\"\$(cat ~/.tauri/taskplayer-updater.key)\" (see scripts/generate-update-key.sh)."
 fi
 
 info "Releasing $APP_NAME $CURRENT_VERSION -> $VERSION"
@@ -146,16 +162,22 @@ APP_PATH="$BUNDLE_DIR/macos/$APP_NAME.app"
 DMG_PATH="$(find "$BUNDLE_DIR/dmg" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
 [ -n "$DMG_PATH" ] || warn "No .dmg found in $BUNDLE_DIR/dmg — continuing with just the .app tarball."
 
-# ---------- 3. package the .app for the cask ----------
+# ---------- 3. the updater artifact IS the cask artifact ----------
 
-info "Packaging $APP_NAME.app.tar.gz"
-TARBALL="$ROOT/$APP_NAME.app.tar.gz"
-rm -f "$TARBALL"
-# COPYFILE_DISABLE keeps macOS from sneaking AppleDouble (._*) files into the
-# archive; Homebrew's cask just wants the plain .app bundle back out.
-( cd "$BUNDLE_DIR/macos" && COPYFILE_DISABLE=1 tar -czf "$TARBALL" "$APP_NAME.app" )
+# `bundle.createUpdaterArtifacts: true` in tauri.conf.json means `tauri
+# build` already produced TaskPlayer.app.tar.gz + a detached .sig, signed
+# with TAURI_SIGNING_PRIVATE_KEY, sitting right next to the .app. That's the
+# exact same tarball shape Casks/taskplayer.rb has always pointed at — so
+# there's nothing left for this script to tar up by hand anymore; using
+# Tauri's own copy (instead of re-tarring the .app ourselves) also means the
+# cask's sha256 and the updater's signature both describe the same bytes.
+TARBALL="$BUNDLE_DIR/macos/$APP_NAME.app.tar.gz"
+SIG_FILE="$TARBALL.sig"
+[ -f "$TARBALL" ] || die "Expected $TARBALL after the build. Check bundle.createUpdaterArtifacts is set in tauri.conf.json."
+[ -f "$SIG_FILE" ] || die "Expected a signature at $SIG_FILE. Was TAURI_SIGNING_PRIVATE_KEY set during the build?"
 
 SHA256="$(shasum -a 256 "$TARBALL" | awk '{print $1}')"
+SIGNATURE="$(cat "$SIG_FILE")"
 info "sha256: $SHA256"
 
 # ---------- 4. update the cask ----------
@@ -165,6 +187,37 @@ CURRENT_SHA="$(awk -F'"' '/^  sha256 /{print $2; exit}' "$CASK_FILE")"
 [ -n "$CURRENT_SHA" ] || die "Couldn't find the current sha256 line in $CASK_FILE."
 replace_exact "$CASK_FILE" "version \"$CURRENT_VERSION\"" "version \"$VERSION\""
 replace_exact "$CASK_FILE" "sha256 \"$CURRENT_SHA\""       "sha256 \"$SHA256\""
+
+# ---------- 4b. latest.json — what the in-app updater actually reads ----------
+
+# src-tauri/tauri.conf.json points the updater at
+# .../releases/latest/download/latest.json, so every release re-uploads this
+# one static file (see the Static JSON File section of the Tauri updater
+# docs). Only one platform key because this project only ever builds on
+# whatever Mac runs this script — add another `darwin-*` key here the day
+# that changes (e.g. building both Intel and Apple Silicon).
+ARCH_UNAME="$(uname -m)"
+case "$ARCH_UNAME" in
+  arm64)   TAURI_ARCH="aarch64" ;;
+  x86_64)  TAURI_ARCH="x86_64" ;;
+  *) die "Unrecognized architecture '$ARCH_UNAME' — add a case for it in latest.json generation." ;;
+esac
+
+LATEST_JSON="$ROOT/latest.json"
+cat > "$LATEST_JSON" <<EOF
+{
+  "version": "$VERSION",
+  "notes": "https://github.com/$REPO/releases/tag/$TAG",
+  "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "platforms": {
+    "darwin-$TAURI_ARCH": {
+      "signature": "$SIGNATURE",
+      "url": "https://github.com/$REPO/releases/download/$TAG/$APP_NAME.app.tar.gz"
+    }
+  }
+}
+EOF
+info "Wrote $LATEST_JSON (darwin-$TAURI_ARCH)"
 
 # ---------- 5. commit + tag ----------
 
@@ -178,38 +231,50 @@ info "Local release steps done:"
 echo "  - version bumped: $CURRENT_VERSION -> $VERSION"
 echo "  - built: $APP_PATH"
 [ -n "$DMG_PATH" ] && echo "  - built: $DMG_PATH"
-echo "  - packaged: $TARBALL (sha256 $SHA256)"
+echo "  - updater artifact: $TARBALL (sha256 $SHA256, signed)"
+echo "  - wrote: $LATEST_JSON"
 echo "  - committed + tagged: $TAG"
 echo
 
 # ---------- 6. push + publish (optional) ----------
 
+# Explicit `HEAD:branch` refspec rather than trusting `git rev-parse
+# --abbrev-ref HEAD` — that returns the literal string "HEAD" on a detached
+# checkout (exactly what actions/checkout leaves a CI runner in), and
+# `git push origin HEAD` in that state doesn't mean what it looks like it
+# means. Anywhere else, this is just "whatever branch you're already on".
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+PUSH_REFSPEC="HEAD:$([ "$CURRENT_BRANCH" = "HEAD" ] && echo "main" || echo "$CURRENT_BRANCH")"
+
 if [ "$PUBLISH" != 1 ]; then
   info "Not pushing (pass --publish to push + create the GitHub release automatically)."
   echo "  Manual steps from here:"
-  echo "    git push origin $(git rev-parse --abbrev-ref HEAD) --follow-tags"
-  echo "    gh release create $TAG \"$TARBALL\"${DMG_PATH:+ \"$DMG_PATH\"} --title \"$TAG\" --generate-notes"
-  echo "  (or upload $TARBALL${DMG_PATH:+ and $DMG_PATH} by hand at https://github.com/$REPO/releases/new?tag=$TAG)"
+  echo "    git push origin $PUSH_REFSPEC --follow-tags"
+  echo "    gh release create $TAG \"$TARBALL\" \"$LATEST_JSON\"${DMG_PATH:+ \"$DMG_PATH\"} --title \"$TAG\" --generate-notes"
+  echo "  (or upload $TARBALL, $LATEST_JSON,${DMG_PATH:+ and $DMG_PATH} by hand at https://github.com/$REPO/releases/new?tag=$TAG)"
+  echo "  Every existing install checks .../releases/latest/download/latest.json, so until latest.json is"
+  echo "  attached to a release, nobody's app will see this update."
   exit 0
 fi
 
 if ! command -v gh >/dev/null 2>&1; then
   warn "gh CLI not found — can't auto-publish. Falling back to manual instructions."
-  echo "    git push origin $(git rev-parse --abbrev-ref HEAD) --follow-tags"
-  echo "  Then upload $TARBALL${DMG_PATH:+ and $DMG_PATH} at https://github.com/$REPO/releases/new?tag=$TAG"
+  echo "    git push origin $PUSH_REFSPEC --follow-tags"
+  echo "  Then upload $TARBALL, $LATEST_JSON,${DMG_PATH:+ and $DMG_PATH} at https://github.com/$REPO/releases/new?tag=$TAG"
   exit 0
 fi
 
-confirm "Push $(git rev-parse --abbrev-ref HEAD) + tag $TAG and publish a GitHub release now?" \
+confirm "Push $PUSH_REFSPEC + tag $TAG and publish a GitHub release now?" \
   || die "Aborted before pushing. Everything above is already committed/tagged locally if you want to finish this by hand."
 
 info "Pushing"
-git push origin "$(git rev-parse --abbrev-ref HEAD)" --follow-tags
+git push origin "$PUSH_REFSPEC" --follow-tags
 
 info "Creating GitHub release $TAG"
-gh release create "$TAG" "$TARBALL" ${DMG_PATH:+"$DMG_PATH"} \
+gh release create "$TAG" "$TARBALL" "$LATEST_JSON" ${DMG_PATH:+"$DMG_PATH"} \
   --repo "$REPO" \
   --title "$TAG" \
   --generate-notes
 
-info "Done. brew users get this the moment $CASK_FILE lands on main — this tap IS the cask."
+info "Done. brew users get this the moment $CASK_FILE lands on main (this tap IS the cask);"
+info "everyone already running TaskPlayer gets it next time their in-app check fires."

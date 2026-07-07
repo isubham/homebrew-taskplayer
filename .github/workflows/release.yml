@@ -1,0 +1,65 @@
+name: Release
+
+# Manually triggered — this workflow bumps the version itself (see
+# scripts/release.sh), so the version to release is an input, not something
+# a tag push already needs to encode. Run it from the Actions tab, or:
+#   gh workflow run release.yml -f version=0.4.0
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.4.0 (no leading v)"
+        required: true
+        type: string
+
+# Needed so the job's GITHUB_TOKEN can push the version-bump/cask commits
+# and create the GitHub Release itself.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # macos-14 = Apple Silicon — matches the arm64-only builds this project
+    # has always shipped (see README). If Intel support is ever added, this
+    # job would need to run once per arch and merge into one latest.json.
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # scripts/release.sh's `--generate-notes` wants real commit
+          # history to summarize, and a shallow clone can't fast-forward
+          # push reliably either.
+          fetch-depth: 0
+
+      # actions/checkout leaves the runner on a detached HEAD even for a
+      # branch-triggered workflow_dispatch. scripts/release.sh handles a
+      # detached HEAD fine (see PUSH_REFSPEC in it), but attaching to a real
+      # local `main` branch here is one less surprise for anything else in
+      # the job that assumes it.
+      - name: Attach to main
+        run: git checkout -B main
+
+      - name: Configure git identity for the release commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Release
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/release.sh "${{ inputs.version }}" --yes --publish

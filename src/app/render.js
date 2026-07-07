@@ -576,6 +576,21 @@ export function createRenderer({ state, helpers, actions }) {
       <div class="body"><h4>Mode</h4>${sessionControlsHtml()}</div>`;
   }
 
+  function aboutSectionHtml() {
+    const version = esc(state.S.appVersion || "");
+    const info = state.updateInfo;
+    const checking = state.checkingForUpdate;
+    const installing = state.installingUpdate;
+    const updateRow = info
+      ? `<p class="hint" style="color:var(--green-hi)">Update available: v${esc(info.version)}</p>
+         <div class="setrow"><button class="pill" data-action="promptInstallUpdate" ${installing ? "disabled" : ""}>${installing ? "⟳ Installing…" : "⤓ Download & install"}</button></div>`
+      : "";
+    return `<h4>About</h4>
+      <p class="hint" style="margin-top:0">TaskPlayer ${version} — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p>
+      <div class="setrow"><button class="pill" data-action="checkForUpdates" ${checking ? "disabled" : ""}>${checking ? "⟳ Checking…" : "⟳ Check for updates"}</button></div>
+      ${updateRow}`;
+  }
+
   function renderSettingsPage() {
     if (!state.S) return;
     document.getElementById("main").innerHTML = `
@@ -595,7 +610,7 @@ export function createRenderer({ state, helpers, actions }) {
           </div>
           <p class="hint">Importing replaces all current data and can't be undone.</p>
         </section>
-        <section><h4>About</h4><p class="hint" style="margin-top:0">TaskPlayer ${esc(state.S.appVersion || "")} — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p></section>
+        <section>${aboutSectionHtml()}</section>
       </div>`;
   }
 

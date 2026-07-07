@@ -39,6 +39,8 @@ export function bootstrapApp() {
       case "signOut": return commands.signOut();
       case "syncNow": return commands.syncNow();
       case "fullSync": return commands.fullSync();
+      case "checkForUpdates": return commands.checkForUpdates();
+      case "promptInstallUpdate": return commands.promptInstallUpdate();
       case "play": return commands.play(id);
       case "stop": return commands.stop();
       case "skipBreak": return commands.skipBreak();

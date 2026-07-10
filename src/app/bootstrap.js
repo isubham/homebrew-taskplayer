@@ -21,6 +21,8 @@ export function bootstrapApp() {
       case "setDepth": return commands.setDepth(id, payload.depth ?? value);
       case "deleteTask": return commands.deleteTask(id);
       case "setEstimate": return commands.setEstimate(id);
+      case "setImpactTier": return commands.setImpactTier(id, payload.tier);
+      case "setImpactSign": return commands.setImpactSign(id, payload.sign);
       case "toggleDone": return commands.toggleDone(id);
       case "moveTask": return commands.moveTask(id);
       case "reorderTasks": return commands.reorderTasks(listId, payload.orderedIds);
@@ -30,11 +32,12 @@ export function bootstrapApp() {
       case "editLyrics": return commands.editLyrics(id);
       case "addSession": return commands.addSession(id);
       case "toggleSessionGroup": return renderer.toggleSessionGroup(payload.day, id);
-      case "setSessionsPeriod": return renderer.setSessionsPeriod(value);
+      case "setInsightsPeriod": return renderer.setInsightsPeriod(value);
       case "editSession": return commands.editSession(id);
       case "deleteSession": return commands.deleteSession(id);
       case "exportData": return commands.exportData();
       case "importData": return commands.importData();
+      case "revealLogs": return commands.revealLogs();
       case "signInGoogle": return commands.signInGoogle();
       case "signOut": return commands.signOut();
       case "syncNow": return commands.syncNow();
@@ -44,8 +47,11 @@ export function bootstrapApp() {
       case "play": return commands.play(id);
       case "stop": return commands.stop();
       case "skipBreak": return commands.skipBreak();
+      case "startBreak": return commands.startBreak();
+      case "resumeWork": return commands.resumeWork();
       case "setMode": return commands.setMode(value || mode || "open");
       case "setConfigField": return commands.setConfigField(key, value ?? element?.value ?? "");
+      case "setConfigSound": return commands.setConfigSound(key, value ?? element?.value ?? "");
       case "cycleMode": {
         const order = ["open", "target", "pomodoro"];
         const modeValue = appState.state.S?.config?.mode;
@@ -56,8 +62,11 @@ export function bootstrapApp() {
       case "navigate": return renderer.navigate({ view: view || "tasks", listId: listId || null });
       case "goBack": return renderer.goBack();
       case "goForward": return renderer.goForward();
+      case "goHome": return renderer.goHome();
+      case "searchGoList": return renderer.searchGoList(id);
+      case "searchGoTask": return renderer.searchGoTask(id);
       case "openSettingsPage": return renderer.openSettingsPage();
-      case "openSessionsPage": return renderer.openSessionsPage();
+      case "openInsightsPage": return renderer.openInsightsPage();
       case "openRecentPage": return renderer.openRecentPage();
       case "toggleCompleted": return renderer.toggleCompleted();
       case "playFirst": return renderer.playFirst();
@@ -70,14 +79,10 @@ export function bootstrapApp() {
       case "openLyrics": return renderer.openLyrics(id);
       case "closeLyrics": return renderer.closeLyrics();
       case "renderLyrics": return renderer.renderLyrics();
-      case "openSettings": return renderer.openSettings();
-      case "closeSettings": return renderer.closeSettings();
-      case "renderSettings": return renderer.renderSettings();
       case "renderSettingsPage": return renderer.renderSettingsPage();
       case "closeOverlay": {
         if (event?.target !== element) return undefined;
         if (overlay === "detail") return renderer.closeDetail();
-        if (overlay === "settings") return renderer.closeSettings();
         if (overlay === "lyrics") return renderer.closeLyrics();
         if (overlay === "track") return renderer.closeTrackDetail();
         return undefined;
@@ -97,6 +102,7 @@ export function bootstrapApp() {
       case "openTrackDetail": return renderer.openTrackDetail();
       case "closeTrackDetail": return renderer.closeTrackDetail();
       case "openTrackLink": return commands.openTrackLink(value);
+      case "openNotificationSettings": return commands.openNotificationSettings();
       default: return undefined;
     }
   };
@@ -111,6 +117,15 @@ export function bootstrapApp() {
 
     const trigger = event.target.closest("[data-action]");
     if (!trigger) return;
+    // Form controls (the pomodoro/target-length number inputs, the music
+    // genre <select>) carry data-action purely so the "change" listener
+    // below can pick them up when a value is actually committed — they have
+    // no business also being a *click* trigger. Without this guard, clicking
+    // into one of these to focus it (before typing anything, or before
+    // picking a <select> option) fired the action immediately with a bogus
+    // empty value, and the resulting re-render replaced the input out from
+    // under the cursor — which looked exactly like "can't edit this field."
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(trigger.tagName)) return;
     const action = trigger.dataset.action;
     if (trigger.dataset.stopPropagation === "true") {
       event.preventDefault();
@@ -282,8 +297,32 @@ export function bootstrapApp() {
     listDragId = null;
   });
 
+  // Topbar search — a plain "input" listener rather than routing through
+  // dispatchAction, since it needs to fire on every keystroke and write
+  // straight to #searchResults (see performSearch) instead of going through
+  // a full state->render() cycle, which would recreate the <input> itself
+  // and fight the browser over cursor position mid-type.
+  document.getElementById("topbarSearch")?.addEventListener("input", (event) => {
+    renderer.performSearch(event.target.value);
+  });
+
+  // Clicking anywhere outside the search box closes the results dropdown
+  // without clearing what was typed — same "click away to dismiss" as the
+  // row menu popover above.
+  document.addEventListener("click", (event) => {
+    const wrap = document.getElementById("topbarSearchWrap");
+    if (wrap && !wrap.contains(event.target)) {
+      document.getElementById("searchResults")?.classList.remove("show");
+    }
+  });
+
   window.addEventListener("resize", renderer.closeRowMenu);
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && document.activeElement?.id === "topbarSearch") {
+      renderer.clearSearch();
+      document.getElementById("topbarSearch")?.blur();
+      return;
+    }
     if (event.key === "Escape" && appState.state.lyricsId && !document.getElementById("doverlay").classList.contains("show")) {
       renderer.closeLyrics();
       return;

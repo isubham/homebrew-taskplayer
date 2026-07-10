@@ -1,3 +1,58 @@
+// The 7 axes of the Home page's life-balance radar chart (see
+// lifeBalanceScores()/buildLifeRadar() in render.js). A list can be tagged
+// with one of these `key`s (plus a direction, see commands.js's editList/
+// addList) so its tracked time counts toward that axis — shared here so
+// the "New list"/"Edit list" pickers and the radar's own labels can never
+// drift out of sync with each other.
+export const LIFE_AREAS = [
+  { key: "career", label: "Career / Work" },
+  { key: "health", label: "Health & Fitness" },
+  { key: "relationships", label: "Relationships" },
+  { key: "growth", label: "Personal Growth" },
+  { key: "finance", label: "Finances" },
+  { key: "recreation", label: "Recreation" },
+  { key: "wellbeing", label: "Mental Wellbeing" },
+];
+
+// ---- Impact: a task's tier + direction, independent of tracked time ----
+// This started as a much bigger system (per-task multi-area weighted
+// splits, a daily "mana" capacity, decaying vitality rings, a rolling-window
+// rank ladder). All of that got cut: it was more machinery than the one
+// actual insight underneath it was worth. The insight that's kept — a
+// 5-minute action can matter more than a 3-hour one, so time tracked and
+// impact should be tracked separately — is captured by these two fields
+// (`impactTier` + `impactSign`) alone. A task's *area* is no longer its own
+// thing; it's simply whatever life area the task's list is already tagged
+// with (see LIFE_AREAS / TaskList.lifeArea below), same as it was before
+// any of this existed.
+
+// Independent of `estimateMin` on purpose — a 5-minute task can be `severe`,
+// a 2-hour one `low`. `weight` is the only number left driving anything
+// (jewel payout, and the life-balance radar's weighting — see render.js).
+// Deliberately NOT randomized: the payout for a given tier is always the
+// same number, shown to the user before they commit, never a variable
+// reward.
+export const IMPACT_TIERS = {
+  low: { label: "Low", weight: 1 },
+  medium: { label: "Medium", weight: 2 },
+  high: { label: "High", weight: 4 },
+  severe: { label: "Severe", weight: 8 },
+};
+export const IMPACT_TIER_KEYS = ["low", "medium", "high", "severe"];
+
+// Deterministic jewel payout for completing `task` — the exact number shown
+// before the user commits (see render.js) and the same number used again
+// once the task is actually marked done, so what's promised is always
+// what's paid. Returns null for a task with no impact tier set (weightless,
+// no jewel either way) — a plain { amount } otherwise, signed by the task's
+// own for/against toggle.
+export function jewelPayout(task) {
+  const tier = IMPACT_TIERS[task.impactTier];
+  if (!tier) return null;
+  const sign = task.impactSign === -1 ? -1 : 1;
+  return { amount: sign * tier.weight };
+}
+
 export function esc(s) {
   return String(s).replace(/[&<>\"]/g, (char) => ({
     "&": "&amp;",

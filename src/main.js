@@ -14,6 +14,9 @@ import { bootstrapApp } from "./app/bootstrap.js";
 
   const snapshot = await invoke("get_snapshot");
   appState.state.setSnapshot(snapshot);
+  // Static for the life of the process (it's a hardcoded Rust list), so one
+  // fetch at startup is enough — no need to re-request on every settings render.
+  appState.state.soundOptions = await invoke("sound_options").catch(() => []);
   appState.state.setRoute("tasks", appState.state.activeListId);
   // state.lastPhase/lastTaskId start out null (see state.js), so calling
   // syncMusic() here — instead of just silently pre-seeding those two

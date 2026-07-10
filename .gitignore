@@ -34,3 +34,5 @@ session.json
 
 # Local Claude Code settings (machine-specific bash permissions, not project config)
 .claude/
+
+concepts/

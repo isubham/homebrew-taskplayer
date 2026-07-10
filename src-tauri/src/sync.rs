@@ -13,7 +13,7 @@
 
 use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use serde::{Deserialize, Serialize};
-use taskplayer_core::{now_ms, Db, Session, Task, TaskList};
+use taskplayer_core::{now_ms, Db, RunState, Session, Task, TaskList};
 
 fn client() -> reqwest::blocking::Client {
     reqwest::blocking::Client::new()
@@ -84,6 +84,13 @@ impl RemoteList {
             color: self.color,
             order: self.ord,
             updated_at: self.updated_at,
+            // life_area/life_direction (see models.rs) are local-only for
+            // now — the Supabase `lists` table has no matching columns yet,
+            // so a pulled remote row never carries a life tag. Deliberately
+            // scoped this way rather than guessing at a remote schema
+            // change that can't be verified/applied from here.
+            life_area: None,
+            life_direction: None,
             deleted_at: self.deleted_at,
         }
     }
@@ -135,6 +142,14 @@ impl RemoteTask {
             updated_at: self.updated_at,
             deleted_at: self.deleted_at,
             album: self.album,
+            // impact_tier/impact_sign (see models.rs) are local-only for now,
+            // same reasoning as TaskList's life_area/life_direction — the
+            // Supabase `tasks` table has no matching columns yet, so a pulled
+            // remote row never carries them. db.rs's `upsert_from_remote`
+            // also deliberately excludes these two from its UPDATE SET, so
+            // this default doesn't clobber a value already set locally.
+            impact_tier: None,
+            impact_sign: 1,
         }
     }
 }
@@ -170,6 +185,65 @@ impl RemoteSession {
             end: self.end,
             updated_at: self.updated_at,
             deleted_at: self.deleted_at,
+        }
+    }
+}
+
+/// Wire shape for the `run_state` singleton table (see
+/// docs/session-sync-design.md). One row per account (`user_id` is the
+/// primary key, not a generated `id`) — that's what makes "only one active
+/// session at a time" a schema-level guarantee rather than app-level
+/// conflict logic: the same last-write-wins `lww_guard` trigger that
+/// protects `lists`/`tasks`/`sessions` just does double duty as "the last
+/// device to press play owns the session."
+#[derive(Debug, Serialize, Deserialize)]
+struct RemoteRunState {
+    user_id: String,
+    device_id: String,
+    device_name: Option<String>,
+    active_task_id: Option<String>,
+    running_start: Option<i64>,
+    phase: Option<String>,
+    break_start: Option<i64>,
+    last_task_id: Option<String>,
+    cycles_completed: i64,
+    long_break: bool,
+    updated_at: i64,
+}
+
+impl RemoteRunState {
+    /// `None` if there's no `device_id` to publish yet (shouldn't happen in
+    /// practice — `main.rs` always stamps `device_id` before a `RunState`
+    /// becomes push-dirty — but this keeps that invariant enforced here
+    /// instead of unwrapping and risking a push-loop panic if it's ever
+    /// violated).
+    fn from_local(r: &RunState, user_id: &str) -> Option<Self> {
+        Some(RemoteRunState {
+            user_id: user_id.to_string(),
+            device_id: r.device_id.clone()?,
+            device_name: r.device_name.clone(),
+            active_task_id: r.active_task_id.clone(),
+            running_start: r.running_start,
+            phase: r.phase.clone(),
+            break_start: r.break_start,
+            last_task_id: r.last_task_id.clone(),
+            cycles_completed: r.cycles_completed,
+            long_break: r.long_break,
+            updated_at: r.updated_at,
+        })
+    }
+    fn into_local(self) -> RunState {
+        RunState {
+            active_task_id: self.active_task_id,
+            running_start: self.running_start,
+            phase: self.phase,
+            break_start: self.break_start,
+            last_task_id: self.last_task_id,
+            cycles_completed: self.cycles_completed,
+            long_break: self.long_break,
+            device_id: Some(self.device_id),
+            device_name: self.device_name,
+            updated_at: self.updated_at,
         }
     }
 }
@@ -222,6 +296,21 @@ fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), String> {
     upsert(access_token, "tasks", &tasks.iter().map(|t| RemoteTask::from_local(t, user_id)).collect::<Vec<_>>())?;
     upsert(access_token, "sessions", &sessions.iter().map(|s| RemoteSession::from_local(s, user_id)).collect::<Vec<_>>())?;
 
+    // `run_state` is a single JSON blob under `meta` (see `Db::get_run`/
+    // `set_run`), not a real SQL table — it isn't covered by `dirty_since`,
+    // so check its own `updated_at` against the same push cursor directly.
+    // This is also exactly what keeps an idle device from re-pushing (and
+    // thereby re-claiming ownership of) a session it isn't actually running:
+    // `updated_at` only advances on an actual local play/stop/phase
+    // transition (see `RunState::updated_at`'s doc comment in models.rs), so
+    // a device that hasn't touched its timer never has anything dirty here.
+    let run = db.get_run();
+    if run.updated_at > cursor {
+        if let Some(remote_run) = RemoteRunState::from_local(&run, user_id) {
+            upsert(access_token, "run_state", &[remote_run])?;
+        }
+    }
+
     db.set_push_cursor(now).map_err(|e| e.to_string())
 }
 
@@ -244,10 +333,27 @@ fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
         .into_iter()
         .map(RemoteSession::into_local)
         .collect();
+    // At most one row ever comes back — `run_state` is a singleton keyed by
+    // `user_id` (see docs/session-sync-design.md) — but `fetch_since` still
+    // returns a `Vec` since it's a generic PostgREST GET.
+    let run_states: Vec<RunState> = fetch_since::<RemoteRunState>(access_token, "run_state", cursor)?
+        .into_iter()
+        .map(RemoteRunState::into_local)
+        .collect();
 
-    let changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
+    let mut changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
     if changed {
         db.upsert_from_remote(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
+    }
+    // Applied separately from the three above: `upsert_run_from_remote`
+    // guards on `RunState::updated_at` itself (there's no local SQL row for
+    // `dirty_since`-style filtering to have already excluded a stale one),
+    // and main.rs needs to react specifically to an *ownership* change here
+    // (see `reconcile_run_after_sync`), not just "something changed."
+    if let Some(remote_run) = run_states.into_iter().next() {
+        if db.upsert_run_from_remote(&remote_run).map_err(|e| e.to_string())? {
+            changed = true;
+        }
     }
     // Rewind below "now" rather than advancing straight to it — see
     // `PULL_REWIND_MS` for why. `.max(cursor)` keeps this monotonic even if

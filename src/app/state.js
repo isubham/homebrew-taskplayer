@@ -22,6 +22,12 @@ export function createAppState() {
     checkingForUpdate: false,
     installingUpdate: false,
     updateInfo: null,
+    // Populated once at startup from the `sound_options` command (see
+    // main.js) — the Settings sound pickers render from this instead of a
+    // hardcoded list, so they can never drift out of sync with what the
+    // Rust side (the actual source of truth — see SOUND_OPTIONS in main.rs)
+    // will accept.
+    soundOptions: [],
   };
 
   const list = (id) => state.S?.lists.find((item) => item.id === id);

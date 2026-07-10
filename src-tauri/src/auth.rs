@@ -12,7 +12,16 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use taskplayer_core::AccountInfo;
 
-/// Must match the scheme registered in `tauri.conf.json`'s `plugins.deep-link`.
+/// Must match the scheme registered in `tauri.conf.json`'s `plugins.deep-link`
+/// (release) or `tauri.dev.conf.json`'s override (dev, via `npm run dev`).
+/// Split so a dev instance and an installed release build never race for the
+/// same OAuth callback — see "Running dev alongside an installed release
+/// build" in the README. Requires `taskplayer-dev://auth-callback` to also be
+/// added to Supabase's allowed redirect URLs (Authentication → URL
+/// Configuration) alongside the existing `taskplayer://auth-callback`.
+#[cfg(debug_assertions)]
+const REDIRECT_URL: &str = "taskplayer-dev://auth-callback";
+#[cfg(not(debug_assertions))]
 const REDIRECT_URL: &str = "taskplayer://auth-callback";
 const SESSION_FILE: &str = "session.json";
 

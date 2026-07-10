@@ -85,6 +85,57 @@ pub const MIGRATIONS: &[Migration] = &[
         // songs by an artist group into albums.
         run: |conn| add_column(conn, "tasks", "album", "TEXT"),
     },
+    Migration {
+        name: "005_list_life_tag",
+        // Powers the Home page's life-balance radar chart: each list can
+        // optionally be tagged with a life area + whether it counts for or
+        // against that area.
+        run: |conn| {
+            add_column(conn, "lists", "life_area", "TEXT")?;
+            add_column(conn, "lists", "life_direction", "TEXT")
+        },
+    },
+    Migration {
+        name: "006_impact_and_task_areas",
+        // Powers the gamification layer (jewels/vitality/mana/rank — see
+        // utils.js on the frontend): a task can now carry its own weighted
+        // split across the same 7 life areas a list can be tagged with
+        // (`task_areas`, many-to-many, replacing the old "a task silently
+        // inherits its list's single life_area" behavior — a gym session can
+        // now count 70% toward health and 30% toward wellbeing instead of
+        // only one or the other), plus a per-task "impact tier" that's
+        // independent of how long the task takes (a 5-minute task can be
+        // tagged `severe` while a 2-hour one is `low`).
+        run: |conn| {
+            add_column(conn, "tasks", "impact_tier", "TEXT")?;
+            // 1 = positive/for the area, -1 = negative/against it. Defaults
+            // to 1 (matches `default_impact_sign()` in models.rs) so every
+            // task created before this migration reads as a plain positive
+            // task rather than a null the frontend has to special-case.
+            add_column(conn, "tasks", "impact_sign", "INTEGER")?;
+            conn.execute("UPDATE tasks SET impact_sign=1 WHERE impact_sign IS NULL", [])?;
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS task_areas(
+                   task_id TEXT NOT NULL,
+                   area TEXT NOT NULL,
+                   weight INTEGER NOT NULL,
+                   PRIMARY KEY(task_id, area)
+                 );
+                 CREATE INDEX IF NOT EXISTS idx_task_areas_task ON task_areas(task_id);",
+            )
+        },
+    },
+    Migration {
+        name: "007_drop_task_areas",
+        // The weighted multi-area split from 006 turned out to be more
+        // machinery than it was worth: distilled down, a task just needs a
+        // single impact tier + for/against sign (kept, still on `tasks`),
+        // and its life area comes from its list's existing single
+        // `life_area` tag (kept, from 005) rather than a per-task weighted
+        // split across all 7. `task_areas` is dropped outright rather than
+        // just left unused, since nothing writes to it anymore.
+        run: |conn| conn.execute_batch("DROP TABLE IF EXISTS task_areas;"),
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in

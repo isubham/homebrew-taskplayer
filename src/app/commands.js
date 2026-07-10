@@ -1,17 +1,49 @@
-import { esc } from "./utils.js";
+import { esc, LIFE_AREAS } from "./utils.js";
 
-// Curated set for the "Edit list" emoji picker — common categories a task
-// list tends to fall into (work, home, fitness, creative, ...), rather than
-// a full system emoji keyboard, which would need its own search/scroll UI
-// far beyond what a small dialog can hold.
-const LIST_EMOJIS = [
-  "📁", "🎯", "📚", "💼", "🏠", "🎨", "🎵", "🏋️",
-  "🛒", "✈️", "💰", "🧠", "🍳", "🌱", "🐾", "❤️",
-  "🎮", "📷", "🧹", "🔧", "📝", "💻", "🎓", "🧘",
-  "⚽", "🎬", "🌟", "🔥", "✅", "📌", "🗂️", "🛠️",
+// Curated set for the "Edit list" emoji picker, grouped into the categories
+// a task list tends to fall into — still a curated pick per category (24
+// each, 2 even rows in the 12-column grid — see the "dlg-emoji" width
+// override in styles.css, sized specifically to fit this), not a full
+// system emoji keyboard, which would need its own search/scroll UI far
+// beyond what this dialog holds. A prev/next pager (see editList's
+// goToCategory) steps between categories one at a time, naming the one
+// you've landed on — a per-category icon-tab row read less clearly than
+// just spelling out the category name, especially for categories whose
+// "representative" icon isn't obviously that category at a glance.
+const EMOJI_CATEGORIES = [
+  { key: "work", label: "Work & Productivity", emojis: ["📁", "💼", "🎯", "📊", "📈", "🗂️", "📝", "✅", "⏰", "📅", "💻", "🖥️", "📌", "📎", "🖇️", "📇", "🖨️", "⌨️", "🖱️", "📠", "📋", "🗓️", "🗒️", "📮"] },
+  { key: "home", label: "Home & Chores", emojis: ["🏠", "🛋️", "🛏️", "🚪", "🪴", "🧹", "🧺", "🧽", "🧴", "🔑", "🪑", "🚿", "🛁", "🧻", "🗑️", "🪟", "🕯️", "🧯", "🧼", "🛌", "🚰", "🧱", "🪞", "🪒"] },
+  { key: "health", label: "Health & Fitness", emojis: ["🏋️", "🧘", "🏃", "🚴", "⚽", "🏀", "🎾", "🥗", "🍎", "💧", "😴", "🩺", "💊", "🧠", "👟", "🦵", "🏊", "🤸", "🥊", "🍏", "🫀", "🦶", "🧬", "🩹"] },
+  { key: "money", label: "Money & Shopping", emojis: ["💰", "💳", "🏦", "🧾", "🛍️", "🪙", "💵", "📉", "🧮", "🛒", "🏷️", "💸", "📦", "🧧", "🪪", "💹", "💶", "💷", "🏧", "💲", "🎟️", "🛎️", "🗞️", "🏬"] },
+  { key: "creative", label: "Creative & Hobbies", emojis: ["🎨", "🎵", "🎸", "🎬", "📷", "🎮", "🧵", "✂️", "🖌️", "📚", "✍️", "🎭", "🎹", "📸", "🖼️", "🎤", "🎻", "🥁", "🎺", "🧶", "🪡", "🎲", "🧸", "🪄"] },
+  { key: "learning", label: "Learning & Growth", emojis: ["🎓", "📖", "🧠", "💡", "🔬", "🧪", "🧑‍🎓", "✏️", "🗣️", "🧩", "📐", "🔭", "🌐", "📔", "🧑‍🏫", "🏫", "📏", "📓", "📰", "🔎", "🧫", "🗄️", "🖋️", "🧑‍🔬"] },
+  { key: "nature", label: "Nature & Animals", emojis: ["🌱", "🌳", "🌻", "🐾", "🐶", "🐱", "🦋", "🌊", "⛰️", "☀️", "🌙", "🔥", "🐦", "🐟", "🍀", "🌈", "🐢", "🦉", "🐝", "🌵", "🍂", "❄️", "⭐", "🌾"] },
+  { key: "travel", label: "Travel & Places", emojis: ["✈️", "🚗", "🚆", "🏖️", "🗺️", "🎒", "🏕️", "🌍", "🚢", "🏨", "🚕", "🛳️", "🚲", "🛺", "⛺", "🧳", "🛫", "🛬", "🚉", "🗽", "🗼", "🏰", "🚀", "🛵"] },
+  { key: "social", label: "Social & Celebrations", emojis: ["❤️", "👪", "👫", "💬", "🎉", "🎁", "🤝", "🎂", "🥳", "💌", "📞", "👋", "🫂", "💞", "🎊", "🗨️", "💍", "🥂", "🍾", "🎈", "🕺", "💃", "🧑‍🤝‍🧑", "🗯️"] },
 ];
 
+// Which category (if any) a given emoji belongs to — used to open the
+// picker on the right page for the list's current emoji, rather than
+// always defaulting to the first category.
+const findEmojiCategory = (emoji) => EMOJI_CATEGORIES.find((c) => c.emojis.includes(emoji));
+
+// Shared <select> options for the life-area picker (New list / Edit list),
+// with "Not tagged" as the neutral first choice so a list defaults to not
+// affecting the radar chart at all.
+const lifeAreaOptionsHtml = (selected) =>
+  `<option value="">Not tagged</option>` +
+  LIFE_AREAS.map((a) => `<option value="${a.key}" ${a.key === selected ? "selected" : ""}>${esc(a.label)}</option>`).join("");
+
+const lifeDirOptionsHtml = (selected) => `
+  <option value="increase" ${selected !== "decrease" ? "selected" : ""}>Increases this area</option>
+  <option value="decrease" ${selected === "decrease" ? "selected" : ""}>Decreases this area</option>`;
+
 export function createCommands({ state, ui, renderer, invoke }) {
+  // `uiForm` itself isn't destructured here — a local wrapper of the same
+  // name is defined further down (it forwards to `ui.uiForm`), and
+  // destructuring it too would shadow that declaration in the same scope
+  // (a hard SyntaxError, not just a lint issue). The wrapper covers every
+  // call site in this file already, including the ones added above.
   const { uiPrompt, uiConfirm, uiNote } = ui;
 
   async function apply(snap) {
@@ -27,18 +59,55 @@ export function createCommands({ state, ui, renderer, invoke }) {
   const findTask = (id) => state.S?.tasks.find((task) => task.id === id);
 
   async function addList() {
-    const name = await uiPrompt("New list name");
-    if (name) apply(await invoke("add_list", { name }));
+    // A small form instead of the old single uiPrompt so a list can be
+    // tagged for the Home page's life-balance radar right at creation, not
+    // just later via "Edit list" — emoji/color still default (editable
+    // afterward) to keep this quick.
+    const value = await uiForm({
+      title: "New list",
+      confirmText: "Create",
+      focusSel: "#newListNameIn",
+      bodyHtml: `
+        <div class="ffield"><label>Name</label><input type="text" id="newListNameIn" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
+        <div class="ffield"><label>Life area</label><select id="newListAreaIn">${lifeAreaOptionsHtml("")}</select></div>
+        <div class="ffield"><label>Effect</label><select id="newListDirIn">${lifeDirOptionsHtml("increase")}</select></div>`,
+      collect: () => {
+        const name = document.getElementById("newListNameIn").value.trim();
+        if (!name) return undefined;
+        const area = document.getElementById("newListAreaIn").value || null;
+        const direction = area ? document.getElementById("newListDirIn").value : null;
+        return { name, area, direction };
+      },
+    });
+    if (!value) return;
+    const snap = await invoke("add_list", { name: value.name });
+    // `add_list` always appends (order = previous list count), so the new
+    // list is the last entry in the snapshot it returns.
+    const created = snap.lists[snap.lists.length - 1];
+    if (value.area && created) {
+      apply(await invoke("set_list_life_tag", { id: created.id, area: value.area, direction: value.direction }));
+    } else {
+      apply(snap);
+    }
   }
 
   async function editList(id) {
     const current = list(id);
     if (!current) return;
-    // Falls back to the first picker option if the list's current emoji
-    // isn't one of the curated choices (e.g. an older custom one), so the
-    // grid always shows something selected rather than nothing highlighted.
-    let chosenEmoji = LIST_EMOJIS.includes(current.emoji) ? current.emoji : LIST_EMOJIS[0];
-    const emojiGridHtml = LIST_EMOJIS.map(
+    // Starts as the list's actual current emoji, even if it's not one of
+    // the curated picker choices (e.g. an older custom pick) — it only ever
+    // changes when a tile is actually clicked below, so opening this dialog
+    // and hitting Save without touching Emoji can never silently swap a
+    // custom emoji out for whatever the picker's first tile happens to be.
+    let chosenEmoji = current.emoji;
+    // Opens on whichever category already contains the current emoji, so
+    // editing a list doesn't land on an unrelated page with nothing
+    // highlighted; falls back to the first category for an emoji that
+    // isn't in the curated set at all.
+    let activeCat = (findEmojiCategory(chosenEmoji) || EMOJI_CATEGORIES[0]).key;
+    const activeIndex = () => Math.max(0, EMOJI_CATEGORIES.findIndex((c) => c.key === activeCat));
+    const activeCategory = () => EMOJI_CATEGORIES[activeIndex()];
+    const catGridHtml = () => activeCategory().emojis.map(
       (e) => `<button type="button" class="emoji-opt${e === chosenEmoji ? " sel" : ""}" data-emoji="${e}">${e}</button>`
     ).join("");
     const previewStyle = (color) => `background:${color}22;color:${color};width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font-size:15px;flex:none`;
@@ -53,8 +122,20 @@ export function createCommands({ state, ui, renderer, invoke }) {
       bodyHtml: `
         <div class="ffield"><label>Preview</label><span id="stylePreview" style="${previewStyle(current.color)}">${chosenEmoji}</span></div>
         <div class="ffield"><label>Name</label><input type="text" id="listNameIn" value="${esc(current.name)}" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
-        <div class="ffield" style="align-items:flex-start"><label>Emoji</label><div class="emoji-grid" id="emojiGrid">${emojiGridHtml}</div></div>
+        <div class="ffield" style="align-items:flex-start">
+          <label>Emoji</label>
+          <div class="emoji-picker">
+            <div class="emoji-cat-pager">
+              <button type="button" class="emoji-cat-nav" id="emojiCatPrev" title="Previous category">◀</button>
+              <span class="emoji-cat-label" id="emojiCatLabel">${esc(activeCategory().label)}</span>
+              <button type="button" class="emoji-cat-nav" id="emojiCatNext" title="Next category">▶</button>
+            </div>
+            <div class="emoji-grid" id="emojiGrid">${catGridHtml()}</div>
+          </div>
+        </div>
         <div class="ffield"><label>Color</label><input type="color" id="listColorIn" value="${esc(current.color)}"></div>
+        <div class="ffield"><label>Life area</label><select id="listAreaIn">${lifeAreaOptionsHtml(current.lifeArea)}</select></div>
+        <div class="ffield"><label>Effect</label><select id="listDirIn">${lifeDirOptionsHtml(current.lifeDirection)}</select></div>
         <div style="margin:18px 22px 0;padding-top:14px;border-top:1px solid var(--line)">
           <button type="button" class="danger" data-action="deleteList" data-id="${id}">Delete list</button>
         </div>`,
@@ -62,9 +143,20 @@ export function createCommands({ state, ui, renderer, invoke }) {
         const name = document.getElementById("listNameIn").value.trim();
         if (!name) return undefined;
         const color = document.getElementById("listColorIn").value;
-        return { name, emoji: chosenEmoji, color };
+        const area = document.getElementById("listAreaIn").value || null;
+        const direction = area ? document.getElementById("listDirIn").value : null;
+        return { name, emoji: chosenEmoji, color, area, direction };
       },
     });
+    // This dialog's emoji picker needs more width than the shared dialog
+    // default (see "dlg-emoji" in styles.css) to fit each category's 24
+    // emoji at 2 rows instead of scrolling — scoped to a class toggled on
+    // just this instance of #dmodal, not a change to `.dlg` itself, so
+    // every other dialog in the app (uiPrompt/uiConfirm/addList/moveTask/
+    // etc.) keeps its normal, narrower width. Removed again once this
+    // dialog resolves, regardless of Save or Cancel.
+    const modal = document.getElementById("dmodal");
+    modal?.classList.add("dlg-emoji");
     // The grid's own highlighted tile and the color swatch both show the
     // current pick, but neither made it obvious *something changed* when
     // clicked — this preview is the one place both come together, updated
@@ -72,6 +164,9 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const preview = document.getElementById("stylePreview");
     const colorInput = document.getElementById("listColorIn");
     const grid = document.getElementById("emojiGrid");
+    const catLabel = document.getElementById("emojiCatLabel");
+    const catPrev = document.getElementById("emojiCatPrev");
+    const catNext = document.getElementById("emojiCatNext");
     grid?.addEventListener("click", (event) => {
       const btn = event.target.closest(".emoji-opt");
       if (!btn) return;
@@ -80,16 +175,33 @@ export function createCommands({ state, ui, renderer, invoke }) {
       btn.classList.add("sel");
       if (preview) preview.textContent = chosenEmoji;
     });
+    // Steps to the previous/next category and re-renders #emojiGrid's
+    // contents in place (the listener above stays attached to the same
+    // container element, so re-wiring it isn't needed). Wraps around at
+    // either end (last → first, first → last) rather than disabling the
+    // button, since "which page am I on" is a loop, not a line — a per-
+    // category icon-tab row read this same information less clearly than
+    // just naming the category being paged to.
+    const goToCategory = (step) => {
+      const count = EMOJI_CATEGORIES.length;
+      activeCat = EMOJI_CATEGORIES[(activeIndex() + step + count) % count].key;
+      if (catLabel) catLabel.textContent = activeCategory().label;
+      if (grid) grid.innerHTML = catGridHtml();
+    };
+    catPrev?.addEventListener("click", () => goToCategory(-1));
+    catNext?.addEventListener("click", () => goToCategory(1));
     colorInput?.addEventListener("input", () => {
       if (preview) preview.style.cssText = previewStyle(colorInput.value);
     });
     const value = await formPromise;
+    modal?.classList.remove("dlg-emoji");
     if (!value) return;
-    // Name lives on a separate command from emoji/color (matches the
-    // backend's existing rename_list vs. the new set_list_style) — both
-    // fire from this one dialog, so just apply the final snapshot.
+    // Name/style/life-tag each live on their own backend command (matches
+    // the existing rename_list vs. set_list_style split) — all three fire
+    // from this one dialog, so just apply the final snapshot.
     await invoke("rename_list", { id, name: value.name });
-    apply(await invoke("set_list_style", { id, emoji: value.emoji, color: value.color }));
+    await invoke("set_list_style", { id, emoji: value.emoji, color: value.color });
+    apply(await invoke("set_list_life_tag", { id, area: value.area, direction: value.direction }));
   }
 
   async function deleteList(id) {
@@ -128,10 +240,15 @@ export function createCommands({ state, ui, renderer, invoke }) {
     if (name) apply(await invoke("rename_task", { id, name }));
   }
 
+  // Sets depth to exactly what's passed — no longer a toggle. It used to be
+  // (clicking an already-"deep" task's "Mark deep work" menu entry cleared
+  // it), back when "deep"/"shallow" were two separate menu buttons. Now
+  // they're two options in one 3-way segmented control (Deep/Shallow/None)
+  // in the consolidated task panel, so re-clicking the already-selected
+  // option should be a harmless no-op, not a surprise clear — and "None" is
+  // its own explicit option rather than "click the current one again".
   async function setDepth(id, depth) {
-    const task = findTask(id);
-    const next = task && task.depth === depth ? null : depth;
-    apply(await invoke("set_depth", { id, depth: next }));
+    apply(await invoke("set_depth", { id, depth: depth || null }));
   }
 
   async function deleteTask(id) {
@@ -160,6 +277,40 @@ export function createCommands({ state, ui, renderer, invoke }) {
       },
     });
     if (value) apply(await invoke("set_estimate", { id, minutes: value.minutes }));
+  }
+
+  // "Impact" used to be a separate dialog (uiForm/#dmodal), then grew a
+  // per-task multi-area weighted split inline in the task panel — both cut
+  // back to just these two controls (see utils.js's comment for why). Every
+  // control commits immediately, same principle as the depth segmented
+  // control: the panel always shows persisted truth, so there's no
+  // "unsaved draft" state to lose when an unrelated state-changed event
+  // re-renders it.
+  async function setImpactTier(id, tier) {
+    const task = findTask(id);
+    if (!task) return;
+    // Clicking the already-selected tier clears it — same toggle feel as
+    // the old dial's click handler had, just persisted instead of local.
+    const next = task.impactTier === tier ? null : tier;
+    let sign = task.impactSign === -1 ? -1 : 1;
+    // The first time a tier is set on a task, default its direction to
+    // match its list's own Effect (see "Edit list") instead of always
+    // starting at "For" — a task in a "decreases this area" list should
+    // start out already pointing the same way as the list, not silently
+    // contradicting it until someone notices and flips the toggle by hand.
+    // Once a tier already exists, an explicit sign choice is left alone
+    // (this only seeds the *default*, not a standing override).
+    if (next && !task.impactTier) {
+      const taskList = list(task.listId);
+      sign = taskList && taskList.lifeDirection === "decrease" ? -1 : 1;
+    }
+    apply(await invoke("set_task_impact", { id, tier: next, sign }));
+  }
+
+  async function setImpactSign(id, sign) {
+    const task = findTask(id);
+    if (!task) return;
+    apply(await invoke("set_task_impact", { id, tier: task.impactTier || null, sign: parseInt(sign, 10) === -1 ? -1 : 1 }));
   }
 
   async function toggleDone(id) {
@@ -308,12 +459,33 @@ export function createCommands({ state, ui, renderer, invoke }) {
     }
   }
 
+  // Jumps to System Settings' Notifications pane. macOS ties a per-app
+  // "Banners" (auto-dismiss) vs "Alerts" (stays until dismissed) choice to a
+  // user preference the app can't set or read for itself — the best we can
+  // do is get the user to the right screen. See the Settings notification
+  // hint (soundPickersHtml) for the button that calls this.
+  async function openNotificationSettings() {
+    try {
+      await invoke("open_url", { url: "x-apple.systempreferences:com.apple.preference.notifications" });
+    } catch (error) {
+      await uiNote("Couldn't open Notification settings", esc(String(error)), "OK");
+    }
+  }
+
   async function exportData() {
     try {
       const path = await invoke("export_data");
       await uiNote("Data exported", `Saved a backup and revealed it in Finder:<br><span style="color:#fff;word-break:break-all">${esc(path)}</span>`);
     } catch (error) {
       await uiNote("Export failed", esc(String(error)), "OK");
+    }
+  }
+
+  async function revealLogs() {
+    try {
+      await invoke("reveal_logs");
+    } catch (error) {
+      await uiNote("Couldn't open the log file", esc(String(error)), "OK");
     }
   }
 
@@ -438,14 +610,32 @@ export function createCommands({ state, ui, renderer, invoke }) {
     apply(await invoke("skip_break"));
   }
 
+  // The button shown while `run.phase === "awaiting_break"` — the work block
+  // already ended and got logged; the break clock only starts now.
+  async function startBreak() {
+    apply(await invoke("start_break"));
+  }
+
+  // The button shown while `run.phase === "awaiting_work"` — same underlying
+  // command as skipBreak (both just mean "resume work now"), kept as its own
+  // named action so the two buttons read clearly in bootstrap.js/render.js.
+  async function resumeWork() {
+    apply(await invoke("resume_work"));
+  }
+
   async function setMode(mode) {
     apply(await invoke("set_mode", { mode }));
-    renderer.renderSettings();
+    renderer.renderSettingsPage();
   }
 
   async function setConfigField(key, value) {
     apply(await invoke("set_config_field", { key, value: parseInt(value, 10) || 1 }));
-    renderer.renderSettings();
+    renderer.renderSettingsPage();
+  }
+
+  async function setConfigSound(key, value) {
+    apply(await invoke("set_config_sound", { key, value }));
+    renderer.renderSettingsPage();
   }
 
   function uiForm({ title, bodyHtml = "", confirmText = "OK", danger = false, focusSel = null, collect }) {
@@ -463,6 +653,8 @@ export function createCommands({ state, ui, renderer, invoke }) {
     setDepth,
     deleteTask,
     setEstimate,
+    setImpactTier,
+    setImpactSign,
     toggleDone,
     moveTask,
     reorderTasks,
@@ -473,13 +665,18 @@ export function createCommands({ state, ui, renderer, invoke }) {
     editSession,
     deleteSession,
     openTrackLink,
+    openNotificationSettings,
     exportData,
     importData,
+    revealLogs,
     play,
     stop,
     skipBreak,
+    startBreak,
+    resumeWork,
     setMode,
     setConfigField,
+    setConfigSound,
     signInGoogle,
     signOut,
     syncNow,

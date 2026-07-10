@@ -49,4 +49,30 @@ create trigger tasks_lww before update on public.tasks for each row execute func
 drop trigger if exists sessions_lww on public.sessions;
 create trigger sessions_lww before update on public.sessions for each row execute function public.lww_guard();
 
+-- Cross-device live session sync (see docs/session-sync-design.md). One row
+-- per account, not per device — user_id as the primary key is what enforces
+-- "only one active session at a time" at the schema level.
+create table if not exists public.run_state (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  device_id text not null,
+  device_name text,
+  active_task_id text,
+  running_start bigint,
+  phase text,
+  break_start bigint,
+  last_task_id text,
+  cycles_completed bigint not null default 0,
+  long_break boolean not null default false,
+  updated_at bigint not null default 0,
+  deleted_at bigint
+);
+
+alter table public.run_state enable row level security;
+
+drop policy if exists "own rows" on public.run_state;
+create policy "own rows" on public.run_state for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop trigger if exists run_state_lww on public.run_state;
+create trigger run_state_lww before update on public.run_state for each row execute function public.lww_guard();
+
 notify pgrst, 'reload schema';

@@ -35,7 +35,7 @@ impl Db {
     pub fn lists(&self) -> rusqlite::Result<Vec<TaskList>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id,name,emoji,color,ord,updated_at FROM lists WHERE deleted_at IS NULL ORDER BY ord")?;
+            .prepare("SELECT id,name,emoji,color,ord,updated_at,life_area,life_direction FROM lists WHERE deleted_at IS NULL ORDER BY ord")?;
         let rows = stmt.query_map([], |r| {
             Ok(TaskList {
                 id: r.get(0)?,
@@ -44,6 +44,8 @@ impl Db {
                 color: r.get(3)?,
                 order: r.get(4)?,
                 updated_at: r.get(5)?,
+                life_area: r.get(6)?,
+                life_direction: r.get(7)?,
                 deleted_at: None,
             })
         })?;
@@ -53,7 +55,7 @@ impl Db {
     pub fn add_list(&self, name: &str) -> rusqlite::Result<TaskList> {
         let order = self.lists()?.len() as i64;
         let color = PALETTE[(order as usize) % PALETTE.len()].to_string();
-        let l = TaskList { id: new_id(), name: name.to_string(), emoji: "📁".into(), color, order, updated_at: now_ms(), deleted_at: None };
+        let l = TaskList { id: new_id(), name: name.to_string(), emoji: "📁".into(), color, order, updated_at: now_ms(), life_area: None, life_direction: None, deleted_at: None };
         self.conn.execute(
             "INSERT INTO lists(id,name,emoji,color,ord,updated_at) VALUES(?1,?2,?3,?4,?5,?6)",
             params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at],
@@ -74,6 +76,18 @@ impl Db {
         self.conn.execute(
             "UPDATE lists SET emoji=?1, color=?2, updated_at=?3 WHERE id=?4",
             params![emoji, color, now_ms(), id],
+        )?;
+        Ok(())
+    }
+
+    /// Life-balance tag (see the Home page's radar chart) — also settable
+    /// from the "New list" dialog, not just "Edit list", so a list can be
+    /// tagged right at creation. `area`/`direction` of `None` clears the
+    /// tag (an untagged list simply doesn't factor into any radar axis).
+    pub fn set_list_life_tag(&self, id: &str, area: Option<&str>, direction: Option<&str>) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE lists SET life_area=?1, life_direction=?2, updated_at=?3 WHERE id=?4",
+            params![area, direction, now_ms(), id],
         )?;
         Ok(())
     }
@@ -109,7 +123,7 @@ impl Db {
     pub fn tasks(&self) -> rusqlite::Result<Vec<Task>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,album FROM tasks WHERE deleted_at IS NULL ORDER BY ord")?;
+            .prepare("SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign FROM tasks WHERE deleted_at IS NULL ORDER BY ord")?;
         let rows = stmt.query_map([], |r| {
             Ok(Task {
                 id: r.get(0)?,
@@ -122,6 +136,8 @@ impl Db {
                 description: r.get(7)?,
                 updated_at: r.get(8)?,
                 album: r.get(9)?,
+                impact_tier: r.get(10)?,
+                impact_sign: r.get::<_, Option<i64>>(11)?.unwrap_or(1),
                 deleted_at: None,
             })
         })?;
@@ -134,12 +150,24 @@ impl Db {
             params![list_id],
             |r| r.get(0),
         )?;
-        let t = Task { id: new_id(), list_id: list_id.to_string(), name: name.to_string(), depth: None, order, estimate_min, album: None, completed_at: None, description: None, updated_at: now_ms(), deleted_at: None };
+        let t = Task { id: new_id(), list_id: list_id.to_string(), name: name.to_string(), depth: None, order, estimate_min, album: None, completed_at: None, description: None, updated_at: now_ms(), impact_tier: None, impact_sign: 1, deleted_at: None };
         self.conn.execute(
-            "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
-            params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at],
+            "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.impact_sign],
         )?;
         Ok(t)
+    }
+
+    /// Sets a task's impact tier ("low"|"medium"|"high"|"severe"|None) and
+    /// sign (1 = for its list's tagged life area, -1 = against it) — see
+    /// `Task`'s doc comments. This, not `estimate_min`, is what the jewel
+    /// payout and life-balance radar contribution are weighed by.
+    pub fn set_task_impact(&self, id: &str, tier: Option<&str>, sign: i64) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET impact_tier=?1, impact_sign=?2, updated_at=?3 WHERE id=?4",
+            params![tier, sign, now_ms(), id],
+        )?;
+        Ok(())
     }
 
     pub fn rename_task(&self, id: &str, name: &str) -> rusqlite::Result<()> {
@@ -276,19 +304,19 @@ impl Db {
     /// other device too.
     pub fn dirty_since(&self, ts: i64) -> rusqlite::Result<(Vec<TaskList>, Vec<Task>, Vec<Session>)> {
         let mut lstmt = self.conn.prepare(
-            "SELECT id,name,emoji,color,ord,updated_at,deleted_at FROM lists WHERE updated_at > ?1",
+            "SELECT id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction FROM lists WHERE updated_at > ?1",
         )?;
         let lists = lstmt
             .query_map(params![ts], |r| {
                 Ok(TaskList {
                     id: r.get(0)?, name: r.get(1)?, emoji: r.get(2)?, color: r.get(3)?, order: r.get(4)?,
-                    updated_at: r.get(5)?, deleted_at: r.get(6)?,
+                    updated_at: r.get(5)?, deleted_at: r.get(6)?, life_area: r.get(7)?, life_direction: r.get(8)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         let mut tstmt = self.conn.prepare(
-            "SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album FROM tasks WHERE updated_at > ?1",
+            "SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign FROM tasks WHERE updated_at > ?1",
         )?;
         let tasks = tstmt
             .query_map(params![ts], |r| {
@@ -296,6 +324,7 @@ impl Db {
                     id: r.get(0)?, list_id: r.get(1)?, name: r.get(2)?, depth: r.get(3)?, order: r.get(4)?,
                     estimate_min: r.get(5)?, completed_at: r.get(6)?, description: r.get(7)?,
                     updated_at: r.get(8)?, deleted_at: r.get(9)?, album: r.get(10)?,
+                    impact_tier: r.get(11)?, impact_sign: r.get::<_, Option<i64>>(12)?.unwrap_or(1),
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -322,21 +351,32 @@ impl Db {
         let tx = self.conn.unchecked_transaction()?;
         for l in lists {
             tx.execute(
-                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at) VALUES(?1,?2,?3,?4,?5,?6,?7)
+                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)
                  ON CONFLICT(id) DO UPDATE SET name=excluded.name, emoji=excluded.emoji, color=excluded.color,
-                   ord=excluded.ord, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
+                   ord=excluded.ord, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                   life_area=excluded.life_area, life_direction=excluded.life_direction
                  WHERE excluded.updated_at > lists.updated_at",
-                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.deleted_at],
+                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.deleted_at, l.life_area, l.life_direction],
             )?;
         }
         for t in tasks {
+            // impact_tier/impact_sign are deliberately NOT part of this
+            // upsert's SET clause (unlike every other field) — same reasoning
+            // as life_area/life_direction on lists: a row pulled from remote
+            // only ever carries `into_local()`'s default (None/1, since the
+            // Supabase schema has no matching columns yet), so overwriting
+            // the local value on every remote-triggered update would silently
+            // erase a locally-set impact tier the moment any *other* field on
+            // the task changed on another device. Leaving them out of SET
+            // means a remote pull can still create the row (impact fields
+            // start at their default) but never clobbers one already set here.
             tx.execute(
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
                  ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
                    ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album
                  WHERE excluded.updated_at > tasks.updated_at",
-                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album],
+                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign],
             )?;
         }
         for s in sessions {
@@ -368,14 +408,14 @@ impl Db {
         tx.execute("DELETE FROM lists", [])?;
         for l in lists {
             tx.execute(
-                "INSERT INTO lists(id,name,emoji,color,ord,updated_at) VALUES(?1,?2,?3,?4,?5,?6)",
-                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at],
+                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.life_area, l.life_direction],
             )?;
         }
         for t in tasks {
             tx.execute(
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,album) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.album],
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.album, t.impact_tier, t.impact_sign],
             )?;
         }
         for s in sessions {
@@ -426,6 +466,37 @@ impl Db {
         self.set_meta("run", &serde_json::to_string(r).unwrap_or_default())
     }
 
+    /// Stable per-install id for cross-device session sync (see
+    /// docs/session-sync-design.md) — generated once on first access and
+    /// persisted in `meta`, so it survives every later launch of this
+    /// install. Not secret; used only to tell "my session" from "a session
+    /// owned by another of this account's devices."
+    pub fn get_device_id(&self) -> String {
+        if let Some(id) = self.get_meta("device_id") {
+            return id;
+        }
+        let id = new_id();
+        let _ = self.set_meta("device_id", &id);
+        id
+    }
+
+    /// Applies a `RunState` pulled from the remote `run_state` row, but only
+    /// if it's actually newer than what's already stored locally — the same
+    /// `updated_at`-guarded last-write-wins rule the Postgres-side
+    /// `lww_guard` trigger enforces for `lists`/`tasks`/`sessions`, just done
+    /// here in Rust since `run_state` isn't a real local SQL table (it's the
+    /// single `run` JSON blob in `meta`, same as `get_run`/`set_run`).
+    /// Returns `true` if the local run state actually changed.
+    pub fn upsert_run_from_remote(&self, remote: &RunState) -> rusqlite::Result<bool> {
+        let current = self.get_run();
+        if remote.updated_at > current.updated_at {
+            self.set_run(remote)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn delete_meta(&self, key: &str) -> rusqlite::Result<()> {
         self.conn.execute("DELETE FROM meta WHERE key=?1", params![key])?;
         Ok(())
@@ -471,6 +542,7 @@ impl Db {
             sessions: self.sessions()?,
             config: self.get_config(),
             run: self.get_run(),
+            device_id: self.get_device_id(),
             account: self.get_account(),
             // `syncing`/`last_synced_at`/`last_sync_error` are live, in-memory
             // AppState — Db has no way to know them; main.rs's
@@ -628,4 +700,27 @@ mod tests {
         db.upsert_from_remote(&[newer], &[], &[]).unwrap();
         assert_eq!(db.lists().unwrap().into_iter().find(|x| x.id == l.id).unwrap().name, "Newer");
     }
+
+    #[test]
+    fn task_impact_roundtrip() {
+        let db = Db::open_in_memory().unwrap();
+        let l = db.add_list("L").unwrap();
+        let t = db.add_task(&l.id, "Smoked a cigarette", None).unwrap();
+        // fresh tasks default to weightless/positive, same as a
+        // pre-gamification task.
+        assert_eq!(t.impact_tier, None);
+        assert_eq!(t.impact_sign, 1);
+
+        db.set_task_impact(&t.id, Some("severe"), -1).unwrap();
+        let reloaded = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap();
+        assert_eq!(reloaded.impact_tier.as_deref(), Some("severe"));
+        assert_eq!(reloaded.impact_sign, -1);
+
+        // clearing the tier keeps the row (not deleted), just untagged again.
+        db.set_task_impact(&t.id, None, 1).unwrap();
+        let cleared = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap();
+        assert_eq!(cleared.impact_tier, None);
+        assert_eq!(cleared.impact_sign, 1);
+    }
+
 }

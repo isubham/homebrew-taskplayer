@@ -1,0 +1,30 @@
+{
+  "productName": "TaskPlayer Dev",
+  "identifier": "com.taskplayer.desktop.dev",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["taskplayer-dev"]
+      }
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "TaskPlayer (Dev)",
+        "width": 1040,
+        "height": 700,
+        "minWidth": 720,
+        "minHeight": 520,
+        "resizable": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "decorations": true,
+        "trafficLightPosition": { "x": 20, "y": 36 },
+        "backgroundColor": "#121212",
+        "dragDropEnabled": false
+      }
+    ]
+  }
+}

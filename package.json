@@ -5,7 +5,7 @@
   "description": "TaskPlayer — Spotify-style deep-work timer for macOS (Tauri + Rust + SQLite).",
   "scripts": {
     "tauri": "tauri",
-    "dev": "tauri dev",
+    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "build": "tauri build",
     "icons": "tauri icon src-tauri/icons/app-icon.png"
   },

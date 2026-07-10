@@ -1,4 +1,7 @@
-import { esc, fmt, fmtLong, fmtEst, fmtHM, estPct, whenLabel, timeAgo, buildCapacityBar, albumColor } from "./utils.js";
+import {
+  esc, fmt, fmtLong, fmtEst, fmtHM, estPct, whenLabel, timeAgo, buildCapacityBar, albumColor, LIFE_AREAS,
+  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout,
+} from "./utils.js";
 import { html, render as litRender } from "../vendor/lit-html.js";
 
 export function createRenderer({ state, helpers, actions }) {
@@ -22,23 +25,40 @@ export function createRenderer({ state, helpers, actions }) {
 
   // Six-dot drag handle — the classic, instantly-recognizable "grab here" glyph.
   const GRIP_SVG = `<svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="14" r="1.3"/><circle cx="8" cy="14" r="1.3"/></svg>`;
-
   // 15px — sized to the same visual weight as the 14px emoji glyphs beside
   // them, both sitting in the fixed-width `.li-icon` column (see below) so
-  // every row's icon — Recent, Sessions, and every list — starts at the
+  // every row's icon — Recent, Insights, and every list — starts at the
   // exact same x position instead of drifting per row.
   const CLOCK_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
 
   // Same clock, sized for the Recent page's 160px `.hdr .cover` tile instead
-  // of the 16px sidebar icon column above — the other pages' covers (⚙, ◷,
-  // a list's emoji) are plain text glyphs that scale automatically with the
-  // tile's 62px font-size, but an SVG's width/height attributes don't, so
-  // reusing the small CLOCK_SVG here left it stranded at 15px in a 160px box.
+  // of the 16px sidebar icon column above — the other pages' covers (⚙, bar
+  // chart, a list's emoji) are plain text glyphs that scale automatically
+  // with the tile's 62px font-size, but an SVG's width/height attributes
+  // don't, so reusing the small CLOCK_SVG here left it stranded at 15px in
+  // a 160px box.
   const CLOCK_SVG_HERO = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
 
-  // Feather's "list" glyph — distinct from Recent's clock face, reads as
-  // "a log of entries" which is exactly what the Sessions page is.
-  const SESSIONS_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+  // Feather's "bar-chart-2" glyph — reads as analytics/trends, matching
+  // what the Insights page actually is (day/week/month rollups, capacity
+  // bars, rulers) rather than a plain list-of-entries icon.
+  const INSIGHTS_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+
+  // Same bar-chart glyph, sized for the Insights page's 160px `.hdr .cover`
+  // tile — same reasoning as CLOCK_SVG_HERO above.
+  const INSIGHTS_SVG_HERO = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+
+  // Feather's "settings" gear — the topbar's lone icon-cluster button (see
+  // renderTopbar). Same stroke-based family as CLOCK_SVG/INSIGHTS_SVG above
+  // (used for Recent/Insights instead, as pinned sidebar rows — see
+  // renderPinnedNav), so all three still read as one icon language even
+  // though they no longer live in the same cluster.
+  const GEAR_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+
+  // Same house glyph as the topbar's #tbhome button (index.html), sized to
+  // the 15px sidebar-icon-column convention — used as the Home page's own
+  // stickybar icon so it reads like the other pages' mini-headers.
+  const HOME_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>`;
 
   // Spotify/Apple-Music-style sticky mini-header — sits above every .hdr
   // as #main's first child (see the 4 page renderers below), always
@@ -71,23 +91,47 @@ export function createRenderer({ state, helpers, actions }) {
     stickyObserver.observe(h1);
   }
 
+  // Settings lives in the topbar's right-hand icon cluster. Recent/Insights
+  // moved back to being pinned rows above "Your Lists" (see
+  // `renderPinnedNav`) — this used to hold all three, but only Settings has
+  // no natural home in the sidebar (it isn't "content" the way Recent/
+  // Insights are). Re-rendered on every `render()` (cheap: 1 button) so the
+  // `active` class tracks state.view.
+  function renderTopbar() {
+    if (!state.S) return;
+    const icons = document.getElementById("topbarIcons");
+    if (!icons) return;
+    icons.innerHTML = `
+      <button class="${state.view === "settings" ? "active" : ""}" data-action="openSettingsPage" title="Settings">${GEAR_SVG}</button>`;
+  }
+
+  // Recent/Insights as pinned sidebar rows, sitting above the "Your Lists"
+  // heading — same `.list-item` row every real list uses (see
+  // `renderSidebar`), just with a neutral outline icon instead of a colored
+  // emoji tile, and no count/grip/rename-pencil since neither is a real,
+  // reorderable list. Rendered separately from `renderSidebar` (a different
+  // DOM node, `#pinnedNav`, that never scrolls with the list rows below it)
+  // but on the same cadence — both are cheap, few-row innerHTML rebuilds.
+  function renderPinnedNav() {
+    if (!state.S) return;
+    const nav = document.getElementById("pinnedNav");
+    if (!nav) return;
+    nav.innerHTML = `
+      <div class="list-item ${state.view === "recent" ? "active" : ""}" data-action="openRecentPage" title="Last 6 tasks played">
+        <span class="li-icon">${CLOCK_SVG}</span><span class="li-label">Recent</span>
+      </div>
+      <div class="list-item ${state.view === "insights" ? "active" : ""}" data-action="openInsightsPage" title="Session history &amp; analytics">
+        <span class="li-icon">${INSIGHTS_SVG}</span><span class="li-label">Insights</span>
+      </div>`;
+  }
+
   function renderSidebar() {
     if (!state.S) return;
-    document.getElementById("recentNav").innerHTML = `
-      <div class="list-item recent-item ${state.view === "recent" ? "active" : ""}" data-action="openRecentPage" title="Last 6 tasks played">
-        <span class="li-icon">${CLOCK_SVG}</span>
-        <span class="li-label">Recent</span>
-      </div>
-      <div class="list-item recent-item ${state.view === "sessions" ? "active" : ""}" data-action="openSessionsPage" title="All sessions">
-        <span class="li-icon">${SESSIONS_SVG}</span>
-        <span class="li-label">Sessions</span>
-      </div>`;
     // One line per list now — count replaces the old two-line "N tasks ·
     // spent of estimate" meta text, which moves into the row's title
     // tooltip instead of being always-on. `.list-grip` is positioned
     // absolute (see CSS) precisely so it doesn't reserve flex space and
-    // throw list rows' `.li-icon` out of alignment with Recent/Sessions
-    // above, which have no grip at all.
+    // shift list rows' `.li-icon` out of alignment with each other.
     document.getElementById("lists").innerHTML = state.S.lists.map((listItem) => {
       const count = tasksForList(listItem.id).length;
       const detail = `${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder, double-click to edit`;
@@ -107,7 +151,7 @@ export function createRenderer({ state, helpers, actions }) {
   // the header wash, the big play button, the playing-row highlight, and
   // the toolbar's "Add task" pill hover all pick it up through CSS
   // `var(--accent, ...fallback)` rules — and so every other page (Settings,
-  // Sessions, Recent) automatically stays plain green, since none of those
+  // Insights, Recent) automatically stays plain green, since none of those
   // set it. Hex + alpha-suffix strings (not `color-mix()`) to match how the
   // rest of the app already tints things — Big Sur's WebKit predates
   // `color-mix()` support.
@@ -151,8 +195,9 @@ export function createRenderer({ state, helpers, actions }) {
   function renderMain() {
     if (!state.S) return;
     const main = document.getElementById("main");
+    if (state.view === "home") { clearAccent(main); return renderHomePage(); }
     if (state.view === "settings") { clearAccent(main); return renderSettingsPage(); }
-    if (state.view === "sessions") { clearAccent(main); return renderSessionsPage(); }
+    if (state.view === "insights") { clearAccent(main); return renderInsightsPage(); }
     if (state.view === "recent") { clearAccent(main); return renderRecentPage(); }
 
     const listItem = activeList();
@@ -170,7 +215,12 @@ export function createRenderer({ state, helpers, actions }) {
     const taskRow = (task, index) => {
       const active = state.S.run.activeTaskId === task.id && state.S.run.phase;
       const working = active && state.S.run.phase === "work" && state.S.run.runningStart;
-      const onBreak = active && state.S.run.phase === "break";
+      const onBreak = active && (state.S.run.phase === "break" || state.S.run.phase === "awaiting_break" || state.S.run.phase === "awaiting_work");
+      // Active, but owned by another of this account's devices (see
+      // docs/session-sync-design.md) — the row still highlights, but the
+      // button can't offer to "pause" a session this device isn't actually
+      // running; it offers to take over instead.
+      const elsewhere = active && state.S.run.deviceId && state.S.deviceId && state.S.run.deviceId !== state.S.deviceId;
 
       // Sessions + total time + estimate used to be three separate bits of
       // text. They're now this one capacity bar, with the numbers written
@@ -185,12 +235,25 @@ export function createRenderer({ state, helpers, actions }) {
           ? bar.html
           : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
 
+      // Deterministic jewel payout (see utils.js's jewelPayout — never
+      // randomized, so this preview is always exactly what completing the
+      // task actually pays). null for a task with no impact tier set, which
+      // renders nothing.
+      const payout = jewelPayout(task);
+      const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
+      const jewelHtml = payout
+        ? `<i class="jewel-dot ${payout.amount < 0 ? "neg" : ""}" title="${esc(payoutTitle)}"></i>`
+        : "";
+      const playTitle = elsewhere
+        ? `Playing on ${state.S.run.deviceName || "another device"} — click to play here`
+        : `Click to ${active ? "stop" : "start"}${payoutTitle ? " — earns " + payoutTitle : ""}`;
+
       return `<tr class="${active ? "playing" : ""}" draggable="true" data-drag-id="${task.id}" data-list-id="${listItem.id}" data-album="${esc(task.album || "")}" title="Drag to reorder">
         <td class="idx">
           <span class="grip" title="Drag to reorder">${GRIP_SVG}</span>
-          <span class="num">${working ? "♪" : onBreak ? "☕" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to ${active ? "stop" : "start"}">${active ? "⏸" : "▶"}</button>
+          <span class="num">${working ? "♪" : onBreak ? "☕" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="${esc(playTitle)}">${active && !elsewhere ? "⏸" : "▶"}</button>
         </td>
-        <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</td>
+        <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}${jewelHtml}</td>
         <td class="r bar-cell">${rbarline}</td>
         <td class="menu-cell"><button class="menu-btn" title="More" data-action="openRowMenu" data-id="${task.id}" data-stop-propagation="true">⋯</button></td>
       </tr>`;
@@ -270,11 +333,37 @@ export function createRenderer({ state, helpers, actions }) {
     const np = document.getElementById("np");
     const center = document.getElementById("center");
     const run = state.S.run;
+    const config = state.S.config;
     const running = run.activeTaskId && run.phase ? findTask(run.activeTaskId) : null;
     let task = running || (run.lastTaskId ? findTask(run.lastTaskId) : null);
     if (!running && task && task.completedAt) task = null;
     const listItem = task ? list(task.listId) : null;
-    const badge = html`<button class="mode-btn ${state.S.config.mode !== "open" ? "on" : ""}" data-action="cycleMode" title="Session mode: ${modeLabel()} — click to change">${modeGlyph()}</button>`;
+    const badge = html`<button class="mode-btn ${config.mode !== "open" ? "on" : ""}" data-action="cycleMode" title="Session mode: ${modeLabel()} — click to change">${modeGlyph()}</button>`;
+
+    // Cross-device: another of this account's devices currently owns the
+    // live session (see docs/session-sync-design.md). Point-of-performance
+    // rule — this has to show up right here on the player bar, not tucked
+    // into Settings — but it's read-only: no pause/skip controls for a
+    // session this device isn't actually running (driving those locally
+    // would fight the owning device). The one action offered, "Play here",
+    // takes it over — same `play` command any other row's ▶ already sends.
+    const mirrored = running && run.deviceId && state.S.deviceId && run.deviceId !== state.S.deviceId;
+    if (mirrored) {
+      let clockText;
+      if (run.phase === "break") {
+        const breakLen = (run.longBreak ? config.longBreakMin : config.breakMin) * 60000;
+        const rem = run.breakStart ? Math.max(0, breakLen - (Date.now() - run.breakStart)) : breakLen;
+        clockText = `☕ ${fmt(rem)}`;
+      } else if (run.phase === "work" && run.runningStart) {
+        clockText = fmt(Date.now() - run.runningStart);
+      } else {
+        clockText = "waiting";
+      }
+      litRender(html`<div class="art" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</div><div><div class="t"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${listItem.name}">${task.name}</span></div><div class="l">Playing on ${esc(run.deviceName || "another device")}</div></div>`, np);
+      litRender(html`<div class="controls">${badge}<button class="bigaction" data-action="play" data-id="${task.id}" title="Take over on this device">▶ Play here</button></div>
+        <div class="timeline"><span class="clock" id="liveclock" style="color:var(--muted)">${clockText}</span><div class="bar live"><span id="livebar" style="width:40%;animation:pulse 1.6s ease-in-out infinite"></span></div><span class="clock">elsewhere</span></div>`, center);
+      return;
+    }
 
     if (!task) {
       litRender(html`<div class="art" style="background:#333">▤</div><div><div class="t" style="color:var(--muted)">Nothing playing</div><div class="l">Press ▶ on a task</div></div>`, np);
@@ -283,7 +372,7 @@ export function createRenderer({ state, helpers, actions }) {
       return;
     }
 
-    litRender(html`<div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div><div><div class="t"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${listItem.name}">${task.name}</span></div><div class="l"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${listItem.name}</span>${running ? "" : " · paused"}</div></div>`, np);
+    litRender(html`<div class="art" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</div><div><div class="t"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${listItem.name}">${task.name}</span></div><div class="l"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${listItem.name}</span>${running ? "" : " · paused"}</div></div>`, np);
 
     if (!running) {
       const timerTarget = targetMs();
@@ -298,36 +387,77 @@ export function createRenderer({ state, helpers, actions }) {
     }
 
     if (run.phase === "break") {
-      const rem = Math.max(0, state.S.config.breakMin * 60000 - (Date.now() - run.breakStart));
-      const pct = 100 - rem / (state.S.config.breakMin * 60000) * 100;
+      const breakLen = run.longBreak ? state.S.config.longBreakMin : state.S.config.breakMin;
+      const rem = Math.max(0, breakLen * 60000 - (Date.now() - run.breakStart));
+      const pct = 100 - rem / (breakLen * 60000) * 100;
+      const brkLabel = run.longBreak ? "☕☕" : "☕";
       litRender(html`<div class="controls">${badge}<button class="pmain" data-action="skipBreak" title="Skip break">⏭</button><button class="stopbtn" data-action="stop">■ End</button>${lyrBtn(task.id)}</div>
-        <div class="timeline"><span class="clock" id="liveclock" style="color:var(--blue)">☕ ${fmt(rem)}</span><div class="bar brk"><span id="livebar" style="width:${pct}%"></span></div><span class="clock" style="color:var(--blue)">break</span></div>`, center);
+        <div class="timeline"><span class="clock" id="liveclock" style="color:var(--blue)">${brkLabel} ${fmt(rem)}</span><div class="bar brk live"><span id="livebar" style="width:${pct}%"></span></div><span class="clock" style="color:var(--blue)">${run.longBreak ? "long break" : "break"}</span></div>
+        <div class="phaseline"><span class="dot" style="background:var(--blue)"></span>${run.longBreak ? `long break · cycle ${config.cyclesBeforeLongBreak} of ${config.cyclesBeforeLongBreak}` : "break"}</div>`, center);
+      return;
+    }
+
+    // Work block just ended (already logged) — the break clock doesn't start
+    // on its own. This big button *is* the "click the notification" gesture:
+    // macOS notification clicks aren't reliably wired to the app, so the
+    // window surfaces itself (see surface_main_window in main.rs) with this
+    // button already showing. Every Nth work block earns a longer break
+    // (see run.longBreak, set by the backend's timer::tick) — the button and
+    // status label call that out explicitly rather than showing an identical
+    // "Start break" for a 5m and a 20m break.
+    if (run.phase === "awaiting_break") {
+      const breakLen = run.longBreak ? state.S.config.longBreakMin : state.S.config.breakMin;
+      const btnLabel = run.longBreak ? `Long break ☕☕ — ${breakLen}m` : `Break ☕ — ${breakLen}m`;
+      litRender(html`<div class="controls">${badge}<button class="bigaction" data-action="startBreak" title="Start break" style="background:var(--blue)">${btnLabel}</button><button class="stopbtn" data-action="stop">■ End</button>${lyrBtn(task.id)}</div>
+        <div class="timeline"><span class="clock" style="color:var(--blue)">Work session done</span><div class="bar brk"><span style="width:100%"></span></div><span class="clock" style="color:var(--blue)">waiting</span></div>`, center);
+      return;
+    }
+
+    // Break just ended — same idea in reverse: work only resumes once
+    // clicked, never automatically.
+    if (run.phase === "awaiting_work") {
+      litRender(html`<div class="controls">${badge}<button class="bigaction" data-action="resumeWork" title="Start work" style="background:var(--green)">▶ Start work</button><button class="stopbtn" data-action="stop">■ End</button>${lyrBtn(task.id)}</div>
+        <div class="timeline"><span class="clock" style="color:var(--green)">Break's over</span><div class="bar"><span style="width:100%"></span></div><span class="clock" style="color:var(--green)">waiting</span></div>`, center);
       return;
     }
 
     const elapsed = Date.now() - run.runningStart;
     const timerTarget = targetMs();
     const pct = timerTarget ? Math.min(100, elapsed / timerTarget * 100) : 0;
+    // Quiet phase/cycle line under the timeline — the same dot-plus-text
+    // treatment across all three modes, just with mode-appropriate text:
+    // pomodoro shows which cycle you're on (the thing that used to be
+    // invisible anywhere in the UI), target shows progress toward the goal,
+    // open just says so plainly since there's no target to measure against.
+    const phaseText = config.mode === "pomodoro"
+      ? `work · cycle ${run.cyclesCompleted + 1} of ${config.cyclesBeforeLongBreak}`
+      : config.mode === "target"
+        ? `target · ${Math.round(pct)}%`
+        : "open · no target";
+    const phaseDot = config.mode === "open" ? "#6a6a6a" : "var(--green)";
     litRender(html`<div class="controls">${badge}
         <button class="pmain" data-action="play" data-id="${task.id}" title="Stop &amp; log">⏸</button>
         <button class="pbtn" data-action="openDetail" data-id="${task.id}" title="History">☰</button>
         ${lyrBtn(task.id)}</div>
       <div class="timeline"><span class="clock" id="liveclock">${fmt(elapsed)}</span>
-        <div class="bar ${pct >= 100 ? "done" : ""}"><span id="livebar" style="width:${timerTarget ? pct + "%" : "40%"};${timerTarget ? "" : "animation:pulse 1.6s ease-in-out infinite"}"></span></div>
-        <span class="clock">${timerTarget ? fmt(timerTarget) : "rec"}</span></div>`, center);
+        <div class="bar live ${pct >= 100 ? "done" : ""}"><span id="livebar" style="width:${timerTarget ? pct + "%" : "40%"};${timerTarget ? "" : "animation:pulse 1.6s ease-in-out infinite"}"></span></div>
+        <span class="clock">${timerTarget ? fmt(timerTarget) : "rec"}</span></div>
+      <div class="phaseline"><span class="dot" style="background:${phaseDot}"></span>${phaseText}</div>`, center);
   }
 
   function render() {
     if (!state.S) return;
+    renderTopbar();
+    renderPinnedNav();
     renderSidebar();
     renderMain();
     renderPlayer();
     if (state.openTaskId) renderDetail();
-    document.getElementById("gear")?.classList.toggle("on", state.view === "settings");
     const navBackButton = document.getElementById("navback");
     const navForwardButton = document.getElementById("navfwd");
     if (navBackButton) navBackButton.disabled = !state.navBack.length;
     if (navForwardButton) navForwardButton.disabled = !state.navFwd.length;
+    document.getElementById("tbhome")?.classList.toggle("active", state.view === "home");
     document.getElementById("app")?.classList.toggle("rail", state.railOpen);
     document.getElementById("railtoggle")?.classList.toggle("on", state.railOpen);
     renderNowPlaying();
@@ -389,12 +519,73 @@ export function createRenderer({ state, helpers, actions }) {
     navigate({ view: "settings", listId: null });
   }
 
-  function openSessionsPage() {
-    navigate({ view: "sessions", listId: null });
+  function openInsightsPage() {
+    navigate({ view: "insights", listId: null });
   }
 
   function openRecentPage() {
     navigate({ view: "recent", listId: null });
+  }
+
+  // Lands on the dashboard (see renderHomePage below) — greeting, today's
+  // stats, "Jump back in", and a grid of every list — rather than dropping
+  // straight back onto whichever task list was last active.
+  function goHome() {
+    clearSearch();
+    navigate({ view: "home", listId: null });
+  }
+
+  function clearSearch() {
+    const input = document.getElementById("topbarSearch");
+    if (input) input.value = "";
+    const box = document.getElementById("searchResults");
+    if (box) {
+      box.classList.remove("show");
+      box.innerHTML = "";
+    }
+  }
+
+  // Live filter over task and list names as you type in the topbar search
+  // box — called directly from bootstrap.js's "input" listener on every
+  // keystroke, so it writes straight to #searchResults rather than going
+  // through the normal state->render() cycle (that would rebuild the input
+  // itself and fight the browser over cursor position).
+  function performSearch(query) {
+    const box = document.getElementById("searchResults");
+    if (!box || !state.S) return;
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      box.classList.remove("show");
+      box.innerHTML = "";
+      return;
+    }
+    const listMatches = state.S.lists.filter((l) => l.name.toLowerCase().includes(q)).slice(0, 4);
+    const taskMatches = state.S.tasks
+      .filter((t) => !t.completedAt && t.name.toLowerCase().includes(q))
+      .slice(0, 8);
+    box.innerHTML = !listMatches.length && !taskMatches.length
+      ? `<div class="sr-empty">No matches for "${esc(query)}"</div>`
+      : [
+          ...listMatches.map((l) => `<div class="sr-item" data-action="searchGoList" data-id="${l.id}"><span>${esc(l.emoji)}</span><span class="sr-name">${esc(l.name)}</span><span class="sr-meta">list</span></div>`),
+          ...taskMatches.map((t) => {
+            const li = list(t.listId);
+            return `<div class="sr-item" data-action="searchGoTask" data-id="${t.id}"><span>${li ? esc(li.emoji) : "•"}</span><span class="sr-name">${esc(t.name)}</span><span class="sr-meta">${li ? esc(li.name) : ""}</span></div>`;
+          }),
+        ].join("");
+    box.classList.add("show");
+  }
+
+  function searchGoList(id) {
+    clearSearch();
+    navigate({ view: "tasks", listId: id });
+  }
+
+  function searchGoTask(id) {
+    const task = findTask(id);
+    clearSearch();
+    if (!task) return;
+    navigate({ view: "tasks", listId: task.listId });
+    openDetail(id);
   }
 
   function toggleCompleted() {
@@ -423,16 +614,17 @@ export function createRenderer({ state, helpers, actions }) {
     const popmenu = document.getElementById("popmenu");
     const task = findTask(id);
     const active = state.S.run.activeTaskId === id && state.S.run.phase;
+    // Session history / rename / move / depth / estimate / impact & areas
+    // used to be 6 separate entries here, each opening its own dialog.
+    // They're now one screen (the task panel below — same one "Session
+    // history" already opened), so "Edit task" is the only door into any of
+    // them. Album is intentionally still its own entry — it wasn't part of
+    // that consolidation.
     popmenu.innerHTML = `
       <button data-action="rowMenu" data-action-name="done" data-id="${id}">${task && task.completedAt ? "↩&nbsp; Mark as not done" : "✓&nbsp; Mark as done"}</button>
-      <button data-action="rowMenu" data-action-name="history" data-id="${id}">☰&nbsp; Session history</button>
-      <button data-action="rowMenu" data-action-name="rename" data-id="${id}">✎&nbsp; Rename task</button>
-      <button data-action="rowMenu" data-action-name="move" data-id="${id}">↗&nbsp; Move to list…</button>
+      <button data-action="rowMenu" data-action-name="edit" data-id="${id}">☰&nbsp; Edit task</button>
       <button data-action="rowMenu" data-action-name="toggle" data-id="${id}">${active ? "⏸&nbsp; Stop timer" : "▶&nbsp; Start timer"}</button>
       <div class="sep"></div>
-      <button data-action="rowMenu" data-action-name="deep" data-id="${id}">${task && task.depth === "deep" ? "✓" : "🎯"}&nbsp; Mark deep work</button>
-      <button data-action="rowMenu" data-action-name="shallow" data-id="${id}">${task && task.depth === "shallow" ? "✓" : "💤"}&nbsp; Mark shallow</button>
-      <button data-action="rowMenu" data-action-name="estimate" data-id="${id}">⏳&nbsp; ${task && task.estimateMin ? "Edit estimate (" + fmtEst(task.estimateMin) + ")" : "Set estimate…"}</button>
       <button data-action="rowMenu" data-action-name="album" data-id="${id}">💿&nbsp; ${task && task.album ? "Change album (" + esc(task.album) + ")" : "Set album…"}</button>
       <div class="sep"></div>
       <button class="danger" data-action="rowMenu" data-action-name="delete" data-id="${id}">🗑&nbsp; Delete task</button>`;
@@ -450,13 +642,8 @@ export function createRenderer({ state, helpers, actions }) {
   function rowMenu(action, id) {
     closeRowMenu();
     if (action === "done") dispatch("toggleDone", { id });
-    else if (action === "move") dispatch("moveTask", { id });
-    else if (action === "history") openDetail(id);
-    else if (action === "rename") dispatch("renameTask", { id });
+    else if (action === "edit") openDetail(id);
     else if (action === "toggle") dispatch("play", { id });
-    else if (action === "deep") dispatch("setDepth", { id, depth: "deep" });
-    else if (action === "shallow") dispatch("setDepth", { id, depth: "shallow" });
-    else if (action === "estimate") dispatch("setEstimate", { id });
     else if (action === "album") dispatch("setAlbum", { id });
     else if (action === "delete") dispatch("deleteTask", { id });
   }
@@ -470,6 +657,64 @@ export function createRenderer({ state, helpers, actions }) {
   function closeDetail() {
     state.openTaskId = null;
     document.getElementById("overlay").classList.remove("show");
+  }
+
+  // The task-detail modal's "Impact" section: a tier dial + a for/against
+  // toggle, nothing else. This used to also carry a per-task multi-area
+  // weighted split (add/remove area chips, a slider per area) — cut, along
+  // with mana/vitality/rank, because it was more machinery than the one
+  // idea underneath it was worth. A task's area is just whatever life area
+  // its list is already tagged with (see "Edit list"); this section only
+  // sets how much this task counts, and which direction. Every control
+  // commits immediately (tier click, sign toggle) via its own small command
+  // — no separate Save step and no local "draft" state, since this panel
+  // re-renders from scratch on every state-changed event.
+  function renderImpactSection(task) {
+    const tierHtml = IMPACT_TIER_KEYS.map((key) =>
+      `<button type="button" class="impact-notch${key === task.impactTier ? " sel" : ""}" data-action="setImpactTier" data-id="${task.id}" data-tier="${key}">${IMPACT_TIERS[key].label}</button>`
+    ).join("");
+
+    if (!task.impactTier) {
+      return `
+        <h4>Impact</h4>
+        <div class="impact-section">
+          <div class="impact-dial">${tierHtml}</div>
+          <div class="payout-preview muted">Pick a tier to start earning jewels for this task.</div>
+        </div>`;
+    }
+
+    const sign = task.impactSign === -1 ? -1 : 1;
+    const listItem = list(task.listId);
+    // The list's own Effect (see "Edit list") is this task's *default*
+    // direction — commands.js's setImpactTier already seeds a task's sign
+    // from it the first time a tier is set, so a task in a "decreases this
+    // area" list doesn't start out silently pointing the opposite way. This
+    // hint just makes that relationship visible, since the toggle below can
+    // still override it per task (the "smoked a cigarette in an otherwise
+    // healthy list" case) — without this line, two sibling tasks disagreeing
+    // would look like a bug rather than an intentional override.
+    const listDefaultHint = listItem && listItem.lifeArea && listItem.lifeDirection
+      ? `<div class="sign-hint">List default: ${listItem.lifeDirection === "decrease" ? "decreases" : "increases"} this area</div>`
+      : "";
+    const signHtml = `<div class="sign-group">
+      <div class="sign-toggle">
+        <button type="button" class="sign-btn${sign === 1 ? " sel" : ""}" data-action="setImpactSign" data-id="${task.id}" data-sign="1">For</button>
+        <button type="button" class="sign-btn${sign === -1 ? " sel neg" : ""}" data-action="setImpactSign" data-id="${task.id}" data-sign="-1">Against</button>
+      </div>
+      ${listDefaultHint}
+    </div>`;
+
+    const payout = jewelPayout(task);
+    const areaLabel = listItem && listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).label : null;
+    const payoutHtml = `<div class="payout-preview">Earns on completion: <span class="amt"><i class="jewel-dot ${payout.amount < 0 ? "neg" : ""}"></i><b>${payout.amount > 0 ? "+" : ""}${payout.amount}</b>${areaLabel ? " " + esc(areaLabel) : ""}</span></div>`;
+
+    return `
+      <h4>Impact</h4>
+      <div class="impact-section">
+        <div class="impact-dial">${tierHtml}</div>
+        ${signHtml}
+        ${payoutHtml}
+      </div>`;
   }
 
   function renderDetail() {
@@ -488,15 +733,28 @@ export function createRenderer({ state, helpers, actions }) {
     const now = Date.now();
     const rows = entries.length ? entries.map((entry) => `<div class="entry ${entry.live ? "live" : ""}"><span class="when">${whenLabel(entry.start)}${entry.live ? " · recording…" : ""}</span><span class="dur">${fmt((entry.end ?? now) - entry.start)}</span>${entry.live ? `<span class="entry-del"></span>` : `<button class="entry-edit" title="Edit session" data-action="editSession" data-id="${entry.id}">✎</button><button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${entry.id}">×</button>`}</div>`).join("")
       : `<div class="entry"><span class="when">No sessions logged yet</span><span class="dur">—</span></div>`;
+    // Depth toggle is inline and immediate (click = commit, no dialog) —
+    // matches the "List"/"Estimate" chips below it in spirit (all three
+    // used to be separate row-⋯-menu entries; this is the one screen they
+    // all live on now), but depth specifically has only 3 fixed states, so
+    // a segmented control reads faster here than round-tripping through a
+    // confirm dialog for a single click.
+    const depthSegHtml = `<span class="depth-seg" data-id="${task.id}">
+      <button class="${task.depth === "deep" ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="deep" data-stop-propagation="true">Deep</button>
+      <button class="${task.depth === "shallow" ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="shallow" data-stop-propagation="true">Shallow</button>
+      <button class="${!task.depth ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="" data-stop-propagation="true">None</button>
+    </span>`;
     document.getElementById("modal").innerHTML = `
       <div class="top"><div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
         <div><h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span> <button class="editbtn" title="Rename" data-action="renameTask" data-id="${task.id}">✎</button></h2>
-          <div class="m"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span> · ${taskSessions(task.id).length + (working ? 1 : 0)} sessions${task.depth ? " · " + task.depth : ""}</div>
+          <div class="m"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span> <button class="linkbtn sm" data-action="moveTask" data-id="${task.id}">Change</button> · ${taskSessions(task.id).length + (working ? 1 : 0)} sessions</div>
+          <div class="m" style="margin-top:6px">${depthSegHtml}</div>
           <div class="big" id="detailTotal" style="color:${listItem.color}">${fmt(taskTotal(task.id))}${task.estimateMin ? `<span class="of"> / ${fmtEst(task.estimateMin)}</span>` : ""}</div>
           <div class="estrow">${task.estimateMin ? `<div class="estbar ${estPct(task, taskTotal) >= 100 ? "done" : ""}"><span style="width:${estPct(task, taskTotal)}%"></span></div><span class="estpct">${estPct(task, taskTotal)}%</span>` : ""}<button class="linkbtn" data-action="setEstimate" data-id="${task.id}">${task.estimateMin ? "Edit estimate" : "＋ Add estimate"}</button></div>
         </div>
         <button class="close" data-action="closeDetail">×</button></div>
       <div class="body">
+        ${renderImpactSection(task)}
         <h4 class="lyr-h">♪ Lyrics <button class="linkbtn" data-action="editLyrics" data-id="${task.id}">${(task.description || "").trim() ? "Edit" : "＋ Add"}</button></h4>
         ${(task.description || "").trim()
           ? `<div class="lyrics">${esc(task.description.trim())}</div>`
@@ -555,7 +813,15 @@ export function createRenderer({ state, helpers, actions }) {
       return;
     }
 
-    const status = !running ? "paused" : run.phase === "break" ? "on break" : "recording…";
+    const status = !running
+      ? "paused"
+      : run.phase === "break"
+        ? (run.longBreak ? "on long break" : "on break")
+        : run.phase === "awaiting_break"
+          ? (run.longBreak ? "long break time — waiting to start" : "break time — waiting to start")
+          : run.phase === "awaiting_work"
+            ? "back to work — waiting to start"
+            : "recording…";
     const description = (task.description || "").trim();
     let entries = taskSessions(task.id).map((session) => ({ start: session.start, end: session.end }));
     if (running && run.phase === "work" && run.runningStart) entries.push({ start: run.runningStart, end: null, live: true });
@@ -578,20 +844,10 @@ export function createRenderer({ state, helpers, actions }) {
       <div class="np-card"><h4>Recent sessions</h4>${sessions}</div>`;
   }
 
-  function openSettings() {
-    document.getElementById("soverlay").classList.add("show");
-    renderSettings();
-  }
-
-  function closeSettings() {
-    document.getElementById("soverlay").classList.remove("show");
-  }
-
   function accountSectionHtml() {
     const account = state.S.account;
     if (!account) {
-      return `<h4>Account</h4>
-        <p class="hint" style="margin-top:0">Sign in with Google to sync your tasks and sessions across devices.</p>
+      return `<p class="hint" style="margin-top:0">Sign in with Google to sync your tasks and sessions across devices.</p>
         <div class="setrow"><button class="pill" data-action="signInGoogle">Sign in with Google</button></div>`;
     }
     const avatar = account.avatarUrl
@@ -605,8 +861,7 @@ export function createRenderer({ state, helpers, actions }) {
         : state.S.lastSyncedAt
           ? `Synced ${whenLabel(state.S.lastSyncedAt)}`
           : "Not synced yet";
-    return `<h4>Account</h4>
-      <div class="acct-row">
+    return `<div class="acct-row">
         ${avatar}
         <div class="acct-info"><strong>${esc(account.name || account.email)}</strong><small>${esc(account.email)}</small></div>
       </div>
@@ -618,6 +873,51 @@ export function createRenderer({ state, helpers, actions }) {
       <p class="hint${syncFailed ? " hint-error" : ""}">${syncLabel}</p>`;
   }
 
+  // Two independent sound pickers — one for the "work done, break time" alert,
+  // one for "break's over, back to work" — so the two are tellable apart by
+  // ear alone, without needing to look at the screen. Options come from
+  // state.soundOptions (fetched once at startup from the `sound_options`
+  // command — see main.js) rather than a hardcoded list here, so this can
+  // never list a name the backend wouldn't accept.
+  function soundPickersHtml(config) {
+    const options = state.soundOptions.length ? state.soundOptions : [config.breakSound, config.workSound];
+    const optionsHtml = (selected) =>
+      options.map((name) => `<option value="${esc(name)}" ${name === selected ? "selected" : ""}>${esc(name)}</option>`).join("");
+    return `<h4>Alert sounds</h4>
+      <div class="fld"><label style="min-width:110px">Break time</label><select data-action="setConfigSound" data-key="breakSound">${optionsHtml(config.breakSound)}</select></div>
+      <div class="fld"><label style="min-width:110px">Back to work</label><select data-action="setConfigSound" data-key="workSound">${optionsHtml(config.workSound)}</select></div>
+      <p class="hint">Played alongside the notification when a work block or break finishes.</p>`;
+  }
+
+  // Notifications section body for the Settings page's Notifications album.
+  // Only Pomodoro mode ever fires a notification (see the tick loop in
+  // main.rs), so Open/Target mode shows an explanatory note instead of an
+  // empty-looking sound-picker block.
+  function notificationsSectionHtml() {
+    const config = state.S.config;
+    if (config.mode !== "pomodoro") {
+      return `<p class="hint" style="margin-top:0">Notifications play at the end of a work block or break — only in 🍅 Pomodoro mode (see Workflow above). Switch modes to enable them.</p>`;
+    }
+    return `${soundPickersHtml(config)}${notifHintHtml()}`;
+  }
+
+  // macOS notifications default to "Banners", which disappear on their own
+  // after a few seconds — easy to miss if you're not looking at the screen
+  // right when a work/break boundary hits. Only the user can switch TaskPlayer
+  // to "Alerts" (stays until dismissed); there's no API for the app to do it
+  // or even read the current setting. This just points them at the right
+  // System Settings pane.
+  function notifHintHtml() {
+    return `<div class="fld" style="align-items:flex-start;gap:10px;margin-top:10px;padding:10px;border-radius:8px;background:rgba(255,255,255,.04)">
+      <div style="flex:1">
+        <p class="hint" style="margin:0 0 8px">Notifications disappear on their own by default. For reminders that stay put until you dismiss them, set TaskPlayer's Alert style to <strong>Alerts</strong> in System Settings → Notifications.</p>
+        <div class="setrow">
+          <button class="pill" data-action="openNotificationSettings">Open Notification Settings</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function sessionControlsHtml() {
     const config = state.S.config;
     return `
@@ -627,16 +927,9 @@ export function createRenderer({ state, helpers, actions }) {
         <button class="modebtn ${config.mode === "pomodoro" ? "sel" : ""}" data-action="setMode" data-value="pomodoro">🍅 Pomodoro<small>Work / break</small></button>
       </div>
       ${config.mode === "target" ? `<h4>Target length</h4><div class="fld"><input type="number" min="1" max="240" value="${config.targetMin}" data-action="setConfigField" data-key="targetMin"> minutes</div><p class="hint">The bar fills toward your target and pulses when reached; it keeps counting if you go over.</p>` : ""}
-      ${config.mode === "pomodoro" ? `<h4>Work / break lengths</h4><div class="fld"><input type="number" min="1" max="120" value="${config.workMin}" data-action="setConfigField" data-key="workMin"> min work</div><div class="fld"><input type="number" min="1" max="60" value="${config.breakMin}" data-action="setConfigField" data-key="breakMin"> min break</div><p class="hint">Work blocks auto-log; music pauses on breaks and resumes on work. Classic is 25 / 5.</p>` : ""}
+      ${config.mode === "pomodoro" ? `<h4>Work / break lengths</h4><div class="fld"><input type="number" min="1" max="120" value="${config.workMin}" data-action="setConfigField" data-key="workMin"> min work</div><div class="fld"><input type="number" min="1" max="60" value="${config.breakMin}" data-action="setConfigField" data-key="breakMin"> min break</div><p class="hint">Work blocks auto-log; music pauses on breaks and resumes on work. Classic is 25 / 5.</p>
+        <h4>Long break</h4><div class="fld"><input type="number" min="1" max="12" value="${config.cyclesBeforeLongBreak}" data-action="setConfigField" data-key="cyclesBeforeLongBreak"> cycles before a long break</div><div class="fld"><input type="number" min="1" max="60" value="${config.longBreakMin}" data-action="setConfigField" data-key="longBreakMin"> min long break</div><p class="hint">Every Nth break is longer, so a full set of work blocks ends in real recovery. Classic is every 4th, 20 min.</p>` : ""}
       ${config.mode === "open" ? `<p class="hint">The classic stopwatch — runs until you press stop.</p>` : ""}`;
-  }
-
-  function renderSettings() {
-    if (!state.S) return;
-    document.getElementById("smodal").innerHTML = `
-      <div class="top"><div class="art" style="background:linear-gradient(135deg,var(--green),#1db95455)">⏱️</div>
-        <div><h2>Focus session</h2><div class="m">How the timer runs</div></div><button class="close" data-action="closeSettings">×</button></div>
-      <div class="body"><h4>Mode</h4>${sessionControlsHtml()}</div>`;
   }
 
   function aboutSectionHtml() {
@@ -648,33 +941,65 @@ export function createRenderer({ state, helpers, actions }) {
       ? `<p class="hint" style="color:var(--green-hi)">Update available: v${esc(info.version)}</p>
          <div class="setrow"><button class="pill" data-action="promptInstallUpdate" ${installing ? "disabled" : ""}>${installing ? "⟳ Installing…" : "⤓ Download & install"}</button></div>`
       : "";
-    return `<h4>About</h4>
-      <p class="hint" style="margin-top:0">TaskPlayer ${version} — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p>
+    return `<p class="hint" style="margin-top:0">TaskPlayer ${version} — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p>
       <div class="setrow"><button class="pill" data-action="checkForUpdates" ${checking ? "disabled" : ""}>${checking ? "⟳ Checking…" : "⟳ Check for updates"}</button></div>
       ${updateRow}`;
   }
 
+  // Consolidates the old "Data" and "Diagnostics" sections into one album —
+  // both are "under the hood" maintenance actions a normal workflow never
+  // touches, so they read better grouped than as two more top-level albums.
+  function diagnosticsSectionHtml() {
+    return `<h4>Backup &amp; restore</h4>
+      <p class="hint" style="margin-top:0">Back up everything — lists, tasks, and session history — to a JSON file, or restore from one.</p>
+      <div class="setrow">
+        <button class="pill" data-action="exportData">⤓ Export data</button>
+        <button class="pill" data-action="importData">⤒ Import data</button>
+      </div>
+      <p class="hint">Importing replaces all current data and can't be undone.</p>
+      <h4 style="margin-top:20px">Log file</h4>
+      <p class="hint" style="margin-top:0">Running into a bug? Reveal the log file and attach it when you report the issue.</p>
+      <div class="setrow">
+        <button class="pill" data-action="revealLogs">📄 Reveal log file</button>
+      </div>`;
+  }
+
+  // Renders one Settings-page "album" — an icon tile + name + subtitle
+  // header (visually echoing the task-list album headers elsewhere in the
+  // app, see .albhead) followed by that section's controls. Purely a layout
+  // wrapper: `body` is whatever HTML the caller already built.
+  function settingsAlbumHtml(icon, color, title, subtitle, body) {
+    return `<section>
+      <div class="salbhead">
+        <div class="salb-tile" style="background:${color}22;color:${color}">${icon}</div>
+        <div class="salb-meta"><div class="salb-name">${esc(title)}</div><div class="salb-sub">${esc(subtitle)}</div></div>
+      </div>
+      ${body}
+    </section>`;
+  }
+
+  // Settings is now a list of "albums" — same idea as a task list's album
+  // grouping (icon tile + name + subtitle header, see .albhead) rather than
+  // plain <h4> section labels. Order follows the actual order a session
+  // goes in: who you are (Account), how the timer runs (Workflow), how
+  // you're alerted (Notifications), then the two "only touch this if
+  // something's wrong" groups (Diagnostics, About) last.
   function renderSettingsPage() {
     if (!state.S) return;
+    const account = state.S.account;
+    const acctSubtitle = account ? `Signed in as ${account.name || account.email}` : "Sign in to sync across devices";
     document.getElementById("main").innerHTML = `
       ${stickyBarHtml("⚙", "Settings")}
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#5a5a5a,#2e2e2e)">⚙</div>
-        <div class="info"><small>App</small><h1>Settings</h1><div class="sub">Focus session, data, and about</div></div>
+        <div class="info"><small>App</small><h1>Settings</h1><div class="sub">Account, workflow, notifications &amp; more</div></div>
       </div>
       <div class="settings-page">
-        <section><h4>Focus session</h4>${sessionControlsHtml()}</section>
-        <section>${accountSectionHtml()}</section>
-        <section>
-          <h4>Data</h4>
-          <p class="hint" style="margin-top:0">Back up everything — lists, tasks, and session history — to a JSON file, or restore from one.</p>
-          <div class="setrow">
-            <button class="pill" data-action="exportData">⤓ Export data</button>
-            <button class="pill" data-action="importData">⤒ Import data</button>
-          </div>
-          <p class="hint">Importing replaces all current data and can't be undone.</p>
-        </section>
-        <section>${aboutSectionHtml()}</section>
+        ${settingsAlbumHtml("👤", "#509bf5", "Account", acctSubtitle, accountSectionHtml())}
+        ${settingsAlbumHtml("⏱️", "#1db954", "Workflow", "How the timer runs", sessionControlsHtml())}
+        ${settingsAlbumHtml("🔔", "#f5a623", "Notifications", "Sounds & alerts", notificationsSectionHtml())}
+        ${settingsAlbumHtml("🛠️", "#9aa0a6", "Diagnostics", "Backups & logs", diagnosticsSectionHtml())}
+        ${settingsAlbumHtml("ℹ️", "#6a6a6a", "About", "Version & updates", aboutSectionHtml())}
       </div>`;
     initStickyHeader();
   }
@@ -688,7 +1013,7 @@ export function createRenderer({ state, helpers, actions }) {
     return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   }
 
-  // Which "task" rows are expanded on the sessions page, keyed
+  // Which "task" rows are expanded on the Insights page, keyed
   // `${dayKey}:${taskId}` so the same task on two different days toggles
   // independently. Lives only in this closure (not persisted state) since
   // it's pure UI — resets on reload, same as scroll position would.
@@ -697,15 +1022,15 @@ export function createRenderer({ state, helpers, actions }) {
     const key = `${scopeKey}:${taskId}`;
     if (expandedSessionGroups.has(key)) expandedSessionGroups.delete(key);
     else expandedSessionGroups.add(key);
-    renderSessionsPage();
+    renderInsightsPage();
   }
 
   // Day / Week / Month is a zoom level, not a different feature — pure UI
   // state, same lifetime as expandedSessionGroups above.
-  let sessionsPeriod = "day";
-  function setSessionsPeriod(period) {
-    sessionsPeriod = period;
-    renderSessionsPage();
+  let insightsPeriod = "day";
+  function setInsightsPeriod(period) {
+    insightsPeriod = period;
+    renderInsightsPage();
   }
 
   function weekStartOf(ts) {
@@ -716,7 +1041,7 @@ export function createRenderer({ state, helpers, actions }) {
     return d.getTime();
   }
 
-  function renderSessionsPage() {
+  function renderInsightsPage() {
     if (!state.S) return;
     const now = Date.now();
     const items = state.S.sessions.map((session) => ({ id: session.id, taskId: session.taskId, start: session.start, end: session.end }));
@@ -900,7 +1225,7 @@ export function createRenderer({ state, helpers, actions }) {
     let body;
     if (!items.length) {
       body = `<div class="empty">No sessions yet. Press play on a task to start tracking.</div>`;
-    } else if (sessionsPeriod === "week") {
+    } else if (insightsPeriod === "week") {
       const weekMs = 7 * 86400000;
       const weeks = new Map();
       for (const item of items) {
@@ -923,7 +1248,7 @@ export function createRenderer({ state, helpers, actions }) {
           ${ruler}
           ${rows}</section>`;
       }).join("");
-    } else if (sessionsPeriod === "month") {
+    } else if (insightsPeriod === "month") {
       const months = new Map();
       for (const item of items) {
         const d = new Date(item.start);
@@ -986,18 +1311,18 @@ export function createRenderer({ state, helpers, actions }) {
     }
 
     const periodTabs = `<div class="period-tabs">
-      <button class="${sessionsPeriod === "day" ? "active" : ""}" data-action="setSessionsPeriod" data-value="day">Day</button>
-      <button class="${sessionsPeriod === "week" ? "active" : ""}" data-action="setSessionsPeriod" data-value="week">Week</button>
-      <button class="${sessionsPeriod === "month" ? "active" : ""}" data-action="setSessionsPeriod" data-value="month">Month</button>
+      <button class="${insightsPeriod === "day" ? "active" : ""}" data-action="setInsightsPeriod" data-value="day">Day</button>
+      <button class="${insightsPeriod === "week" ? "active" : ""}" data-action="setInsightsPeriod" data-value="week">Week</button>
+      <button class="${insightsPeriod === "month" ? "active" : ""}" data-action="setInsightsPeriod" data-value="month">Month</button>
     </div>`;
 
     document.getElementById("main").innerHTML = `
-      ${stickyBarHtml("◷", "Sessions")}
+      ${stickyBarHtml(INSIGHTS_SVG, "Insights")}
       <div class="hdr" data-tauri-drag-region>
-        <div class="cover" style="background:linear-gradient(135deg,#2e7d4f,#0c3f26)">◷</div>
-        <div class="info"><small>History</small><h1>Sessions</h1><div class="sub">${items.length} session${items.length === 1 ? "" : "s"} across all tasks</div></div>
+        <div class="cover" style="background:linear-gradient(135deg,#2e7d4f,#0c3f26)">${INSIGHTS_SVG_HERO}</div>
+        <div class="info"><small>History</small><h1>Insights</h1><div class="sub">${items.length} session${items.length === 1 ? "" : "s"} across all tasks</div></div>
       </div>
-      <div class="sessions-page">${periodTabs}${body}</div>`;
+      <div class="insights-page">${periodTabs}${body}</div>`;
     initStickyHeader();
   }
 
@@ -1024,6 +1349,269 @@ export function createRenderer({ state, helpers, actions }) {
       .filter((entry) => entry.task && !entry.task.completedAt)
       .sort((a, b) => b.at - a.at)
       .slice(0, limit);
+  }
+
+  function greeting() {
+    const h = new Date().getHours();
+    if (h < 5) return "Good night";
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    if (h < 21) return "Good evening";
+    return "Good night";
+  }
+
+  function greetingEmoji() {
+    const h = new Date().getHours();
+    if (h < 5) return "🌙";
+    if (h < 12) return "🌤️";
+    if (h < 17) return "☀️";
+    if (h < 21) return "🌇";
+    return "🌙";
+  }
+
+  // Sum of every session's overlap with [midnight today, now] — clamping
+  // each session's own start/end into that window (rather than filtering
+  // whole sessions by which day they started on) so a session that's still
+  // running from before midnight, or one still in progress right now, both
+  // count only the portion that actually falls today.
+  function todayTotalMs() {
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    const start = cutoff.getTime();
+    const now = Date.now();
+    return state.S.sessions.reduce((sum, session) => {
+      const segStart = Math.max(session.start, start);
+      const segEnd = Math.min(session.end ?? now, now);
+      return sum + Math.max(0, segEnd - segStart);
+    }, 0);
+  }
+
+  // Same idea as recentTasks() but rolled up to the list level: last-active
+  // timestamp per list (from its tasks' sessions, or "now" if one of its
+  // tasks is the live running one), most-recent first. A brand-new
+  // workspace has no session history yet, so any remaining slots are padded
+  // out with the rest of the lists in their normal order rather than
+  // leaving the section looking broken/empty.
+  function recentLists(limit = 3) {
+    if (!state.S) return [];
+    const now = Date.now();
+    const lastByList = new Map();
+    for (const session of state.S.sessions) {
+      const task = findTask(session.taskId);
+      if (!task) continue;
+      const at = session.end ?? now;
+      if (!lastByList.has(task.listId) || at > lastByList.get(task.listId)) {
+        lastByList.set(task.listId, at);
+      }
+    }
+    const run = state.S.run;
+    if (run.activeTaskId && run.phase === "work" && run.runningStart) {
+      const activeTask = findTask(run.activeTaskId);
+      if (activeTask) lastByList.set(activeTask.listId, now);
+    }
+    const ranked = Array.from(lastByList.entries())
+      .map(([listId, at]) => ({ listItem: list(listId), at }))
+      .filter((entry) => entry.listItem)
+      .sort((a, b) => b.at - a.at)
+      .map((entry) => entry.listItem);
+    if (ranked.length >= limit) return ranked.slice(0, limit);
+    const seen = new Set(ranked.map((listItem) => listItem.id));
+    const rest = state.S.lists.filter((listItem) => !seen.has(listItem.id));
+    return [...ranked, ...rest].slice(0, limit);
+  }
+
+  // 5 hours in a 7-day window is treated as "full" (100%) on every radar
+  // axis — a single, deliberately uniform first-pass heuristic rather than
+  // a per-area target, since the app has no basis (yet) for knowing what
+  // "enough" relationships time vs. "enough" gym time actually looks like
+  // for a given person. Same cap for every axis keeps the shape legible:
+  // an area reading low genuinely means "little time went there this
+  // week," not "this axis just has a stricter bar."
+  const LIFE_BALANCE_CAP_MS = 5 * 60 * 60 * 1000;
+
+  // A completed, impact-tagged task contributes this many ms-equivalent per
+  // tier weight point to its axis (see jewelPayout's `weight`) instead of its
+  // actual session time — this is the whole point of tagging impact
+  // separately from duration: a 5-minute `severe` task (weight 8) swings the
+  // axis by 320min, more than a `low` (weight 1) task's 40min even if the
+  // low-tier one ran for hours. Chosen so a `severe` task alone can swing
+  // most of LIFE_BALANCE_CAP_MS, matching the original "outsized
+  // consequence" idea this whole layer started from.
+  const IMPACT_WEIGHT_TO_MS = 40 * 60 * 1000;
+
+  // Scores every LIFE_AREAS axis from the trailing 7 days, for the Home
+  // page's radar chart. A list only contributes if it's been tagged (see
+  // commands.js's editList/addList) with a `lifeArea`. Two kinds of tasks
+  // feed an axis: a completed task with an impact tier set contributes a
+  // fixed tier-sized swing using its OWN for/against sign (ignoring the
+  // list's direction — the tier already encodes direction more precisely
+  // than the list-level default); every other task just contributes its
+  // raw tracked time, signed by the list's `lifeDirection` ("increase" |
+  // "decrease"), same as before impact tiers existed. Each session's own
+  // start/end is clamped into the 7-day window (same overlap trick as
+  // todayTotalMs) so a long-running session only counts its portion that
+  // actually falls in range.
+  function lifeBalanceScores() {
+    const empty = LIFE_AREAS.map((area) => ({ ...area, ms: 0, pct: 0 }));
+    if (!state.S) return empty;
+    const now = Date.now();
+    const windowStart = now - 7 * 24 * 60 * 60 * 1000;
+    const rawMs = new Map(LIFE_AREAS.map((area) => [area.key, 0]));
+    for (const listItem of state.S.lists) {
+      if (!listItem.lifeArea || !rawMs.has(listItem.lifeArea)) continue;
+      let timeMs = 0;
+      let tierMs = 0;
+      for (const task of tasksForList(listItem.id)) {
+        const payout = jewelPayout(task);
+        if (payout && task.completedAt && task.completedAt >= windowStart && task.completedAt <= now) {
+          tierMs += payout.amount * IMPACT_WEIGHT_TO_MS;
+          continue;
+        }
+        for (const session of taskSessions(task.id)) {
+          const segStart = Math.max(session.start, windowStart);
+          const segEnd = Math.min(session.end ?? now, now);
+          timeMs += Math.max(0, segEnd - segStart);
+        }
+      }
+      const signedTime = listItem.lifeDirection === "decrease" ? -timeMs : timeMs;
+      rawMs.set(listItem.lifeArea, rawMs.get(listItem.lifeArea) + signedTime + tierMs);
+    }
+    return LIFE_AREAS.map((area) => {
+      const ms = rawMs.get(area.key);
+      const pct = Math.max(0, Math.min(100, Math.round((ms / LIFE_BALANCE_CAP_MS) * 100)));
+      return { ...area, ms, pct };
+    });
+  }
+
+  // Renders `scores` (7 {key,label,pct} entries from lifeBalanceScores())
+  // as a heptagon radar: 4 concentric rings + spokes as a static grid,
+  // then the actual data as a filled polygon on top. Plain trigonometry —
+  // axis i sits at angle -90° + i*(360/n)°, so axis 0 is straight up and
+  // the rest go clockwise, matching how radar charts conventionally read.
+  function buildLifeRadar(scores) {
+    // Non-square viewBox, wider than it is tall — the grid itself is round,
+    // but its text labels aren't: "Health & Fitness"/"Relationships"/
+    // "Mental Wellbeing" etc. sit anchor-start/anchor-end off the left and
+    // right vertices and need real horizontal room past the ring, or SVG's
+    // default overflow:hidden on the viewBox just clips them at the edge
+    // (a square, tightly-fit box was exactly what did that before). A first
+    // pass at 420 wide was still ~20px short for the longest labels once
+    // actually measured in the system font — 520 leaves 70px+ of slack on
+    // every side instead of cutting it close on an estimate.
+    const width = 520;
+    const height = 320;
+    const cx = width / 2;
+    const cy = height / 2 - 2;
+    const maxR = 84;
+    const n = scores.length;
+    const angleFor = (i) => -Math.PI / 2 + i * ((2 * Math.PI) / n);
+    const pointAt = (i, frac) => {
+      const a = angleFor(i);
+      return [cx + Math.cos(a) * maxR * frac, cy + Math.sin(a) * maxR * frac];
+    };
+    const rings = [0.25, 0.5, 0.75, 1].map((frac) =>
+      `<polygon points="${scores.map((_, i) => pointAt(i, frac).join(",")).join(" ")}" fill="none" stroke="#333" stroke-width="1"/>`
+    ).join("");
+    const spokes = scores.map((_, i) => {
+      const [x, y] = pointAt(i, 1);
+      return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#333" stroke-width="1"/>`;
+    }).join("");
+    // A pure 0% score would collapse every vertex onto the center, making
+    // an all-zero radar invisible instead of reading as "flat" — a tiny
+    // 4% floor keeps the polygon's shape visible without meaningfully
+    // exaggerating any real (non-zero) score.
+    const dataPts = scores.map((s, i) => pointAt(i, Math.max(0.04, s.pct / 100)));
+    const dataPoly = `<polygon points="${dataPts.map((p) => p.join(",")).join(" ")}" fill="var(--green)" fill-opacity="0.22" stroke="var(--green)" stroke-width="2"/>`;
+    const dots = dataPts.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="3" fill="var(--green)"><title>${esc(scores[i].label)}: ${scores[i].pct}%</title></circle>`).join("");
+    const labels = scores.map((s, i) => {
+      const [lx, ly] = pointAt(i, 1.2);
+      const anchor = Math.abs(lx - cx) < 4 ? "middle" : lx > cx ? "start" : "end";
+      return `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(s.label)}</text>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="300">${rings}${spokes}${dataPoly}${dots}${labels}</svg>`;
+  }
+
+  // Home — the dashboard #tbhome/goHome() lands on: a time-of-day greeting,
+  // four at-a-glance stats, the life-balance radar (lifeBalanceScores()/
+  // buildLifeRadar() above — now itself weighted by impact tier, see that
+  // function's comment), a "Jump back in" row of the same recentTasks()
+  // used by the Recent page (but as cards, not a table), and the 3 lists
+  // worked in most recently (recentLists() above) — not every list, so the
+  // page stays a quick "pick up where you left off" glance rather than a
+  // second copy of the sidebar. Reuses the standard .hdr/.cover/.info
+  // header component (clearAccent() below keeps it on the plain grey wash,
+  // same as Settings/Insights/Recent) so it gets the same drag region,
+  // gradient and sticky mini-header behavior as every other page for free.
+  // This page used to also carry a separate "Impact & progress" section
+  // (mana bar, per-area vitality rings, a rank ladder card) — cut; see
+  // utils.js's comment for why. The radar above is now the one place impact
+  // shows up on Home.
+  function renderHomePage() {
+    if (!state.S) return;
+    const radarScores = lifeBalanceScores();
+    const hasLifeTags = state.S.lists.some((listItem) => listItem.lifeArea);
+    const jump = recentTasks(6);
+    const jumpHtml = jump.length
+      ? jump.map((entry) => {
+          const { task, at, live } = entry;
+          const listItem = list(task.listId);
+          const meta = live ? `<span style="color:var(--green)">now · recording</span>` : timeAgo(at);
+          return `<div class="jb-card" data-action="searchGoTask" data-id="${task.id}">
+            <span class="jb-dot" style="background:${listItem ? listItem.color : "#555"}"></span>
+            <div class="jb-body">
+              <div class="jb-name">${esc(task.name)}</div>
+              <div class="jb-meta">${listItem ? esc(listItem.name) + " · " : ""}${meta}</div>
+            </div>
+            <button class="jb-play" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="${live ? "Stop" : "Start"}">${live ? "⏸" : "▶"}</button>
+          </div>`;
+        }).join("")
+      : `<div class="home-empty">Nothing played yet — press play on any task to start tracking.</div>`;
+
+    const recentListItems = recentLists(3);
+    const listsHtml = recentListItems.length
+      ? recentListItems.map((listItem) => {
+          const openCount = tasksForList(listItem.id).filter((task) => !task.completedAt).length;
+          return `<div class="hl-card" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}">
+            <span class="hl-tile" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span>
+            <div class="hl-name">${esc(listItem.name)}</div>
+            <div class="hl-meta">${openCount} open · ${fmtHM(listTotal(listItem.id))}</div>
+          </div>`;
+        }).join("")
+      : `<div class="home-empty">Create a list to get started.</div>`;
+
+    const todayMs = todayTotalMs();
+    const allMs = state.S.lists.reduce((sum, listItem) => sum + listTotal(listItem.id), 0);
+    const doneCount = state.S.tasks.filter((task) => task.completedAt).length;
+
+    document.getElementById("main").innerHTML = `
+      ${stickyBarHtml(HOME_SVG, "Home")}
+      <div class="hdr" data-tauri-drag-region>
+        <div class="cover" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c)">${greetingEmoji()}</div>
+        <div class="info"><small>${esc(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}</small><h1>${greeting()}</h1><div class="sub">${fmtHM(todayMs)} tracked today</div></div>
+      </div>
+      <div class="home-body">
+        <div class="home-stats">
+          <div class="hs-stat"><div class="hs-num">${fmtHM(todayMs)}</div><div class="hs-label">Today</div></div>
+          <div class="hs-stat"><div class="hs-num">${fmtHM(allMs)}</div><div class="hs-label">All time</div></div>
+          <div class="hs-stat"><div class="hs-num">${doneCount}</div><div class="hs-label">Completed</div></div>
+          <div class="hs-stat"><div class="hs-num">${state.S.lists.length}</div><div class="hs-label">Lists</div></div>
+        </div>
+        <section class="home-section">
+          <h4>Life balance <span class="home-sub-note">· last 7 days</span></h4>
+          ${hasLifeTags
+            ? `<div class="home-radar">${buildLifeRadar(radarScores)}</div>`
+            : `<div class="home-empty">Tag a list with a life area (Edit list, or when creating a new one) to see your balance here.</div>`}
+        </section>
+        <section class="home-section">
+          <h4>Jump back in</h4>
+          <div class="jb-grid">${jumpHtml}</div>
+        </section>
+        <section class="home-section">
+          <h4>Recent lists</h4>
+          <div class="hl-grid">${listsHtml}</div>
+        </section>
+      </div>`;
+    initStickyHeader();
   }
 
   function renderRecentPage() {
@@ -1211,6 +1799,16 @@ export function createRenderer({ state, helpers, actions }) {
     } else if (phase !== state.lastPhase) {
       window.Music.setActive(phase === "work");
     }
+    // Work just started (from idle, paused, break, or a cross-device
+    // takeover — anything that wasn't already "work") — reveal the Now
+    // Playing rail automatically, Spotify-style, instead of leaving it
+    // closed until the user remembers to toggle it open themselves.
+    // Doesn't force it shut again on stop/break — only the user's own
+    // toggle does that.
+    if (phase === "work" && state.lastPhase !== "work" && !state.railOpen) {
+      state.railOpen = true;
+      localStorage.setItem("tp.rail", "1");
+    }
     state.lastPhase = phase;
     state.lastTaskId = taskId;
   }
@@ -1221,8 +1819,13 @@ export function createRenderer({ state, helpers, actions }) {
     navigate,
     goBack,
     goForward,
+    goHome,
+    performSearch,
+    searchGoList,
+    searchGoTask,
+    clearSearch,
     openSettingsPage,
-    openSessionsPage,
+    openInsightsPage,
     toggleCompleted,
     playFirst,
     openRowMenu,
@@ -1235,20 +1838,20 @@ export function createRenderer({ state, helpers, actions }) {
     closeLyrics,
     renderLyrics,
     renderNowPlaying,
-    openSettings,
-    closeSettings,
-    renderSettings,
     renderSettingsPage,
-    renderSessionsPage,
+    renderInsightsPage,
     toggleSessionGroup,
-    setSessionsPeriod,
+    setInsightsPeriod,
     renderRecentPage,
     openRecentPage,
+    renderHomePage,
     renderMusic,
     openTrackDetail,
     closeTrackDetail,
     renderTrackDetail,
     syncMusic,
+    renderTopbar,
+    renderPinnedNav,
     renderSidebar,
     renderMain,
     renderPlayer,

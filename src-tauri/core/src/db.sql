@@ -75,4 +75,28 @@ create policy "own rows" on public.run_state for all using (auth.uid() = user_id
 drop trigger if exists run_state_lww on public.run_state;
 create trigger run_state_lww before update on public.run_state for each row execute function public.lww_guard();
 
+-- Cross-device settings sync — pomodoro/target config, same singleton-row
+-- shape as run_state above, but no device identity: settings aren't "owned"
+-- by whichever device changed them last, it's plain last-write-wins.
+create table if not exists public.config (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  mode text not null default 'open',
+  target_min bigint not null default 45,
+  work_min bigint not null default 25,
+  break_min bigint not null default 5,
+  break_sound text not null default 'Glass',
+  work_sound text not null default 'Ping',
+  cycles_before_long_break bigint not null default 4,
+  long_break_min bigint not null default 20,
+  updated_at bigint not null default 0
+);
+
+alter table public.config enable row level security;
+
+drop policy if exists "own rows" on public.config;
+create policy "own rows" on public.config for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop trigger if exists config_lww on public.config;
+create trigger config_lww before update on public.config for each row execute function public.lww_guard();
+
 notify pgrst, 'reload schema';

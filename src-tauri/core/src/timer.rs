@@ -227,6 +227,7 @@ mod tests {
             work_sound: "Ping".into(),
             cycles_before_long_break: 4,
             long_break_min: 20,
+            updated_at: 0,
         }
     }
 

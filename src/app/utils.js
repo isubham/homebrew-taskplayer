@@ -150,24 +150,31 @@ export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {})
   const sessionCount = durations.length;
   const sessionLabel = `${sessionCount} session${sessionCount === 1 ? "" : "s"}`;
 
+  // "in" = within the estimate, "over" = past it. Deliberately not named/
+  // colored red/alarm — running past an estimate is exactly the kind of
+  // thing ADHD time-blindness makes routine, not a failure worth flagging
+  // the way an actual error would be (see docs/adhd-design-principles.md,
+  // rule 8: no shame, no permanent record of "against" the user). The bar
+  // simply keeps going in a second, calmer tone.
   let chips;
   if (!over) {
     const scale = estimateMs ? trackPx / estimateMs : 0;
-    chips = durations.map((d) => `<i class="seg g" style="width:${Math.max(1.5, d * scale).toFixed(1)}px"></i>`).join("");
+    chips = durations.map((d) => `<i class="seg in" style="width:${Math.max(1.5, d * scale).toFixed(1)}px"></i>`).join("");
   } else {
     // Compress every session to fit the fixed track: split whichever one
-    // straddles the estimate boundary into a green (before) part and a red
-    // (after) part, then rescale everything by the new, larger total.
+    // straddles the estimate boundary into an in-estimate (before) part and
+    // an over-estimate (after) part, then rescale everything by the new,
+    // larger total.
     let cum = 0;
     const parts = [];
     for (const d of durations) {
       const segStart = cum;
       const segEnd = cum + d;
-      if (segEnd <= estimateMs) parts.push({ d, cls: "g" });
-      else if (segStart >= estimateMs) parts.push({ d, cls: "r" });
+      if (segEnd <= estimateMs) parts.push({ d, cls: "in" });
+      else if (segStart >= estimateMs) parts.push({ d, cls: "over" });
       else {
-        parts.push({ d: estimateMs - segStart, cls: "g" });
-        parts.push({ d: segEnd - estimateMs, cls: "r" });
+        parts.push({ d: estimateMs - segStart, cls: "in" });
+        parts.push({ d: segEnd - estimateMs, cls: "over" });
       }
       cum = segEnd;
     }

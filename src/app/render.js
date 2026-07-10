@@ -758,7 +758,7 @@ export function createRenderer({ state, helpers, actions }) {
         <h4 class="lyr-h">♪ Lyrics <button class="linkbtn" data-action="editLyrics" data-id="${task.id}">${(task.description || "").trim() ? "Edit" : "＋ Add"}</button></h4>
         ${(task.description || "").trim()
           ? `<div class="lyrics">${esc(task.description.trim())}</div>`
-          : `<div class="lyrics empty" data-action="editLyrics" data-id="${task.id}">Add lyrics — the goal, a few notes, links…</div>`}
+          : `<div class="lyrics empty" data-action="editLyrics" data-id="${task.id}">What will finishing this feel like? Add the goal, a note, a link…</div>`}
         <div class="sh"><h4>Session history</h4><button class="pill sm" data-action="addSession" data-id="${task.id}">＋ Add session</button></div>${rows}</div>
       <div class="foot"><button class="stopbtn" data-action="play" data-id="${task.id}">${active ? "⏸ Stop" : "▶ Start timer"}</button>
         <button class="danger" data-action="deleteTask" data-id="${task.id}">Delete task</button></div>`;
@@ -788,7 +788,7 @@ export function createRenderer({ state, helpers, actions }) {
     const description = (task.description || "").trim();
     const body = description
       ? description.split(/\n{2,}/).map((paragraph) => `<p>${esc(paragraph).replace(/\n/g, "<br>")}</p>`).join("")
-      : `<p class="dim">No lyrics yet — add a note, the goal, or links for this task.</p>`;
+      : `<p class="dim">What will finishing this feel like? Add a note, the goal, or a link.</p>`;
     document.getElementById("lyrmodal").innerHTML = `
       <div class="lyr-hd">
         <span class="lyr-lab">♪ Lyrics · ${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span>` : esc(task.name)}</span>
@@ -827,7 +827,15 @@ export function createRenderer({ state, helpers, actions }) {
     if (running && run.phase === "work" && run.runningStart) entries.push({ start: run.runningStart, end: null, live: true });
     entries.sort((a, b) => b.start - a.start);
     const now = Date.now();
-    const sessions = entries.slice(0, 6).map((entry) => `<div class="ses"><span class="w">${whenLabel(entry.start)}${entry.live ? " · now" : ""}</span><span class="d">${fmt((entry.end ?? now) - entry.start)}</span></div>`).join("") || `<div class="ses"><span class="w">No sessions yet</span></div>`;
+    // Capped at 3, not 6 — this rail is a glance, not a log to scroll (see
+    // docs/adhd-design-principles.md, rule 5: the reward-check surface has
+    // to stay quick, never grow into its own browsable destination). Full
+    // history already has a real home on the Insights page; this just
+    // points there once there's more than fits.
+    const sessions = entries.slice(0, 3).map((entry) => `<div class="ses"><span class="w">${whenLabel(entry.start)}${entry.live ? " · now" : ""}</span><span class="d">${fmt((entry.end ?? now) - entry.start)}</span></div>`).join("") || `<div class="ses"><span class="w">No sessions yet</span></div>`;
+    const moreSessionsLink = entries.length > 3
+      ? `<button class="linkbtn" data-action="openInsightsPage">All sessions</button>`
+      : "";
 
     rail.innerHTML = `
       <div class="lab">Now playing</div>
@@ -839,9 +847,9 @@ export function createRenderer({ state, helpers, actions }) {
       </div>
       <div class="np-card">
         <h4>♪ Lyrics <button class="linkbtn" data-action="editLyrics" data-id="${task.id}">${description ? "Edit" : "＋ Add"}</button></h4>
-        ${description ? `<div class="lyrics">${esc(description)}</div>` : `<div class="lyrics empty" data-action="editLyrics" data-id="${task.id}">Add lyrics — the goal, a few notes…</div>`}
+        ${description ? `<div class="lyrics">${esc(description)}</div>` : `<div class="lyrics empty" data-action="editLyrics" data-id="${task.id}">What will finishing this feel like? Add the goal, a note…</div>`}
       </div>
-      <div class="np-card"><h4>Recent sessions</h4>${sessions}</div>`;
+      <div class="np-card"><h4>Recent sessions ${moreSessionsLink}</h4>${sessions}</div>`;
   }
 
   function accountSectionHtml() {

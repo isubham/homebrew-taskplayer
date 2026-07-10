@@ -171,6 +171,15 @@ pub struct SessionConfig {
     /// `break_min`).
     #[serde(default = "default_long_break_min")]
     pub long_break_min: i64,
+    /// ms epoch of last change — drives cross-device sync (last-write-wins),
+    /// same convention as `RunState::updated_at` (see docs/session-sync-design.md
+    /// for the pattern this reuses: a singleton `config` row per account,
+    /// pushed only when dirty). `#[serde(default)]` keeps configs saved
+    /// before this field existed deserializable, and defaulting to 0 means
+    /// an old locally-saved config is never mistaken for "newer" than
+    /// whatever's already on the server.
+    #[serde(default)]
+    pub updated_at: i64,
 }
 
 impl Default for SessionConfig {
@@ -184,6 +193,7 @@ impl Default for SessionConfig {
             work_sound: default_work_sound(),
             cycles_before_long_break: default_cycles_before_long_break(),
             long_break_min: default_long_break_min(),
+            updated_at: 0,
         }
     }
 }

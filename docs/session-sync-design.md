@@ -118,22 +118,46 @@ never-synced state). If a pull brings back a row with a different `device_id`:
 ### 4.4 Takeover semantics
 
 Pressing play locally always wins **immediately and locally** — no round trip, no
-"asking permission" from the other device. `timer::play()` stamps the resulting
-`RunState` with this device's own `device_id` and `updated_at = now`. That's it from the
-new-owner side; the existing `dirty_since`/push logic picks it up on the next 60s cycle.
+"asking permission" from the other device. Two distinct cases, both in `do_play`
+(`main.rs`):
+
+**Continuing the same task, still mid-flight** (mirrored session is in `work` or
+`break` phase, and the task pressed is the one already active) — treated as
+Spotify's "play here": the new `RunState` keeps the *original* `running_start`/
+`break_start` unchanged, only `device_id`/`device_name`/`updated_at` change. The live
+clock, the target/pomodoro countdown, and cycle progress all continue exactly where
+they were instead of resetting to 0:00 — switching laptops mid-session doesn't cost you
+the progress already made. First implementation reset the clock on every takeover
+(cross-device propagation delay was mistaken for the cause — it isn't; realtime sync
+wouldn't have fixed this, since the reset happens the instant `play` is pressed, before
+any round trip); this is the corrected behavior.
+
+**Anything else** (different task, or the mirrored session isn't actively counting down)
+— unchanged from before: `as_local_baseline` sanitizes the foreign state to idle first,
+so `timer::play()` starts a genuinely fresh segment and never fabricates a log entry for
+work that happened elsewhere.
 
 The **losing device** only finds out on its own next pull (per the accepted latency).
 When it notices its previously-own `device_id` has been replaced by a newer row from
-someone else:
+someone else, `reconcile_run_after_sync` (`main.rs`) checks which of the two takeover
+cases happened:
 
-1. Log whatever work segment had been running locally, from its last known
-   `running_start` up to the moment of discovery, as a completed `Session` — so the time
-   isn't silently dropped just because ownership moved elsewhere mid-segment.
-2. Switch that task to read-only mirror mode per §4.3.
+- **Same-segment continuation** (new remote row has the same task/phase/`running_start`/
+  `break_start`, just a different `device_id`) — the new owner now holds the *original*
+  start time and is responsible for logging the whole segment, start to finish, whenever
+  it actually ends. The losing device logs nothing here; doing so would double-count the
+  overlap between its own partial log and the new owner's eventual full one.
+- **Anything else** (task changed, or the old segment genuinely didn't carry over) — log
+  whatever had been running locally, from its last known `running_start` up to the moment
+  of discovery, as a completed `Session`, so the time isn't silently dropped.
 
-The end time of that logged segment is necessarily approximate (bounded by the pull
-cadence, i.e. within the accepted 60–120s window) — flagged here as a known imprecision,
-not a bug to chase further given the latency decision already made.
+Either way, the losing device then switches that task to read-only mirror mode per §4.3.
+The end time of a discovery-time safety log is necessarily approximate (bounded by the
+pull cadence, i.e. within the accepted 60–120s window) — a known imprecision, not a bug
+to chase further given the latency decision already made. The trade-off on the
+continuation path: if the new owner's device crashes or is force-quit before it ever
+logs the segment, that time is lost with no safety net — the same durability the app
+already has against a hard crash on a single device, not a new risk introduced here.
 
 ### 4.5 UI placement (checked against `CLAUDE.md`'s ADHD design rules)
 

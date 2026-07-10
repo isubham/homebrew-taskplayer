@@ -456,6 +456,22 @@ impl Db {
         self.set_meta("config", &serde_json::to_string(c).unwrap_or_default())
     }
 
+    /// Applies a `SessionConfig` pulled from the remote `config` row, but
+    /// only if it's actually newer than what's already stored locally — same
+    /// `updated_at`-guarded last-write-wins rule as `upsert_run_from_remote`,
+    /// for the same reason (`config`, like `run_state`, is a singleton JSON
+    /// blob in `meta`, not a real local SQL table). Returns `true` if the
+    /// local config actually changed.
+    pub fn upsert_config_from_remote(&self, remote: &SessionConfig) -> rusqlite::Result<bool> {
+        let current = self.get_config();
+        if remote.updated_at > current.updated_at {
+            self.set_config(remote)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn get_run(&self) -> RunState {
         self.get_meta("run")
             .and_then(|v| serde_json::from_str(&v).ok())

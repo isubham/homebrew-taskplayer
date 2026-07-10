@@ -13,7 +13,7 @@
 
 use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use serde::{Deserialize, Serialize};
-use taskplayer_core::{now_ms, Db, RunState, Session, Task, TaskList};
+use taskplayer_core::{now_ms, Db, RunState, Session, SessionConfig, Task, TaskList};
 
 fn client() -> reqwest::blocking::Client {
     reqwest::blocking::Client::new()
@@ -248,6 +248,57 @@ impl RemoteRunState {
     }
 }
 
+/// Wire shape for the `config` singleton table — same "one row per account"
+/// shape as `run_state` (see that struct's doc comment), just for pomodoro/
+/// target settings instead of the live session. No device identity here:
+/// unlike a live session, settings aren't "owned" by whichever device
+/// touched them last in any meaningful sense — it's a plain LWW sync, the
+/// same as `lists`/`tasks`/`sessions`, just shaped as a singleton instead of
+/// a collection.
+#[derive(Debug, Serialize, Deserialize)]
+struct RemoteConfig {
+    user_id: String,
+    mode: String,
+    target_min: i64,
+    work_min: i64,
+    break_min: i64,
+    break_sound: String,
+    work_sound: String,
+    cycles_before_long_break: i64,
+    long_break_min: i64,
+    updated_at: i64,
+}
+
+impl RemoteConfig {
+    fn from_local(c: &SessionConfig, user_id: &str) -> Self {
+        RemoteConfig {
+            user_id: user_id.to_string(),
+            mode: c.mode.clone(),
+            target_min: c.target_min,
+            work_min: c.work_min,
+            break_min: c.break_min,
+            break_sound: c.break_sound.clone(),
+            work_sound: c.work_sound.clone(),
+            cycles_before_long_break: c.cycles_before_long_break,
+            long_break_min: c.long_break_min,
+            updated_at: c.updated_at,
+        }
+    }
+    fn into_local(self) -> SessionConfig {
+        SessionConfig {
+            mode: self.mode,
+            target_min: self.target_min,
+            work_min: self.work_min,
+            break_min: self.break_min,
+            break_sound: self.break_sound,
+            work_sound: self.work_sound,
+            cycles_before_long_break: self.cycles_before_long_break,
+            long_break_min: self.long_break_min,
+            updated_at: self.updated_at,
+        }
+    }
+}
+
 // ---- HTTP ----
 
 fn upsert<T: Serialize>(access_token: &str, table: &str, rows: &[T]) -> Result<(), String> {
@@ -311,6 +362,14 @@ fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), String> {
         }
     }
 
+    // Same story as run_state, one paragraph up — `config` is also a `meta`
+    // JSON blob, not a real table, and only push it if a local settings
+    // change actually bumped its own `updated_at` past the cursor.
+    let config = db.get_config();
+    if config.updated_at > cursor {
+        upsert(access_token, "config", &[RemoteConfig::from_local(&config, user_id)])?;
+    }
+
     db.set_push_cursor(now).map_err(|e| e.to_string())
 }
 
@@ -340,6 +399,11 @@ fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
         .into_iter()
         .map(RemoteRunState::into_local)
         .collect();
+    // Same singleton-row caveat as run_state.
+    let configs: Vec<SessionConfig> = fetch_since::<RemoteConfig>(access_token, "config", cursor)?
+        .into_iter()
+        .map(RemoteConfig::into_local)
+        .collect();
 
     let mut changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
     if changed {
@@ -352,6 +416,13 @@ fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
     // (see `reconcile_run_after_sync`), not just "something changed."
     if let Some(remote_run) = run_states.into_iter().next() {
         if db.upsert_run_from_remote(&remote_run).map_err(|e| e.to_string())? {
+            changed = true;
+        }
+    }
+    // Config, same idea — LWW-guarded on its own `updated_at` rather than a
+    // `dirty_since` scan, since it's also just a `meta` blob, not a table.
+    if let Some(remote_config) = configs.into_iter().next() {
+        if db.upsert_config_from_remote(&remote_config).map_err(|e| e.to_string())? {
             changed = true;
         }
     }

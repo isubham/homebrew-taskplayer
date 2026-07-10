@@ -380,10 +380,10 @@ fn as_local_baseline(run: &RunState, device_id: &str) -> RunState {
 /// loop actually read/write — so without this, a session taken over
 /// remotely would never show up in the frontend until the next app restart.
 /// This reconciles the two: adopts whatever `Db` now has as the in-memory
-/// truth, and if ownership moved away from this device while a work segment
-/// was running here, logs that segment first (ending "now", i.e. at
-/// discovery time — necessarily approximate, bounded by the sync cadence)
-/// so the time isn't silently lost. See docs/session-sync-design.md §4.4.
+/// truth, and — only if the takeover wasn't a same-segment continuation (see
+/// `do_play`) — logs whatever work segment was running here first, ending
+/// "now" (discovery time — necessarily approximate, bounded by the sync
+/// cadence), so the time isn't silently lost. See docs/session-sync-design.md §4.4.
 fn reconcile_run_after_sync(state: &AppState) {
     let mut run = state.run.lock().unwrap();
     let db_run = state.db.lock().unwrap().get_run();
@@ -394,8 +394,18 @@ fn reconcile_run_after_sync(state: &AppState) {
 
     let we_owned_locally = is_own(&run, &state.device_id) && run.active_task_id.is_some();
     let still_ours_remotely = is_own(&db_run, &state.device_id);
+    // A clean handoff-in-place — another device took over this exact
+    // segment (`do_play`'s continuation branch: same task, same phase, same
+    // running_start/break_start, just a new owner) — means THAT device is
+    // now responsible for eventually logging the whole thing, start to
+    // finish. Logging our own partial segment here too would double-count
+    // the overlap between "our" logged portion and its eventual full one.
+    let same_segment_continues = db_run.active_task_id == run.active_task_id
+        && db_run.phase == run.phase
+        && db_run.running_start == run.running_start
+        && db_run.break_start == run.break_start;
 
-    if we_owned_locally && !still_ours_remotely && run.phase.as_deref() == Some("work") {
+    if we_owned_locally && !still_ours_remotely && !same_segment_continues && run.phase.as_deref() == Some("work") {
         if let (Some(task_id), Some(start)) = (run.active_task_id.clone(), run.running_start) {
             let db = state.db.lock().unwrap();
             let _ = db.add_session(&taskplayer_core::SessionLog { task_id, start, end: now_ms() });
@@ -405,10 +415,43 @@ fn reconcile_run_after_sync(state: &AppState) {
     *run = db_run;
 }
 
+/// Same in-memory/`Db` reconciliation problem as `reconcile_run_after_sync`,
+/// for `SessionConfig` — `sync::pull` can write a newer `config` row straight
+/// to `Db`, bypassing `AppState.config`. Much simpler than the run-state
+/// case: settings aren't "owned" by a device the way a live session is, so
+/// there's no ownership/takeover logic here, just adopt whatever's newer.
+fn reconcile_config_after_sync(state: &AppState) {
+    let mut config = state.config.lock().unwrap();
+    let db_config = state.db.lock().unwrap().get_config();
+    if db_config != *config {
+        *config = db_config;
+    }
+}
+
 // ---- timer mutations (lock order: run -> db) ----
 fn do_play(state: &AppState, task_id: &str) {
     let now = now_ms();
     let mut run = state.run.lock().unwrap();
+
+    // Taking over a session another device is actively mid-flight on, for
+    // the SAME task — continue in place (keep running_start/break_start)
+    // rather than restarting the clock at 0:00. Spotify-style "play here"
+    // resumes the same position; it doesn't replay the track from the top.
+    // Only applies to "work"/"break" (a real countdown in progress) — an
+    // "awaiting_break"/"awaiting_work" mirror falls through to the normal
+    // fresh-start path below, since there's no live countdown to preserve.
+    // See docs/session-sync-design.md §4.4.
+    if !is_own(&run, &state.device_id)
+        && run.active_task_id.as_deref() == Some(task_id)
+        && matches!(run.phase.as_deref(), Some("work") | Some("break"))
+    {
+        let mut nr = run.clone();
+        stamp_own(&mut nr, &state.device_id, &state.device_name);
+        *run = nr;
+        let _ = state.db.lock().unwrap().set_run(&run);
+        return;
+    }
+
     let baseline = as_local_baseline(&run, &state.device_id);
     let (mut nr, log) = timer::play(&baseline, task_id, now);
     stamp_own(&mut nr, &state.device_id, &state.device_name);
@@ -567,6 +610,7 @@ fn run_sync(app: &AppHandle) {
     // another device shows up here without needing an app restart. See
     // `reconcile_run_after_sync`'s doc comment.
     reconcile_run_after_sync(state.inner());
+    reconcile_config_after_sync(state.inner());
     push(app);
 }
 
@@ -987,6 +1031,7 @@ fn set_mode(app: AppHandle, state: State<AppState>, mode: String) -> Snapshot {
     {
         let mut c = state.config.lock().unwrap();
         c.mode = mode;
+        c.updated_at = now_ms();
         let db = state.db.lock().unwrap();
         let _ = db.set_config(&c);
     }
@@ -1006,6 +1051,13 @@ fn set_config_field(app: AppHandle, state: State<AppState>, key: String, value: 
             "longBreakMin" => c.long_break_min = value.clamp(1, 60),
             _ => {}
         }
+        // Cross-device settings sync (see docs/session-sync-design.md's
+        // singleton-row pattern, reused here for `config`) — bump this on
+        // every actual change so the next push cycle picks it up. Harmless
+        // to bump even on the `_ => {}` no-op-key case; not worth a second
+        // branch just to skip a timestamp write for a key that was already
+        // rejected before touching any real field.
+        c.updated_at = now_ms();
         let db = state.db.lock().unwrap();
         let _ = db.set_config(&c);
     }
@@ -1028,6 +1080,7 @@ fn set_config_sound(app: AppHandle, state: State<AppState>, key: String, value: 
                 "workSound" => c.work_sound = value,
                 _ => {}
             }
+            c.updated_at = now_ms();
         }
         let db = state.db.lock().unwrap();
         let _ = db.set_config(&c);

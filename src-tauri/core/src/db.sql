@@ -3,18 +3,28 @@ create table if not exists public.lists (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null, emoji text, color text, ord bigint,
   updated_at bigint not null default 0,
-  deleted_at bigint
+  deleted_at bigint,
+  life_area text,
+  life_direction text
 );
+-- if this table already exists from before the "life areas" feature, run:
+-- alter table public.lists add column if not exists life_area text;
+-- alter table public.lists add column if not exists life_direction text;
 create table if not exists public.tasks (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   list_id text not null, name text not null, depth text, ord bigint,
   est bigint, done bigint, descr text, album text,
   updated_at bigint not null default 0,
-  deleted_at bigint
+  deleted_at bigint,
+  impact_tier text,
+  impact_sign bigint not null default 1
 );
 -- if this table already exists from before the "albums" feature, run:
 -- alter table public.tasks add column if not exists album text;
+-- if this table already exists from before the "impact" feature, run:
+-- alter table public.tasks add column if not exists impact_tier text;
+-- alter table public.tasks add column if not exists impact_sign bigint not null default 1;
 create table if not exists public.sessions (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,

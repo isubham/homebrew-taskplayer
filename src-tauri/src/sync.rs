@@ -61,6 +61,14 @@ struct RemoteList {
     ord: i64,
     updated_at: i64,
     deleted_at: Option<i64>,
+    // Life-balance tag (see models.rs's TaskList doc comments). Requires the
+    // `lists` table to actually have these columns — see the `alter table`
+    // statements in db.sql. Added after `lists` first shipped, so an older
+    // Supabase project needs that one-time migration before this round-trips
+    // correctly; until then these just come back `null` on pull, same as any
+    // other never-set column.
+    life_area: Option<String>,
+    life_direction: Option<String>,
 }
 
 impl RemoteList {
@@ -74,6 +82,8 @@ impl RemoteList {
             ord: l.order,
             updated_at: l.updated_at,
             deleted_at: l.deleted_at,
+            life_area: l.life_area.clone(),
+            life_direction: l.life_direction.clone(),
         }
     }
     fn into_local(self) -> TaskList {
@@ -84,13 +94,8 @@ impl RemoteList {
             color: self.color,
             order: self.ord,
             updated_at: self.updated_at,
-            // life_area/life_direction (see models.rs) are local-only for
-            // now — the Supabase `lists` table has no matching columns yet,
-            // so a pulled remote row never carries a life tag. Deliberately
-            // scoped this way rather than guessing at a remote schema
-            // change that can't be verified/applied from here.
-            life_area: None,
-            life_direction: None,
+            life_area: self.life_area,
+            life_direction: self.life_direction,
             deleted_at: self.deleted_at,
         }
     }
@@ -110,6 +115,11 @@ struct RemoteTask {
     updated_at: i64,
     deleted_at: Option<i64>,
     album: Option<String>,
+    // Impact tier/sign (see models.rs's Task doc comments) — same "requires
+    // an `alter table` on an older Supabase project" caveat as TaskList's
+    // life_area/life_direction above.
+    impact_tier: Option<String>,
+    impact_sign: i64,
 }
 
 impl RemoteTask {
@@ -127,6 +137,8 @@ impl RemoteTask {
             updated_at: t.updated_at,
             deleted_at: t.deleted_at,
             album: t.album.clone(),
+            impact_tier: t.impact_tier.clone(),
+            impact_sign: t.impact_sign,
         }
     }
     fn into_local(self) -> Task {
@@ -142,14 +154,8 @@ impl RemoteTask {
             updated_at: self.updated_at,
             deleted_at: self.deleted_at,
             album: self.album,
-            // impact_tier/impact_sign (see models.rs) are local-only for now,
-            // same reasoning as TaskList's life_area/life_direction — the
-            // Supabase `tasks` table has no matching columns yet, so a pulled
-            // remote row never carries them. db.rs's `upsert_from_remote`
-            // also deliberately excludes these two from its UPDATE SET, so
-            // this default doesn't clobber a value already set locally.
-            impact_tier: None,
-            impact_sign: 1,
+            impact_tier: self.impact_tier,
+            impact_sign: self.impact_sign,
         }
     }
 }

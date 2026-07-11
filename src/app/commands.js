@@ -414,23 +414,31 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const pad = (n) => String(n).padStart(2, "0");
     const dateValue = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const timeValue = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const endDefault = new Date(now.getTime() + 25 * 60000);
+    const endValue = `${pad(endDefault.getHours())}:${pad(endDefault.getMinutes())}`;
     const body = `
       <div class="dbody">Log time you already spent on this task.</div>
       <div class="ffield"><label>Date</label><input type="date" id="sfDate" value="${dateValue}" max="${dateValue}"></div>
       <div class="ffield"><label>Start</label><input type="time" id="sfTime" value="${timeValue}"></div>
-      <div class="ffield"><label>Duration</label><input type="number" id="sfMin" min="1" max="1440" value="25"> minutes</div>`;
+      <div class="ffield"><label>End</label><input type="time" id="sfEnd" value="${endValue}"></div>`;
     const value = await uiForm({
       title: "Add session",
       confirmText: "Add",
-      focusSel: "#sfMin",
+      focusSel: "#sfEnd",
       bodyHtml: body,
+      // End is a bare time input with no date of its own — a session ending
+      // past midnight (end <= start on the same calendar date) rolls onto
+      // the next day rather than being read as a negative-length session.
       collect: () => {
         const date = document.getElementById("sfDate").value;
         const time = document.getElementById("sfTime").value || "00:00";
-        const minutes = parseInt(document.getElementById("sfMin").value, 10);
+        const endTime = document.getElementById("sfEnd").value;
+        if (!date || !endTime) return undefined;
         const start = new Date(`${date}T${time}`).getTime();
-        if (!date || !minutes || minutes <= 0 || isNaN(start)) return undefined;
-        return { start, end: start + minutes * 60000 };
+        let end = new Date(`${date}T${endTime}`).getTime();
+        if (isNaN(start) || isNaN(end)) return undefined;
+        if (end <= start) end += 86400000;
+        return { start, end };
       },
     });
     if (value) apply(await invoke("add_session", { taskId, start: value.start, end: value.end }));
@@ -441,27 +449,31 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const session = state.S.sessions.find((item) => item.id === id);
     if (!session) return;
     const start = new Date(session.start);
+    const end = new Date(session.end ?? Date.now());
     const pad = (n) => String(n).padStart(2, "0");
     const dateValue = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
     const timeValue = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
-    const currentMin = Math.max(1, Math.round(((session.end ?? Date.now()) - session.start) / 60000));
+    const endValue = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
     const body = `
-      <div class="dbody">Adjust when this session started and how long it ran.</div>
+      <div class="dbody">Adjust when this session started and ended.</div>
       <div class="ffield"><label>Date</label><input type="date" id="sfDate" value="${dateValue}"></div>
       <div class="ffield"><label>Start</label><input type="time" id="sfTime" value="${timeValue}"></div>
-      <div class="ffield"><label>Duration</label><input type="number" id="sfMin" min="1" max="1440" value="${currentMin}"> minutes</div>`;
+      <div class="ffield"><label>End</label><input type="time" id="sfEnd" value="${endValue}"></div>`;
     const value = await uiForm({
       title: "Edit session",
       confirmText: "Save",
-      focusSel: "#sfMin",
+      focusSel: "#sfEnd",
       bodyHtml: body,
       collect: () => {
         const date = document.getElementById("sfDate").value;
         const time = document.getElementById("sfTime").value || "00:00";
-        const minutes = parseInt(document.getElementById("sfMin").value, 10);
+        const endTime = document.getElementById("sfEnd").value;
+        if (!date || !endTime) return undefined;
         const newStart = new Date(`${date}T${time}`).getTime();
-        if (!date || !minutes || minutes <= 0 || isNaN(newStart)) return undefined;
-        return { start: newStart, end: newStart + minutes * 60000 };
+        let newEnd = new Date(`${date}T${endTime}`).getTime();
+        if (isNaN(newStart) || isNaN(newEnd)) return undefined;
+        if (newEnd <= newStart) newEnd += 86400000;
+        return { start: newStart, end: newEnd };
       },
     });
     if (value) apply(await invoke("update_session", { id, start: value.start, end: value.end }));

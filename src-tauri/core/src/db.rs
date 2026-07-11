@@ -360,21 +360,17 @@ impl Db {
             )?;
         }
         for t in tasks {
-            // impact_tier/impact_sign are deliberately NOT part of this
-            // upsert's SET clause (unlike every other field) — same reasoning
-            // as life_area/life_direction on lists: a row pulled from remote
-            // only ever carries `into_local()`'s default (None/1, since the
-            // Supabase schema has no matching columns yet), so overwriting
-            // the local value on every remote-triggered update would silently
-            // erase a locally-set impact tier the moment any *other* field on
-            // the task changed on another device. Leaving them out of SET
-            // means a remote pull can still create the row (impact fields
-            // start at their default) but never clobbers one already set here.
+            // impact_tier/impact_sign now round-trip through Supabase like
+            // every other field (see sync.rs's RemoteTask) — the Supabase
+            // `tasks` table needs the matching columns added first (see the
+            // `alter table` note in db.sql) for a remote row to actually
+            // carry a real value here instead of the pre-migration default.
             tx.execute(
                 "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
                  ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
                    ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
-                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album
+                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album,
+                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign
                  WHERE excluded.updated_at > tasks.updated_at",
                 params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign],
             )?;

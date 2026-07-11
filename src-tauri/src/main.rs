@@ -272,6 +272,19 @@ fn refresh(app: &AppHandle) {
     let app2 = app.clone();
     let _ = app.run_on_main_thread(move || {
         if let Some(tray) = app2.tray_by_id("tray") {
+            // Icon color is the point-of-performance signal for run state —
+            // green while a focus session is actually running, yellow for
+            // break/awaiting states (paused, but not stopped), grey once
+            // fully idle. Kept as three flat colors rather than more states:
+            // anything finer-grained would ask the user to interpret a color
+            // instead of glancing at it.
+            let icon = match (status.active, status.phase.as_deref()) {
+                (true, Some("work")) => tauri::include_image!("icons/menubar-work.png"),
+                (true, _) => tauri::include_image!("icons/menubar-break.png"),
+                (false, _) => tauri::include_image!("icons/menubar-idle.png"),
+            };
+            let _ = tray.set_icon(Some(icon));
+
             // The template icon already shows the play glyph, so the title is just
             // the time (a coffee cup marks break so the constant icon isn't misread).
             // show the task being worked on next to the icon (truncated), then time
@@ -1471,13 +1484,17 @@ fn main() {
             // --- menu-bar tray ---
             let menu = build_tray_menu(app.handle())?;
 
-            // Dev builds (`npm run dev`, debug profile) render the tray icon in full
-            // color with a "(Dev)" tooltip instead of the monochrome template icon —
-            // so a dev instance is visually distinguishable at a glance from an
-            // installed release .app running in the menu bar at the same time.
+            // The icon is colored by run state (green = focus session running,
+            // yellow = on break/awaiting, grey = stopped — see refresh() below),
+            // so it can no longer be a macOS "template" image: template mode
+            // forces every non-transparent pixel to the system monochrome
+            // foreground color, which would silently erase the colors. The
+            // former dev/prod distinction (monochrome vs. full-color icon) is
+            // gone as a result; the "(Dev)" tooltip text is now the only way
+            // to tell a dev instance apart from a release build in the tray.
             let tray = TrayIconBuilder::with_id("tray")
-                .icon(tauri::include_image!("icons/menubar.png"))
-                .icon_as_template(!cfg!(debug_assertions))
+                .icon(tauri::include_image!("icons/menubar-idle.png"))
+                .icon_as_template(false)
                 .tooltip(if cfg!(debug_assertions) { "TaskPlayer (Dev)" } else { "TaskPlayer" })
                 .menu(&menu)
                 .show_menu_on_left_click(true)

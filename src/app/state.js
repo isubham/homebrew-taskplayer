@@ -12,6 +12,13 @@ export function createAppState() {
     lyricsId: null,
     lastPhase: null,
     lastTaskId: null,
+    // Same idea as lastPhase/lastTaskId above, but ownership-gated — tracks
+    // this device's own effective phase for music/notification purposes
+    // only (see syncMusic in render.js). Stays null the whole time another
+    // device owns the session, so a mirrored "playing elsewhere" state never
+    // starts local focus music.
+    lastMusicPhase: null,
+    lastMusicTaskId: null,
     // Most recent window.Music.snapshot(), cached here so the track-details
     // modal (opened by a click, not a music state push) has something to
     // render from at any time.

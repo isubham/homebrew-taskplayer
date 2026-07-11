@@ -4,14 +4,25 @@
 // addList) so its tracked time counts toward that axis — shared here so
 // the "New list"/"Edit list" pickers and the radar's own labels can never
 // drift out of sync with each other.
+//
+// `color` is the area's own fixed identity — distinct from a list's own
+// color (a list keeps whatever color it always had; several differently
+// colored lists can feed the same area). Only buildLifeBalanceGrid() (see
+// render.js) needs this: a grid keyed by area needs one stable color per
+// row regardless of which list contributed on a given day, whereas the
+// segmented bars deliberately use each contributor's own list color,
+// since there the identity that matters is "which task," not "which
+// area." Pulled from ALBUM_PALETTE below rather than a new palette, so
+// area colors stay in the same family as the rest of the app's color
+// language instead of introducing a second one.
 export const LIFE_AREAS = [
-  { key: "career", label: "Career / Work" },
-  { key: "health", label: "Health & Fitness" },
-  { key: "relationships", label: "Relationships" },
-  { key: "growth", label: "Personal Growth" },
-  { key: "finance", label: "Finances" },
-  { key: "recreation", label: "Recreation" },
-  { key: "wellbeing", label: "Mental Wellbeing" },
+  { key: "career", label: "Career / Work", color: "#509bf5" },
+  { key: "health", label: "Health & Fitness", color: "#1db954" },
+  { key: "relationships", label: "Relationships", color: "#e8115b" },
+  { key: "growth", label: "Personal Growth", color: "#8d67ab" },
+  { key: "finance", label: "Finances", color: "#e8b923" },
+  { key: "recreation", label: "Recreation", color: "#ba5d07" },
+  { key: "wellbeing", label: "Mental Wellbeing", color: "#27856a" },
 ];
 
 // ---- Impact: a task's tier + direction, independent of tracked time ----
@@ -130,18 +141,21 @@ export function estPct(task, taskTotal) {
   return task.estimateMin ? Math.min(100, Math.round(taskTotal(task.id) / (task.estimateMin * 60000) * 100)) : 0;
 }
 
-// Builds the "capacity bar" — the single fixed-width (160px) track that now
-// carries everything: individual sessions as chips filling it (bringing back
-// the very first segmented-bar sketch), the estimate boundary, and the
-// numbers written directly ON the bar instead of as separate text beside it.
-// Under the estimate, sessions sit at true scale as green chips and the bar
-// just ends early; a centered white readout reads "spent │ estimate" (a thin
-// tick stands in for the "/"). Once the total crosses the estimate, every
-// chip rescales down to keep fitting the same fixed width, whichever
-// session straddles the boundary splits into a green part and a red part,
-// and the readout collapses to just the total plus a small "+Xh over" tag.
-// Session count — no longer visible as individual chips once there are too
-// many to read at a glance — also gets a small "×N" corner badge.
+// Builds the "capacity bar" — a fixed-width (160px) track carrying
+// individual sessions as chips filling it (bringing back the very first
+// segmented-bar sketch), the estimate boundary, and the numbers written
+// directly ON the bar instead of as separate text beside it. Under the
+// estimate, sessions sit at true scale as green chips and the bar just ends
+// early; a centered white readout reads "spent │ estimate" (a thin tick
+// stands in for the "/"). Once the total crosses the estimate, every chip
+// rescales down to keep fitting the same fixed width, whichever session
+// straddles the boundary splits into an in-estimate part and an
+// over-estimate part, and the readout collapses to just the total plus a
+// small "+Xh over" tag.
+// Session count used to also live here as a "×N" badge crammed into the
+// bar's corner — it's now its own column next to this one (see taskRow /
+// renderRecentPage in render.js), so this only returns `sessionCount` for
+// the caller to render there instead of drawing it itself.
 export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {}) {
   if (!estimateMin) return null;
   const estimateMs = estimateMin * 60000;
@@ -190,11 +204,11 @@ export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {})
     ? `${fmtHM(total)}<span class="over-tag">+${fmtHM(total - estimateMs)} over</span>`
     : `${fmtHM(total)}<span class="sep"></span><span class="est-part">${fmtEst(estimateMin)}</span>`;
 
-  const sessBadge = sessionCount ? `<span class="sess-badge" title="${sessionLabel}">×${sessionCount}</span>` : "";
-
   return {
     over,
     title,
-    html: `<span class="capbar" title="${title}"><span class="chips">${chips}</span>${sessBadge}<span class="readout">${readout}</span></span>`,
+    sessionCount,
+    sessionLabel,
+    html: `<span class="capbar" title="${title}"><span class="chips">${chips}</span><span class="readout">${readout}</span></span>`,
   };
 }

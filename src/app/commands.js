@@ -258,25 +258,46 @@ export function createCommands({ state, ui, renderer, invoke }) {
     }
   }
 
-  async function setEstimate(id) {
-    if (!state.S) return;
+  // Estimate used to be its own dialog (title/body/Save button) round-tripped
+  // through uiForm — replaced with a plain inline number field in the task
+  // panel (see render.js's renderDetail) that commits on change like every
+  // other field there. Blank clears the estimate, same as leaving the old
+  // dialog's field empty did.
+  async function setEstimateInline(id, rawValue) {
+    const raw = (rawValue ?? "").trim();
+    if (raw === "") {
+      apply(await invoke("set_estimate", { id, minutes: null }));
+      return;
+    }
+    const hours = parseFloat(raw);
+    if (isNaN(hours) || hours < 0) return;
+    apply(await invoke("set_estimate", { id, minutes: Math.round(hours * 60) }));
+  }
+
+  // The "+" step button next to the estimate field bumps it by a flat 1h,
+  // on top of whatever's already there (2.25h -> 3.25h) — a fast way to
+  // nudge the target up without opening the keyboard, alongside still being
+  // able to click into the field and type an exact value (setEstimateInline
+  // above, via change). This used to fire on any click on the field itself,
+  // but that doubled up awkwardly with the field's own native spinner
+  // arrows (also a click on the same element) — a dedicated button, with
+  // the native arrows hidden (see .est-inline in styles.css), replaces both.
+  async function bumpEstimate(id) {
     const task = findTask(id);
-    const currentValue = task && task.estimateMin ? String(parseFloat((task.estimateMin / 60).toFixed(2))) : "";
-    const value = await uiForm({
-      title: "Time estimate",
-      confirmText: "Save",
-      focusSel: "#estIn",
-      bodyHtml: `<div class="dbody">About how long will this task take? Leave blank to clear.</div>
-        <div class="ffield"><label>Estimate</label><input type="number" id="estIn" min="0" max="1000" step="0.25" value="${currentValue}" autocomplete="off"> hours</div>`,
-      collect: () => {
-        const raw = document.getElementById("estIn").value.trim();
-        if (raw === "") return { minutes: null };
-        const hours = parseFloat(raw);
-        if (isNaN(hours) || hours < 0) return undefined;
-        return { minutes: Math.round(hours * 60) };
-      },
-    });
-    if (value) apply(await invoke("set_estimate", { id, minutes: value.minutes }));
+    if (!task) return;
+    const currentHours = task.estimateMin ? task.estimateMin / 60 : 0;
+    apply(await invoke("set_estimate", { id, minutes: Math.round((currentHours + 1) * 60) }));
+  }
+
+  // The decrease counterpart — its own "-" step button, same reasoning as
+  // bumpEstimate above. Dropping to 0h or below clears the estimate
+  // entirely rather than storing a literal 0 — "no target" is what
+  // decreasing all the way down means, not a target of nothing.
+  async function decreaseEstimate(id) {
+    const task = findTask(id);
+    if (!task || !task.estimateMin) return;
+    const nextHours = task.estimateMin / 60 - 1;
+    apply(await invoke("set_estimate", { id, minutes: nextHours > 0 ? Math.round(nextHours * 60) : null }));
   }
 
   // "Impact" used to be a separate dialog (uiForm/#dmodal), then grew a
@@ -317,25 +338,15 @@ export function createCommands({ state, ui, renderer, invoke }) {
     apply(await invoke("set_done", { id }));
   }
 
-  async function moveTask(id) {
-    if (!state.S) return;
+  // Same story as setEstimateInline above — "Change" used to open its own
+  // dialog just to pick one dropdown value; now the list name itself in the
+  // task panel *is* the dropdown (a plain <select>, see render.js), and
+  // choosing a different list commits immediately on change.
+  async function moveTaskInline(id, listId) {
+    if (!listId) return;
     const task = findTask(id);
-    if (!task) return;
-    const others = state.S.lists.filter((listItem) => listItem.id !== task.listId);
-    if (!others.length) {
-      await uiNote("Move task", "Create another list first, then you can move tasks into it.");
-      return;
-    }
-    const options = others.map((listItem) => `<option value="${listItem.id}">${listItem.emoji} ${esc(listItem.name)}</option>`).join("");
-    const value = await uiForm({
-      title: "Move to list",
-      confirmText: "Move",
-      focusSel: "#mvSel",
-      bodyHtml: `<div class="dbody">Move “${esc(task.name)}” to another list.</div>
-        <div class="ffield"><label>List</label><select id="mvSel">${options}</select></div>`,
-      collect: () => ({ listId: document.getElementById("mvSel").value }),
-    });
-    if (value && value.listId) apply(await invoke("move_task", { id, listId: value.listId }));
+    if (!task || task.listId === listId) return;
+    apply(await invoke("move_task", { id, listId }));
   }
 
   async function reorderTasks(listId, orderedIds) {
@@ -381,6 +392,18 @@ export function createCommands({ state, ui, renderer, invoke }) {
     });
     if (!value) return;
     const snap = await invoke("set_description", { id, text: value.text });
+    apply(snap);
+    if (state.lyricsId === id) renderer.renderLyrics();
+  }
+
+  // The task panel's own Notes field (see render.js's renderDetail) commits
+  // straight from its <textarea> on blur — same immediate-commit contract
+  // as every other field there — rather than opening the dialog above.
+  // editLyrics itself is left in place: the standalone Lyrics overlay and
+  // the Now Playing rail's Lyrics card still open that dialog, since they
+  // aren't part of the field-editing panel this one is scoped to.
+  async function setLyricsInline(id, text) {
+    const snap = await invoke("set_description", { id, text: (text ?? "").trim() || null });
     apply(snap);
     if (state.lyricsId === id) renderer.renderLyrics();
   }
@@ -652,15 +675,18 @@ export function createCommands({ state, ui, renderer, invoke }) {
     renameTask,
     setDepth,
     deleteTask,
-    setEstimate,
+    setEstimateInline,
+    bumpEstimate,
+    decreaseEstimate,
     setImpactTier,
     setImpactSign,
     toggleDone,
-    moveTask,
+    moveTaskInline,
     reorderTasks,
     setAlbum,
     moveTaskToAlbum,
     editLyrics,
+    setLyricsInline,
     addSession,
     editSession,
     deleteSession,

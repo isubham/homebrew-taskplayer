@@ -20,18 +20,22 @@ export function bootstrapApp() {
       case "renameTask": return commands.renameTask(id);
       case "setDepth": return commands.setDepth(id, payload.depth ?? value);
       case "deleteTask": return commands.deleteTask(id);
-      case "setEstimate": return commands.setEstimate(id);
+      case "setEstimateInline": return commands.setEstimateInline(id, value);
+      case "bumpEstimate": return commands.bumpEstimate(id);
+      case "decreaseEstimate": return commands.decreaseEstimate(id);
       case "setImpactTier": return commands.setImpactTier(id, payload.tier);
       case "setImpactSign": return commands.setImpactSign(id, payload.sign);
       case "toggleDone": return commands.toggleDone(id);
-      case "moveTask": return commands.moveTask(id);
+      case "moveTaskInline": return commands.moveTaskInline(id, value);
       case "reorderTasks": return commands.reorderTasks(listId, payload.orderedIds);
       case "reorderLists": return commands.reorderLists(payload.orderedIds);
       case "setAlbum": return commands.setAlbum(id);
       case "moveTaskToAlbum": return commands.moveTaskToAlbum(id, value);
       case "editLyrics": return commands.editLyrics(id);
+      case "setLyricsInline": return commands.setLyricsInline(id, value);
       case "addSession": return commands.addSession(id);
       case "toggleSessionGroup": return renderer.toggleSessionGroup(payload.day, id);
+      case "selectGridCell": return renderer.selectGridCell(key, value);
       case "setInsightsPeriod": return renderer.setInsightsPeriod(value);
       case "editSession": return commands.editSession(id);
       case "deleteSession": return commands.deleteSession(id);
@@ -304,6 +308,18 @@ export function bootstrapApp() {
   // and fight the browser over cursor position mid-type.
   document.getElementById("topbarSearch")?.addEventListener("input", (event) => {
     renderer.performSearch(event.target.value);
+  });
+
+  // The grey pill is the field, not just the text sitting inside it —
+  // clicking its padding or the magnifier icon should focus the input the
+  // same as clicking the text itself, rather than only the thin strip the
+  // <input> literally occupies. Skips clicks already inside the results
+  // dropdown so picking a result isn't fought over with a refocus.
+  document.getElementById("topbarSearchWrap")?.addEventListener("mousedown", (event) => {
+    const input = document.getElementById("topbarSearch");
+    if (!input || event.target === input || event.target.closest("#searchResults")) return;
+    event.preventDefault();
+    input.focus();
   });
 
   // Clicking anywhere outside the search box closes the results dropdown

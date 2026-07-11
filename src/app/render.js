@@ -1,5 +1,5 @@
 import {
-  esc, fmt, fmtLong, fmtEst, fmtHM, estPct, whenLabel, timeAgo, buildCapacityBar, albumColor, LIFE_AREAS,
+  esc, fmt, fmtLong, fmtEst, fmtHM, whenLabel, timeAgo, buildCapacityBar, albumColor, LIFE_AREAS,
   IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout,
 } from "./utils.js";
 import { html, render as litRender } from "../vendor/lit-html.js";
@@ -222,13 +222,20 @@ export function createRenderer({ state, helpers, actions }) {
       // running; it offers to take over instead.
       const elsewhere = active && state.S.run.deviceId && state.S.deviceId && state.S.run.deviceId !== state.S.deviceId;
 
-      // Sessions + total time + estimate used to be three separate bits of
-      // text. They're now this one capacity bar, with the numbers written
-      // directly on it (fill = total time, "spent │ estimate" readout, red
-      // once over) in its own column.
+      // Total time + estimate live on the capacity bar (fill = total time,
+      // "spent │ estimate" readout, calm blue once over) in its own
+      // "Progress" column. How many sessions that total came from is a
+      // separate "Sessions" column right before it — it used to be a corner
+      // badge crammed onto the bar itself, competing with the readout;
+      // splitting it out gives both their own quick-glance answer instead
+      // of one crowded cell trying to answer two questions at once.
       const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
       if (working) durations.push(Date.now() - state.S.run.runningStart);
       const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
+      const sessionCount = bar ? bar.sessionCount : durations.length;
+      const sessionsCell = sessionCount
+        ? `<span class="sess-count" title="${bar ? bar.sessionLabel : sessionCount + " session" + (sessionCount === 1 ? "" : "s")} logged">${sessionCount}</span>`
+        : `<span class="sess-count sess-count-empty" title="No sessions logged yet">–</span>`;
       const rbarline = onBreak
         ? `<span class="rbar-status">on break</span>`
         : bar
@@ -254,10 +261,17 @@ export function createRenderer({ state, helpers, actions }) {
           <span class="num">${working ? "♪" : onBreak ? "☕" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="${esc(playTitle)}">${active && !elsewhere ? "⏸" : "▶"}</button>
         </td>
         <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}${jewelHtml}</td>
+        <td class="r sess-cell">${sessionsCell}</td>
         <td class="r bar-cell">${rbarline}</td>
         <td class="menu-cell"><button class="menu-btn" title="More" data-action="openRowMenu" data-id="${task.id}" data-stop-propagation="true">⋯</button></td>
       </tr>`;
     };
+
+    // Shared column header for every album/singles table below — one
+    // labeled row per section (not per page) so "Sessions" and "Progress"
+    // are always named, never left to a bare number and an unlabeled bar to
+    // explain themselves.
+    const taskTheadHtml = `<thead><tr><th class="idx">#</th><th>Task</th><th class="r sess-cell">Sessions</th><th class="r">Progress</th><th class="menu-cell"></th></tr></thead>`;
 
     // Group the to-do list into album sections — related tasks sharing a
     // task.album value, in order of that album's first appearance, with
@@ -283,7 +297,7 @@ export function createRenderer({ state, helpers, actions }) {
           <div class="alb-meta"><div class="alb-name">${esc(key)}</div><div class="alb-sub">${tasks.length} task${tasks.length === 1 ? "" : "s"} · ${withEst(fmtLong(totalMs), totalEst)}</div></div>
           <button class="alb-play" data-action="play" data-id="${tasks[0].id}" data-stop-propagation="true" title="Play first task in this album">▶</button>
         </div>
-        <table class="albrows"><tbody>${tasks.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`;
+        <table class="albrows">${taskTheadHtml}<tbody>${tasks.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`;
     }).join("");
     // Once at least one album exists, "Singles" is always shown (even
     // empty) so there's somewhere to drop a task to take it out of its
@@ -291,11 +305,11 @@ export function createRenderer({ state, helpers, actions }) {
     const singlesSection = sections
       ? `<div class="singles-tag" data-album-drop="" title="Drop a task here to remove it from its album">Singles</div>${
           singles.length
-            ? `<table class="albrows"><tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
+            ? `<table class="albrows">${taskTheadHtml}<tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
             : `<div class="empty-singles" data-album-drop="">Drop a task here to remove it from its album</div>`
         }`
       : singles.length
-        ? `<table class="albrows"><tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
+        ? `<table class="albrows">${taskTheadHtml}<tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
         : "";
 
     const doneRows = done.map((task) => `
@@ -670,8 +684,12 @@ export function createRenderer({ state, helpers, actions }) {
   // — no separate Save step and no local "draft" state, since this panel
   // re-renders from scratch on every state-changed event.
   function renderImpactSection(task) {
+    // Each pill shows its own weight (·1/·2/·4/·8) directly, not just the
+    // tier name — so what a tier is actually worth is visible before you've
+    // picked one, instead of only appearing in the payout-preview line
+    // below once a tier is already selected.
     const tierHtml = IMPACT_TIER_KEYS.map((key) =>
-      `<button type="button" class="impact-notch${key === task.impactTier ? " sel" : ""}" data-action="setImpactTier" data-id="${task.id}" data-tier="${key}">${IMPACT_TIERS[key].label}</button>`
+      `<button type="button" class="impact-notch${key === task.impactTier ? " sel" : ""}" data-action="setImpactTier" data-id="${task.id}" data-tier="${key}">${IMPACT_TIERS[key].label}<small>${IMPACT_TIERS[key].weight}</small></button>`
     ).join("");
 
     if (!task.impactTier) {
@@ -685,23 +703,17 @@ export function createRenderer({ state, helpers, actions }) {
 
     const sign = task.impactSign === -1 ? -1 : 1;
     const listItem = list(task.listId);
-    // The list's own Effect (see "Edit list") is this task's *default*
-    // direction — commands.js's setImpactTier already seeds a task's sign
-    // from it the first time a tier is set, so a task in a "decreases this
-    // area" list doesn't start out silently pointing the opposite way. This
-    // hint just makes that relationship visible, since the toggle below can
-    // still override it per task (the "smoked a cigarette in an otherwise
-    // healthy list" case) — without this line, two sibling tasks disagreeing
-    // would look like a bug rather than an intentional override.
-    const listDefaultHint = listItem && listItem.lifeArea && listItem.lifeDirection
-      ? `<div class="sign-hint">List default: ${listItem.lifeDirection === "decrease" ? "decreases" : "increases"} this area</div>`
-      : "";
+    // Used to also print a "List default: increases this area" hint here —
+    // it explained where the sign's default came from back when the list
+    // was buried behind a "Change" dialog and you couldn't otherwise see
+    // it. Now that the list itself sits right in the header (see
+    // renderDetail), repeating the word "list" again down here just reads
+    // as a second, confusing list field — cut instead of reworded.
     const signHtml = `<div class="sign-group">
       <div class="sign-toggle">
         <button type="button" class="sign-btn${sign === 1 ? " sel" : ""}" data-action="setImpactSign" data-id="${task.id}" data-sign="1">For</button>
         <button type="button" class="sign-btn${sign === -1 ? " sel neg" : ""}" data-action="setImpactSign" data-id="${task.id}" data-sign="-1">Against</button>
       </div>
-      ${listDefaultHint}
     </div>`;
 
     const payout = jewelPayout(task);
@@ -716,6 +728,30 @@ export function createRenderer({ state, helpers, actions }) {
         ${payoutHtml}
       </div>`;
   }
+
+  // This modal is scoped to one job now: change this task's values. Starting
+  // or stopping the timer, the running total, and the estimate-vs-progress
+  // bar all used to live here too, but that's a live-tracking concern with
+  // its own point of performance already — the row's own play button, the
+  // Now Playing rail — not something this panel needs to duplicate. What's
+  // left is every field that's actually a *value*: depth, impact, list,
+  // sessions (including the estimate, since a target time is just another
+  // stored number, not a live thing), and notes. Every one of them commits
+  // the instant you change it — no Save button anywhere in this modal —
+  // matching the immediate-commit contract renderImpactSection already
+  // established for tier/sign.
+  //
+  // Plain inline SVG, not an icon font — the app doesn't load one (see
+  // LYRIC_ICON below for the existing precedent of this same approach).
+  // `currentColor` means each icon automatically follows its button's own
+  // text color, including the depth pills' selected/hover states, without
+  // any separate color rule per icon.
+  const DETAIL_PENCIL_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+  const DEPTH_ICONS = {
+    deep: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>`,
+    shallow: `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>`,
+    none: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="8"/></svg>`,
+  };
 
   function renderDetail() {
     if (!state.S) return;
@@ -733,35 +769,65 @@ export function createRenderer({ state, helpers, actions }) {
     const now = Date.now();
     const rows = entries.length ? entries.map((entry) => `<div class="entry ${entry.live ? "live" : ""}"><span class="when">${whenLabel(entry.start)}${entry.live ? " · recording…" : ""}</span><span class="dur">${fmt((entry.end ?? now) - entry.start)}</span>${entry.live ? `<span class="entry-del"></span>` : `<button class="entry-edit" title="Edit session" data-action="editSession" data-id="${entry.id}">✎</button><button class="entry-del" title="Remove session" data-action="deleteSession" data-id="${entry.id}">×</button>`}</div>`).join("")
       : `<div class="entry"><span class="when">No sessions logged yet</span><span class="dur">—</span></div>`;
+    const sessionCount = taskSessions(task.id).length + (working ? 1 : 0);
+
     // Depth toggle is inline and immediate (click = commit, no dialog) —
-    // matches the "List"/"Estimate" chips below it in spirit (all three
-    // used to be separate row-⋯-menu entries; this is the one screen they
-    // all live on now), but depth specifically has only 3 fixed states, so
-    // a segmented control reads faster here than round-tripping through a
-    // confirm dialog for a single click.
+    // depth specifically has only 3 fixed states, so a segmented control
+    // reads faster here than round-tripping through a confirm dialog for a
+    // single click. The caption underneath exists because "Deep/Shallow/
+    // None" alone reads as jargon at a glance — it has no functional effect
+    // anywhere else in the app, so the one job this control has is to be
+    // understood, and a one-line description does that without needing an
+    // icon set or a rename that would break the existing badge elsewhere.
+    const depthCaption = task.depth === "deep" ? "Long, focused, hard to interrupt."
+      : task.depth === "shallow" ? "Quick, low-focus busywork."
+      : "Not classified.";
     const depthSegHtml = `<span class="depth-seg" data-id="${task.id}">
-      <button class="${task.depth === "deep" ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="deep" data-stop-propagation="true">Deep</button>
-      <button class="${task.depth === "shallow" ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="shallow" data-stop-propagation="true">Shallow</button>
-      <button class="${!task.depth ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="" data-stop-propagation="true">None</button>
-    </span>`;
+      <button class="${task.depth === "deep" ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="deep" data-stop-propagation="true">${DEPTH_ICONS.deep}<span>Deep</span></button>
+      <button class="${task.depth === "shallow" ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="shallow" data-stop-propagation="true">${DEPTH_ICONS.shallow}<span>Shallow</span></button>
+      <button class="${!task.depth ? "sel" : ""}" data-action="setDepth" data-id="${task.id}" data-depth="" data-stop-propagation="true">${DEPTH_ICONS.none}<span>None</span></button>
+    </span>
+    <div class="depth-hint">${depthCaption}</div>`;
+
+    // The list name is the dropdown itself now — picking a different list
+    // commits on change (moveTaskInline), same immediate-commit contract as
+    // depth/impact, instead of a "Change" button opening its own dialog just
+    // to hold one <select>. Now its own section like Depth, it's styled as
+    // a filled chip (matches Depth's pill background) rather than the
+    // plain-text-until-hovered look it had tucked into the header.
+    const listSelectHtml = `<div class="list-select-wrap">
+      <select class="list-select" data-action="moveTaskInline" data-id="${task.id}">
+        ${state.S.lists.map((l) => `<option value="${l.id}" ${l.id === task.listId ? "selected" : ""}>${l.emoji} ${esc(l.name)}</option>`).join("")}
+      </select>
+      <svg class="list-select-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>`;
+
+    // Total + estimate share one line rather than the old standalone hero
+    // number — the estimate is just the target this total is measured
+    // against, and folding it in here means it's still an editable value
+    // (the "5h" itself is the input, committing on change) without resurrecting
+    // a dedicated timer-style display.
+    const estimateValue = task.estimateMin ? parseFloat((task.estimateMin / 60).toFixed(2)) : "";
+    const sessTotalHtml = `<div class="det-total">${fmt(taskTotal(task.id))} <span class="of">of</span> <button class="est-step" data-action="decreaseEstimate" data-id="${task.id}" title="Decrease estimate by 1h">−</button><input class="est-inline" type="number" min="0" max="1000" step="0.25" placeholder="—" value="${estimateValue}" data-action="setEstimateInline" data-id="${task.id}"><button class="est-step" data-action="bumpEstimate" data-id="${task.id}" title="Increase estimate by 1h">+</button>h <span class="dot">·</span> ${sessionCount} session${sessionCount === 1 ? "" : "s"}</div>`;
+
     document.getElementById("modal").innerHTML = `
       <div class="top"><div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
-        <div><h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span> <button class="editbtn" title="Rename" data-action="renameTask" data-id="${task.id}">✎</button></h2>
-          <div class="m"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span> <button class="linkbtn sm" data-action="moveTask" data-id="${task.id}">Change</button> · ${taskSessions(task.id).length + (working ? 1 : 0)} sessions</div>
-          <div class="m" style="margin-top:6px">${depthSegHtml}</div>
-          <div class="big" id="detailTotal" style="color:${listItem.color}">${fmt(taskTotal(task.id))}${task.estimateMin ? `<span class="of"> / ${fmtEst(task.estimateMin)}</span>` : ""}</div>
-          <div class="estrow">${task.estimateMin ? `<div class="estbar ${estPct(task, taskTotal) >= 100 ? "done" : ""}"><span style="width:${estPct(task, taskTotal)}%"></span></div><span class="estpct">${estPct(task, taskTotal)}%</span>` : ""}<button class="linkbtn" data-action="setEstimate" data-id="${task.id}">${task.estimateMin ? "Edit estimate" : "＋ Add estimate"}</button></div>
+        <div><h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span> <button class="editbtn" title="Rename" data-action="renameTask" data-id="${task.id}">${DETAIL_PENCIL_ICON}</button></h2>
         </div>
         <button class="close" data-action="closeDetail">×</button></div>
       <div class="body">
+        <h4 class="lyr-h">♪ Notes</h4>
+        <textarea class="lyrics-inline" data-action="setLyricsInline" data-id="${task.id}" placeholder="What will finishing this feel like? Add the goal, a note, a link…" rows="3">${esc(task.description || "")}</textarea>
+        <h4>Depth</h4>
+        ${depthSegHtml}
         ${renderImpactSection(task)}
-        <h4 class="lyr-h">♪ Lyrics <button class="linkbtn" data-action="editLyrics" data-id="${task.id}">${(task.description || "").trim() ? "Edit" : "＋ Add"}</button></h4>
-        ${(task.description || "").trim()
-          ? `<div class="lyrics">${esc(task.description.trim())}</div>`
-          : `<div class="lyrics empty" data-action="editLyrics" data-id="${task.id}">What will finishing this feel like? Add the goal, a note, a link…</div>`}
-        <div class="sh"><h4>Session history</h4><button class="pill sm" data-action="addSession" data-id="${task.id}">＋ Add session</button></div>${rows}</div>
-      <div class="foot"><button class="stopbtn" data-action="play" data-id="${task.id}">${active ? "⏸ Stop" : "▶ Start timer"}</button>
-        <button class="danger" data-action="deleteTask" data-id="${task.id}">Delete task</button></div>`;
+        <h4>List</h4>
+        ${listSelectHtml}
+        <div class="sh"><h4>Sessions</h4><button class="linkbtn blue" data-action="addSession" data-id="${task.id}">＋ Add session</button></div>
+        ${sessTotalHtml}
+        ${rows}
+      </div>
+      <div class="foot"><button class="danger" data-action="deleteTask" data-id="${task.id}">Delete task</button><button class="stopbtn" data-action="closeDetail">Save</button></div>`;
   }
 
   const LYRIC_ICON = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h11M5 12h9M5 17h13"/><circle cx="19.6" cy="16" r="2.1" fill="currentColor" stroke="none"/><path d="M21.7 15.7V9.4"/></svg>`;
@@ -1491,6 +1557,172 @@ export function createRenderer({ state, helpers, actions }) {
     });
   }
 
+  // A single day, per area, is judged "full" past this — a solid session or
+  // one severe-tier task. Independent of LIFE_BALANCE_CAP_MS (that one's a
+  // whole-week budget spread across every axis); this is its own per-day,
+  // per-area scale for the grid below, since "how loud was Tuesday" isn't
+  // the same question as "how loud was this week."
+  const LIFE_BALANCE_DAILY_CAP_MS = 90 * 60 * 1000;
+
+  // A cell's contributors can pick up the same task twice (two sessions
+  // inside one calendar day) — folded here into one entry per task so the
+  // side panel (buildGridCellDetail below) shows one row per task, not one
+  // per session.
+  function mergeContributors(list) {
+    const byTask = new Map();
+    for (const c of list) {
+      const existing = byTask.get(c.taskId);
+      if (existing) existing.ms += c.ms;
+      else byTask.set(c.taskId, { ...c });
+    }
+    return Array.from(byTask.values()).sort((a, b) => Math.abs(b.ms) - Math.abs(a.ms));
+  }
+
+  // Buckets the same 7-day contributor data lifeBalanceScores() computes,
+  // but by calendar day instead of summed across the week — the answer to
+  // "which days" rather than "which tasks." A session spanning midnight is
+  // split across both days (same clamp-per-day approach as the Insights
+  // page's own day grouping), and a tier-tagged completion lands entirely
+  // on the day it was completed, matching lifeBalanceScores' own rule that
+  // a tier swing replaces, rather than adds to, that task's raw time.
+  //
+  // Each cell keeps its own `contributors` (not just the summed `ms`) so a
+  // click on that cell (see selectGridCell/buildGridCellDetail below) can
+  // answer "which task did this," the same job the radar's now-removed
+  // bars used to do for a whole week — just scoped down to one day.
+  function lifeBalanceDailyGrid() {
+    const now = new Date();
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const startMs = d.getTime();
+      days.push({
+        label: d.toLocaleDateString(undefined, { weekday: "short" }),
+        isToday: i === 0,
+        startMs,
+        endMs: startMs + 24 * 60 * 60 * 1000,
+      });
+    }
+    const rows = LIFE_AREAS.map((area) => ({
+      ...area,
+      cells: days.map(() => ({ ms: 0, contributors: [] })),
+    }));
+    if (!state.S) return { days, rows };
+    const rowByKey = new Map(rows.map((row) => [row.key, row]));
+
+    for (const listItem of state.S.lists) {
+      const row = rowByKey.get(listItem.lifeArea);
+      if (!row) continue;
+      for (const task of tasksForList(listItem.id)) {
+        const payout = jewelPayout(task);
+        if (payout && task.completedAt) {
+          const dayIndex = days.findIndex((day) => task.completedAt >= day.startMs && task.completedAt < day.endMs);
+          if (dayIndex !== -1) {
+            const tierMs = payout.amount * IMPACT_WEIGHT_TO_MS;
+            const cell = row.cells[dayIndex];
+            cell.ms += tierMs;
+            cell.contributors.push({
+              taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color,
+              kind: "tier", tier: task.impactTier, amount: payout.amount, ms: tierMs,
+            });
+          }
+          continue;
+        }
+        for (const session of taskSessions(task.id)) {
+          const sessionEnd = session.end ?? Date.now();
+          days.forEach((day, dayIndex) => {
+            const segStart = Math.max(session.start, day.startMs);
+            const segEnd = Math.min(sessionEnd, day.endMs);
+            if (segEnd <= segStart) return;
+            const dur = segEnd - segStart;
+            const signed = listItem.lifeDirection === "decrease" ? -dur : dur;
+            const cell = row.cells[dayIndex];
+            cell.ms += signed;
+            cell.contributors.push({
+              taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color,
+              kind: "time", ms: signed,
+            });
+          });
+        }
+      }
+    }
+    rows.forEach((row) => {
+      row.cells = row.cells.map((cell) => ({ ms: cell.ms, contributors: mergeContributors(cell.contributors) }));
+    });
+    return { days, rows };
+  }
+
+  // Which single grid cell (if any) is expanded — pure UI state, same
+  // lifetime/reset-on-reload contract as expandedSessionGroups elsewhere on
+  // this page. Only one cell at a time, and its detail renders beside the
+  // grid rather than as a separate page, for the same reason the bars used
+  // to render in place rather than behind a separate "impact" stats screen.
+  let selectedGridCell = null;
+  function selectGridCell(areaKey, dayIndexRaw) {
+    const dayIndex = Number(dayIndexRaw);
+    selectedGridCell = selectedGridCell && selectedGridCell.areaKey === areaKey && selectedGridCell.dayIndex === dayIndex
+      ? null
+      : { areaKey, dayIndex };
+    renderHomePage();
+  }
+
+  // The clicked cell's own contributors, listed newest-swing-first, each
+  // one a tap-through to that task via searchGoTask — same "Mostly <task>"
+  // job the old bars did, just answering for one day instead of the week.
+  function buildGridCellDetail(row, day, cell) {
+    const rows = cell.contributors.length
+      ? cell.contributors.map((c) => {
+          const amountHtml = c.kind === "tier"
+            ? `<span class="lg-item-amt"><i class="jewel-dot${c.amount < 0 ? " neg" : ""}"></i>${c.amount > 0 ? "+" : ""}${c.amount} ${esc(IMPACT_TIERS[c.tier]?.label ?? "")}</span>`
+            : `<span class="lg-item-amt">${c.ms < 0 ? "−" : ""}${fmtLong(Math.abs(c.ms))}</span>`;
+          return `<div class="lg-item" data-action="searchGoTask" data-id="${c.taskId}">
+            <span class="lg-item-dot" style="background:${c.listColor || "#555"}"></span>
+            <span class="lg-item-name">${esc(c.taskName)}</span>
+            ${amountHtml}
+          </div>`;
+        }).join("")
+      : `<div class="lg-item-empty">Nothing tracked here.</div>`;
+    return `<div class="lg-detail">
+      <div class="lg-detail-head">${esc(row.label)} <span class="lg-detail-day">${esc(day.label)}</span></div>
+      ${rows}
+    </div>`;
+  }
+
+  // Home's whole "which task caused this" answer now lives here — areas
+  // down the rows, days across the columns, cell opacity carries
+  // intensity, and clicking a cell opens that cell's own task list beside
+  // the grid (buildGridCellDetail above) instead of a separate page. It's
+  // the areas' own fixed LIFE_AREAS color carrying identity in a cell (not
+  // a list's color), since a single cell can blend contributions from
+  // several lists.
+  function buildLifeBalanceGrid() {
+    const { days, rows } = lifeBalanceDailyGrid();
+    const header = `<div class="lg-row lg-head">
+      <span class="lg-label"></span>
+      ${days.map((day) => `<span class="lg-cell-label${day.isToday ? " today" : ""}">${esc(day.label)}</span>`).join("")}
+    </div>`;
+    const body = rows.map((row) => `<div class="lg-row">
+      <span class="lg-label">${esc(row.label)}</span>
+      ${row.cells.map((cell, i) => {
+        const opacity = Math.max(0.08, Math.min(1, 0.12 + 0.88 * (Math.abs(cell.ms) / LIFE_BALANCE_DAILY_CAP_MS)));
+        const title = cell.ms !== 0 ? `${row.label} · ${days[i].label} · ${cell.ms < 0 ? "−" : ""}${fmtLong(Math.abs(cell.ms))}` : `${row.label} · ${days[i].label} · nothing tracked`;
+        const selected = selectedGridCell && selectedGridCell.areaKey === row.key && selectedGridCell.dayIndex === i;
+        return `<span class="lg-cell${selected ? " selected" : ""}" data-action="selectGridCell" data-key="${row.key}" data-value="${i}" style="background:${row.color};opacity:${opacity.toFixed(2)}" title="${esc(title)}"></span>`;
+      }).join("")}
+    </div>`).join("");
+    const gridCol = `<div class="lg-grid-col">${header}${body}<div class="lg-legend">Lighter to darker means less to more time</div></div>`;
+
+    let detail = "";
+    if (selectedGridCell) {
+      const row = rows.find((r) => r.key === selectedGridCell.areaKey);
+      const day = days[selectedGridCell.dayIndex];
+      if (row && day) detail = buildGridCellDetail(row, day, row.cells[selectedGridCell.dayIndex]);
+    }
+    return `<div class="lg-wrap${detail ? " has-detail" : ""}">${gridCol}${detail}</div>`;
+  }
+
   // Renders `scores` (7 {key,label,pct} entries from lifeBalanceScores())
   // as a heptagon radar: 4 concentric rings + spokes as a static grid,
   // then the actual data as a filled polygon on top. Plain trigonometry —
@@ -1530,6 +1762,10 @@ export function createRenderer({ state, helpers, actions }) {
     // exaggerating any real (non-zero) score.
     const dataPts = scores.map((s, i) => pointAt(i, Math.max(0.04, s.pct / 100)));
     const dataPoly = `<polygon points="${dataPts.map((p) => p.join(",")).join(" ")}" fill="var(--green)" fill-opacity="0.22" stroke="var(--green)" stroke-width="2"/>`;
+    // Plain and static on purpose — this chart's one job is the instant
+    // shape of the week; the "why" now lives in buildLifeBalanceGrid below
+    // it, so the radar itself doesn't need to carry any interaction of its
+    // own.
     const dots = dataPts.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="3" fill="var(--green)"><title>${esc(scores[i].label)}: ${scores[i].pct}%</title></circle>`).join("");
     const labels = scores.map((s, i) => {
       const [lx, ly] = pointAt(i, 1.2);
@@ -1607,7 +1843,7 @@ export function createRenderer({ state, helpers, actions }) {
         <section class="home-section">
           <h4>Life balance <span class="home-sub-note">· last 7 days</span></h4>
           ${hasLifeTags
-            ? `<div class="home-radar">${buildLifeRadar(radarScores)}</div>`
+            ? `<div class="home-radar">${buildLifeRadar(radarScores)}</div>${buildLifeBalanceGrid()}`
             : `<div class="home-empty">Tag a list with a life area (Edit list, or when creating a new one) to see your balance here.</div>`}
         </section>
         <section class="home-section">
@@ -1632,6 +1868,10 @@ export function createRenderer({ state, helpers, actions }) {
       const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
       if (live) durations.push(Date.now() - state.S.run.runningStart);
       const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
+      const sessionCount = bar ? bar.sessionCount : durations.length;
+      const sessionsCell = sessionCount
+        ? `<span class="sess-count" title="${bar ? bar.sessionLabel : sessionCount + " session" + (sessionCount === 1 ? "" : "s")} logged">${sessionCount}</span>`
+        : `<span class="sess-count sess-count-empty" title="No sessions logged yet">–</span>`;
       const barCell = bar ? bar.html : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
       const when = live ? `<span style="color:var(--green)">now · recording</span>` : timeAgo(at);
 
@@ -1643,6 +1883,7 @@ export function createRenderer({ state, helpers, actions }) {
           <div>${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span>` : esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</div>
           <span class="list-tag"><i style="background:${listItem ? listItem.color : "#555"}"></i>${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span>` : ""}</span>
         </td>
+        <td class="r sess-cell">${sessionsCell}</td>
         <td class="r bar-cell">${barCell}</td>
         <td class="rwhen">${when}</td>
       </tr>`;
@@ -1655,7 +1896,7 @@ export function createRenderer({ state, helpers, actions }) {
         <div class="info"><small>History</small><h1>Recent</h1><div class="sub">Last ${entries.length} task${entries.length === 1 ? "" : "s"} played, across all lists</div></div>
       </div>
       ${entries.length
-        ? `<table><thead><tr><th class="idx">#</th><th>Task</th><th class="r">Progress</th><th class="rwhen">Last played</th></tr></thead>
+        ? `<table><thead><tr><th class="idx">#</th><th>Task</th><th class="r sess-cell">Sessions</th><th class="r">Progress</th><th class="rwhen">Last played</th></tr></thead>
            <tbody>${rows}</tbody></table>`
         : `<div class="empty">No tasks played yet. Press play on a task to start tracking.</div>`}`;
     initStickyHeader();
@@ -1796,23 +2037,40 @@ export function createRenderer({ state, helpers, actions }) {
     if (!state.S) return;
     const phase = state.S.run.phase ?? null;
     const taskId = state.S.run.activeTaskId ?? null;
+
+    // Cross-device (see docs/session-sync-design.md): another device's
+    // session shouldn't drive local focus music — that's a real focus aid
+    // meant to accompany *this* device actually working, not ambient noise
+    // that starts playing here just because someone else, elsewhere, is
+    // deep-working. Treat a mirrored session as idle for music purposes
+    // only — the real phase/taskId (below) still drives the rail-auto-open
+    // and lastPhase/lastTaskId bookkeeping regardless of ownership, since
+    // "something's playing, worth surfacing" is still true either way.
+    const isMine = !state.S.run.deviceId || state.S.run.deviceId === state.S.deviceId;
+    const musicPhase = isMine ? phase : null;
+    const musicTaskId = isMine ? taskId : null;
+
     // Switching directly from one task to another (still "work" the whole
     // time — the timer never passes through idle/break in between, see
     // timer::play's single-active-task invariant) doesn't change phase, so
     // it wouldn't otherwise be noticed here. Treat it as "new song": skip to
     // the next track instead of just letting the old one keep playing under
     // a different task.
-    if (phase === "work" && state.lastPhase === "work" && taskId !== state.lastTaskId) {
+    if (musicPhase === "work" && state.lastMusicPhase === "work" && musicTaskId !== state.lastMusicTaskId) {
       window.Music.next();
-    } else if (phase !== state.lastPhase) {
-      window.Music.setActive(phase === "work");
+    } else if (musicPhase !== state.lastMusicPhase) {
+      window.Music.setActive(musicPhase === "work");
     }
+    state.lastMusicPhase = musicPhase;
+    state.lastMusicTaskId = musicTaskId;
+
     // Work just started (from idle, paused, break, or a cross-device
     // takeover — anything that wasn't already "work") — reveal the Now
     // Playing rail automatically, Spotify-style, instead of leaving it
-    // closed until the user remembers to toggle it open themselves.
-    // Doesn't force it shut again on stop/break — only the user's own
-    // toggle does that.
+    // closed until the user remembers to toggle it open themselves. Uses
+    // the real (unfiltered) phase — awareness that something's playing is
+    // still useful even when it's mirroring another device. Doesn't force
+    // it shut again on stop/break — only the user's own toggle does that.
     if (phase === "work" && state.lastPhase !== "work" && !state.railOpen) {
       state.railOpen = true;
       localStorage.setItem("tp.rail", "1");
@@ -1853,6 +2111,7 @@ export function createRenderer({ state, helpers, actions }) {
     renderRecentPage,
     openRecentPage,
     renderHomePage,
+    selectGridCell,
     renderMusic,
     openTrackDetail,
     closeTrackDetail,

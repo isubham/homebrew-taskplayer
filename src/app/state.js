@@ -16,6 +16,9 @@ export function createAppState() {
     // shown. Off by default so Home stays accomplishment-first; opt-in
     // reflection, persisted like the flags above.
     lifeBalanceAgainst: (localStorage.getItem("tp.lifeAgainst") ?? "0") === "1",
+    // Whether single-key keyboard shortcuts (see the keyboard-driving block in
+    // bootstrap.js) are active. On by default; toggled from Settings > Keyboard.
+    keybindings: (localStorage.getItem("tp.keybindings") ?? "1") === "1",
     route: { view: "tasks", listId: null },
     navBack: [],
     navFwd: [],

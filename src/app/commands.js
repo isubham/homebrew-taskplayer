@@ -38,6 +38,12 @@ const lifeDirOptionsHtml = (selected) => `
   <option value="increase" ${selected !== "decrease" ? "selected" : ""}>Increases this area</option>
   <option value="decrease" ${selected === "decrease" ? "selected" : ""}>Decreases this area</option>`;
 
+// Mirrors the Rust-side PALETTE (src-tauri/core/src/db.rs) that add_list uses
+// to give each new list a rotating default color — replicated here so the New
+// list dialog's color picker can seed with the exact color the list would get
+// by default. Keep the two in the same order; update both if either changes.
+const LIST_PALETTE = ["#1db954", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a"];
+
 export function createCommands({ state, ui, renderer, invoke }) {
   // `uiForm` itself isn't destructured here — a local wrapper of the same
   // name is defined further down (it forwards to `ui.uiForm`), and
@@ -58,52 +64,18 @@ export function createCommands({ state, ui, renderer, invoke }) {
   const list = (id) => state.S?.lists.find((item) => item.id === id);
   const findTask = (id) => state.S?.tasks.find((task) => task.id === id);
 
-  async function addList() {
-    // A small form instead of the old single uiPrompt so a list can be
-    // tagged for the Home page's life-balance radar right at creation, not
-    // just later via "Edit list" — emoji/color still default (editable
-    // afterward) to keep this quick.
-    const value = await uiForm({
-      title: "New list",
-      confirmText: "Create",
-      focusSel: "#newListNameIn",
-      bodyHtml: `
-        <div class="ffield"><label>Name</label><input type="text" id="newListNameIn" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
-        <div class="ffield"><label>Life area</label><select id="newListAreaIn">${lifeAreaOptionsHtml("")}</select></div>
-        <div class="ffield"><label>Effect</label><select id="newListDirIn">${lifeDirOptionsHtml("increase")}</select></div>`,
-      collect: () => {
-        const name = document.getElementById("newListNameIn").value.trim();
-        if (!name) return undefined;
-        const area = document.getElementById("newListAreaIn").value || null;
-        const direction = area ? document.getElementById("newListDirIn").value : null;
-        return { name, area, direction };
-      },
-    });
-    if (!value) return;
-    const snap = await invoke("add_list", { name: value.name });
-    // `add_list` always appends (order = previous list count), so the new
-    // list is the last entry in the snapshot it returns.
-    const created = snap.lists[snap.lists.length - 1];
-    if (value.area && created) {
-      apply(await invoke("set_list_life_tag", { id: created.id, area: value.area, direction: value.direction }));
-    } else {
-      apply(snap);
-    }
-  }
-
-  async function editList(id) {
-    const current = list(id);
-    if (!current) return;
-    // Starts as the list's actual current emoji, even if it's not one of
-    // the curated picker choices (e.g. an older custom pick) — it only ever
-    // changes when a tile is actually clicked below, so opening this dialog
-    // and hitting Save without touching Emoji can never silently swap a
-    // custom emoji out for whatever the picker's first tile happens to be.
+  // Shared builder for the New list / Edit list dialogs — one definition so
+  // the two can't drift apart (they used to: New list had no emoji, no color,
+  // and no live preview). Renders the preview tile, name field, paged emoji
+  // picker, color input, and life-area + effect selects, wires the live
+  // preview, and resolves to {name, emoji, color, area, direction} (or
+  // undefined if cancelled / name blank). `current` seeds every field; pass
+  // `deleteId` to include the Edit-only "Delete list" button.
+  async function openListForm({ title, confirmText, current, deleteId = null }) {
+    // Starts as the given emoji even if it isn't one of the curated picker
+    // choices — only changes when a tile is actually clicked, so saving
+    // without touching Emoji never swaps a custom pick for the first tile.
     let chosenEmoji = current.emoji;
-    // Opens on whichever category already contains the current emoji, so
-    // editing a list doesn't land on an unrelated page with nothing
-    // highlighted; falls back to the first category for an emoji that
-    // isn't in the curated set at all.
     let activeCat = (findEmojiCategory(chosenEmoji) || EMOJI_CATEGORIES[0]).key;
     const activeIndex = () => Math.max(0, EMOJI_CATEGORIES.findIndex((c) => c.key === activeCat));
     const activeCategory = () => EMOJI_CATEGORIES[activeIndex()];
@@ -111,17 +83,21 @@ export function createCommands({ state, ui, renderer, invoke }) {
       (e) => `<button type="button" class="emoji-opt${e === chosenEmoji ? " sel" : ""}" data-emoji="${e}">${e}</button>`
     ).join("");
     const previewStyle = (color) => `background:${color}22;color:${color};width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font-size:15px;flex:none`;
-    // `uiForm` mutates the DOM synchronously before it returns its (still
-    // pending) promise — see ui.js — so it's safe to grab these elements and
-    // wire them up here, right after the call, rather than needing ui.js to
-    // expose some kind of "onMount" hook just for this one dialog.
+    const deleteHtml = deleteId
+      ? `<div style="margin:18px 22px 0;padding-top:14px;border-top:1px solid var(--line)">
+          <button type="button" class="danger" data-action="deleteList" data-id="${deleteId}">Delete list</button>
+        </div>`
+      : "";
+    // `uiForm` mutates the DOM synchronously before returning its (still
+    // pending) promise (see ui.js), so the elements below can be grabbed and
+    // wired right after the call rather than via an onMount hook.
     const formPromise = uiForm({
-      title: "Edit list",
-      confirmText: "Save",
+      title,
+      confirmText,
       focusSel: "#listNameIn",
       bodyHtml: `
         <div class="ffield"><label>Preview</label><span id="stylePreview" style="${previewStyle(current.color)}">${chosenEmoji}</span></div>
-        <div class="ffield"><label>Name</label><input type="text" id="listNameIn" value="${esc(current.name)}" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
+        <div class="ffield"><label>Name</label><input type="text" id="listNameIn" value="${esc(current.name || "")}" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
         <div class="ffield" style="align-items:flex-start">
           <label>Emoji</label>
           <div class="emoji-picker">
@@ -134,11 +110,9 @@ export function createCommands({ state, ui, renderer, invoke }) {
           </div>
         </div>
         <div class="ffield"><label>Color</label><input type="color" id="listColorIn" value="${esc(current.color)}"></div>
-        <div class="ffield"><label>Life area</label><select id="listAreaIn">${lifeAreaOptionsHtml(current.lifeArea)}</select></div>
+        <div class="ffield"><label>Life area</label><select id="listAreaIn">${lifeAreaOptionsHtml(current.lifeArea || "")}</select></div>
         <div class="ffield"><label>Effect</label><select id="listDirIn">${lifeDirOptionsHtml(current.lifeDirection)}</select></div>
-        <div style="margin:18px 22px 0;padding-top:14px;border-top:1px solid var(--line)">
-          <button type="button" class="danger" data-action="deleteList" data-id="${id}">Delete list</button>
-        </div>`,
+        ${deleteHtml}`,
       collect: () => {
         const name = document.getElementById("listNameIn").value.trim();
         if (!name) return undefined;
@@ -148,19 +122,10 @@ export function createCommands({ state, ui, renderer, invoke }) {
         return { name, emoji: chosenEmoji, color, area, direction };
       },
     });
-    // This dialog's emoji picker needs more width than the shared dialog
-    // default (see "dlg-emoji" in styles.css) to fit each category's 24
-    // emoji at 2 rows instead of scrolling — scoped to a class toggled on
-    // just this instance of #dmodal, not a change to `.dlg` itself, so
-    // every other dialog in the app (uiPrompt/uiConfirm/addList/moveTask/
-    // etc.) keeps its normal, narrower width. Removed again once this
-    // dialog resolves, regardless of Save or Cancel.
+    // Wider than the default dialog so each category's 24 emoji fit 2 rows
+    // (see "dlg-emoji" in styles.css); removed again once it resolves.
     const modal = document.getElementById("dmodal");
     modal?.classList.add("dlg-emoji");
-    // The grid's own highlighted tile and the color swatch both show the
-    // current pick, but neither made it obvious *something changed* when
-    // clicked — this preview is the one place both come together, updated
-    // live so picking either one has an immediate, unambiguous result.
     const preview = document.getElementById("stylePreview");
     const colorInput = document.getElementById("listColorIn");
     const grid = document.getElementById("emojiGrid");
@@ -175,13 +140,8 @@ export function createCommands({ state, ui, renderer, invoke }) {
       btn.classList.add("sel");
       if (preview) preview.textContent = chosenEmoji;
     });
-    // Steps to the previous/next category and re-renders #emojiGrid's
-    // contents in place (the listener above stays attached to the same
-    // container element, so re-wiring it isn't needed). Wraps around at
-    // either end (last → first, first → last) rather than disabling the
-    // button, since "which page am I on" is a loop, not a line — a per-
-    // category icon-tab row read this same information less clearly than
-    // just naming the category being paged to.
+    // Steps categories in place, wrapping at either end (the grid's own click
+    // listener stays attached to the same container, so no re-wiring needed).
     const goToCategory = (step) => {
       const count = EMOJI_CATEGORIES.length;
       activeCat = EMOJI_CATEGORIES[(activeIndex() + step + count) % count].key;
@@ -195,10 +155,37 @@ export function createCommands({ state, ui, renderer, invoke }) {
     });
     const value = await formPromise;
     modal?.classList.remove("dlg-emoji");
+    return value;
+  }
+
+  async function addList() {
+    // Full parity with Edit list (name, emoji, color, life tag) so a list gets
+    // its identity at creation, not only afterward. Seeds the color with the
+    // same rotating palette default add_list would assign, so leaving it
+    // untouched reproduces the prior behavior exactly.
+    const paletteColor = LIST_PALETTE[(state.S?.lists.length ?? 0) % LIST_PALETTE.length];
+    const value = await openListForm({
+      title: "New list",
+      confirmText: "Create",
+      current: { name: "", emoji: "📁", color: paletteColor, lifeArea: "", lifeDirection: "increase" },
+    });
     if (!value) return;
-    // Name/style/life-tag each live on their own backend command (matches
-    // the existing rename_list vs. set_list_style split) — all three fire
-    // from this one dialog, so just apply the final snapshot.
+    const snap = await invoke("add_list", { name: value.name });
+    // `add_list` always appends (order = previous list count), so the new list
+    // is the last entry in the snapshot it returns.
+    const created = snap.lists[snap.lists.length - 1];
+    if (!created) return apply(snap);
+    await invoke("set_list_style", { id: created.id, emoji: value.emoji, color: value.color });
+    apply(await invoke("set_list_life_tag", { id: created.id, area: value.area, direction: value.direction }));
+  }
+
+  async function editList(id) {
+    const current = list(id);
+    if (!current) return;
+    const value = await openListForm({ title: "Edit list", confirmText: "Save", current, deleteId: id });
+    if (!value) return;
+    // Name/style/life-tag each live on their own backend command (matches the
+    // existing rename_list vs. set_list_style split); apply the final snapshot.
     await invoke("rename_list", { id, name: value.name });
     await invoke("set_list_style", { id, emoji: value.emoji, color: value.color });
     apply(await invoke("set_list_life_tag", { id, area: value.area, direction: value.direction }));
@@ -393,6 +380,22 @@ export function createCommands({ state, ui, renderer, invoke }) {
 
   async function reorderLists(orderedIds) {
     apply(await invoke("reorder_lists", { orderedIds }));
+  }
+
+  // The keyboard shortcuts cheat sheet — shown from the `?` key and from
+  // Settings > Keyboard. Single source so the two never drift.
+  function showShortcuts() {
+    const rows = [
+      ["h", "Home"], ["i", "Insights"], ["s", "Settings"],
+      ["l", "Focus first list"], ["t", "Focus first task"],
+      ["j / k", "Move down / up"], ["Enter", "Open list / play task"],
+      ["Space", "Play / pause current"], ["/", "Search"],
+      ["⌘[ / ⌘]", "Back / forward"], ["?", "This help"], ["Esc", "Close / clear focus"],
+    ];
+    const body = `<div style="display:grid;grid-template-columns:auto 1fr;gap:9px 16px;align-items:center">`
+      + rows.map(([k, d]) => `<kbd style="justify-self:start;background:var(--bg3);border-radius:4px;padding:2px 8px;font-family:monospace;font-size:12px;color:#fff">${k}</kbd><span style="color:var(--muted);font-size:13px">${d}</span>`).join("")
+      + `</div>`;
+    uiNote("Keyboard shortcuts", body);
   }
 
   // Re-file a list into a life area by dragging it onto a sidebar section
@@ -712,6 +715,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     editList,
     reorderLists,
     setListArea,
+    showShortcuts,
     deleteList,
     selectList,
     addTask,

@@ -1098,6 +1098,17 @@ export function createRenderer({ state, helpers, actions }) {
   // header (visually echoing the task-list album headers elsewhere in the
   // app, see .albhead) followed by that section's controls. Purely a layout
   // wrapper: `body` is whatever HTML the caller already built.
+  function keyboardSectionHtml() {
+    const on = state.keybindings;
+    return `<p class="hint" style="margin-top:0">Drive the app from the keyboard — jump between views, move through lists and tasks, and play/pause without the mouse.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 4px">
+        <span>Keyboard shortcuts</span>
+        <button class="switch${on ? " on" : ""}" role="switch" aria-checked="${on}" aria-label="Toggle keyboard shortcuts" data-action="toggleKeybindings"><span class="switch-knob"></span></button>
+      </div>
+      <div class="setrow"><button class="pill" data-action="showShortcuts">⌨ View shortcuts</button></div>
+      <p class="hint">When off, single-key shortcuts are disabled. ⌘[ / ⌘] history navigation always works.</p>`;
+  }
+
   function settingsAlbumHtml(icon, color, title, subtitle, body) {
     return `<section>
       <div class="salbhead">
@@ -1128,6 +1139,7 @@ export function createRenderer({ state, helpers, actions }) {
         ${settingsAlbumHtml("👤", "#509bf5", "Account", acctSubtitle, accountSectionHtml())}
         ${settingsAlbumHtml("⏱️", "#1db954", "Workflow", "How the timer runs", sessionControlsHtml())}
         ${settingsAlbumHtml("🔔", "#f5a623", "Notifications", "Sounds & alerts", notificationsSectionHtml())}
+        ${settingsAlbumHtml("⌨️", "#8d67ab", "Keyboard", "Shortcuts", keyboardSectionHtml())}
         ${settingsAlbumHtml("🛠️", "#9aa0a6", "Diagnostics", "Backups & logs", diagnosticsSectionHtml())}
         ${settingsAlbumHtml("ℹ️", "#6a6a6a", "About", "Version & updates", aboutSectionHtml())}
       </div>`;
@@ -2003,6 +2015,14 @@ export function createRenderer({ state, helpers, actions }) {
     renderHomePage();
   }
 
+  // Enable/disable single-key keyboard shortcuts (see bootstrap.js). Persisted
+  // like the other UI prefs; re-renders Settings so the switch reflects state.
+  function toggleKeybindings() {
+    state.keybindings = !state.keybindings;
+    try { localStorage.setItem("tp.keybindings", state.keybindings ? "1" : "0"); } catch (e) { /* non-fatal */ }
+    renderSettingsPage();
+  }
+
   // Home — the dashboard #tbhome/goHome() lands on: a time-of-day greeting,
   // four at-a-glance stats, the life-balance radar (lifeBalanceScores()/
   // buildLifeRadar() above — now itself weighted by impact tier, see that
@@ -2350,6 +2370,7 @@ export function createRenderer({ state, helpers, actions }) {
     toggleAreaSection,
     toggleLifeAgainst,
     selectAgainstArea,
+    toggleKeybindings,
     renderMain,
     renderPlayer,
     sessionControlsHtml,

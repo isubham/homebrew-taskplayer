@@ -161,6 +161,20 @@ body{
 .list-item.dragging{opacity:.4}
 .list-item.drag-over-top{box-shadow:inset 0 2px 0 0 var(--green)}
 .list-item.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--green)}
+/* Roving keyboard focus (see the keyboard driving block in bootstrap.js) —
+   applied to whichever sidebar list row or task row is keyboard-focused. Uses
+   a background tint + a left accent, NOT a box-shadow ring: box-shadow on a
+   <tr> doesn't render under border-collapse:collapse (the task tables), so a
+   ring was invisible on task rows. Background + inset accent work on both the
+   sidebar's <div> rows and the tables' <tr> rows. */
+.kb-focus{background:rgba(29,185,84,.14)}
+.list-item.kb-focus{box-shadow:inset 2px 0 0 0 var(--green)}
+tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
+/* iOS-style toggle switch (Settings > Keyboard) — see keyboardSectionHtml. */
+.switch{width:40px;height:22px;border-radius:999px;background:var(--bg3);border:none;position:relative;cursor:pointer;padding:0;flex:none;transition:background .15s}
+.switch.on{background:var(--green)}
+.switch-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+.switch.on .switch-knob{left:20px}
 /* Sidebar life-area sections (see renderSidebar in render.js) — lists grouped
    under a collapsible area header, Slack-style. Colour lives on the folder
    glyph itself (tinted per area, set inline), not a separate bar or wash: the

@@ -34,6 +34,8 @@ export function bootstrapApp() {
       case "toggleAreaSection": return renderer.toggleAreaSection(payload.area);
       case "toggleLifeAgainst": return renderer.toggleLifeAgainst();
       case "selectAgainstArea": return renderer.selectAgainstArea(payload.key);
+      case "toggleKeybindings": return renderer.toggleKeybindings();
+      case "showShortcuts": return commands.showShortcuts();
       case "setAlbum": return commands.setAlbum(id);
       case "moveTaskToAlbum": return commands.moveTaskToAlbum(id, value);
       case "editLyrics": return commands.editLyrics(id);
@@ -368,20 +370,124 @@ export function bootstrapApp() {
   });
 
   window.addEventListener("resize", renderer.closeRowMenu);
+
+  // ── Keyboard driving ──────────────────────────────────────────────────
+  // Roving keyboard focus across two columns: the sidebar's lists and the
+  // current task list. `kbCol`/`kbIdx` track which row is focused; the visual
+  // is a single `.kb-focus` ring in the DOM (no persisted state — a re-render
+  // resets it, which is fine since navigation is what triggers re-renders).
+  let kbCol = null;
+  let kbIdx = -1;
+  const kbHasFocus = () => kbCol !== null;
+  function kbClear() {
+    document.querySelectorAll(".kb-focus").forEach((el) => el.classList.remove("kb-focus"));
+    kbCol = null;
+    kbIdx = -1;
+  }
+  function kbRows(col) {
+    if (col === "sidebar") {
+      // Filter out rows in collapsed sections (display:none) — getClientRects
+      // is reliable here since these are <div> rows.
+      return Array.from(document.querySelectorAll("#lists .list-item[data-drag-list-id]"))
+        .filter((el) => el.getClientRects().length > 0);
+    }
+    // Task rows are never inside a collapsed container, so no visibility filter
+    // is needed — and skipping it avoids any <tr>-specific measurement quirks.
+    return Array.from(document.querySelectorAll("#main tr[data-drag-id]"));
+  }
+  function kbApply(col, idx) {
+    const rows = kbRows(col);
+    document.querySelectorAll(".kb-focus").forEach((el) => el.classList.remove("kb-focus"));
+    if (!rows.length) { kbCol = null; kbIdx = -1; return; }
+    kbCol = col;
+    kbIdx = Math.max(0, Math.min(rows.length - 1, idx));
+    const el = rows[kbIdx];
+    el.classList.add("kb-focus");
+    el.scrollIntoView({ block: "nearest" });
+  }
+  function kbMove(delta) {
+    if (kbCol === null) {
+      kbApply("tasks", 0);
+      if (kbCol === null) kbApply("sidebar", 0);
+      return;
+    }
+    kbApply(kbCol, kbIdx + delta);
+  }
+  function kbActivate() {
+    const el = kbRows(kbCol)[kbIdx];
+    if (!el) return;
+    if (kbCol === "sidebar") dispatchAction("selectList", { id: el.dataset.dragListId });
+    else dispatchAction("play", { id: el.dataset.dragId });
+  }
+  // Space = play/pause the "current" task, media-player style: the active one
+  // if a session is running, else the keyboard-focused task, else the last
+  // one played. play() toggles, so re-pressing on the active task pauses it.
+  function kbPlayPause() {
+    const run = appState.state.S?.run;
+    if (run?.activeTaskId && run.phase) return dispatchAction("play", { id: run.activeTaskId });
+    if (kbCol === "tasks") {
+      const el = kbRows("tasks")[kbIdx];
+      if (el) return dispatchAction("play", { id: el.dataset.dragId });
+    }
+    const lastId = run?.lastTaskId || appState.state.lastTaskId;
+    if (lastId) dispatchAction("play", { id: lastId });
+  }
+  // True when single-key shortcuts must NOT fire: when the feature is toggled
+  // off (Settings > Keyboard), while typing in a field, while a dialog/overlay
+  // is open, or when a modifier is held (so browser/OS combos and the ⌘[ ⌘]
+  // history keys below pass through untouched).
+  function kbSuppressed(event) {
+    if (!appState.state.keybindings) return true;
+    if (event.metaKey || event.ctrlKey || event.altKey) return true;
+    const a = document.activeElement;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT" || a.isContentEditable)) return true;
+    if (document.getElementById("doverlay")?.classList.contains("show")) return true;
+    if (document.querySelector(".overlay.show")) return true;
+    return false;
+  }
+
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && document.activeElement?.id === "topbarSearch") {
-      renderer.clearSearch();
-      document.getElementById("topbarSearch")?.blur();
+    if (event.key === "Escape") {
+      if (document.activeElement?.id === "topbarSearch") {
+        renderer.clearSearch();
+        document.getElementById("topbarSearch")?.blur();
+        return;
+      }
+      if (appState.state.lyricsId && !document.getElementById("doverlay").classList.contains("show")) {
+        renderer.closeLyrics();
+        return;
+      }
+      if (kbHasFocus()) { kbClear(); return; }
+    }
+
+    if (event.metaKey && (event.key === "[" || event.key === "]")) {
+      if (document.querySelector(".overlay.show")) return;
+      event.preventDefault();
+      event.key === "[" ? renderer.goBack() : renderer.goForward();
       return;
     }
-    if (event.key === "Escape" && appState.state.lyricsId && !document.getElementById("doverlay").classList.contains("show")) {
-      renderer.closeLyrics();
-      return;
+
+    if (kbSuppressed(event)) return;
+
+    switch (event.key) {
+      case "h": event.preventDefault(); kbClear(); return dispatchAction("goHome");
+      case "i": event.preventDefault(); kbClear(); return dispatchAction("openInsightsPage");
+      case "s": event.preventDefault(); kbClear(); return dispatchAction("openSettingsPage");
+      case "l": event.preventDefault(); return kbApply("sidebar", 0);
+      case "t": event.preventDefault(); return kbApply("tasks", 0);
+      case "j": event.preventDefault(); return kbMove(1);
+      case "k": event.preventDefault(); return kbMove(-1);
+      case "Enter": if (kbHasFocus()) { event.preventDefault(); kbActivate(); } return;
+      case " ": event.preventDefault(); return kbPlayPause();
+      case "/": {
+        event.preventDefault();
+        const search = document.getElementById("topbarSearch");
+        if (search) { search.focus(); search.select?.(); }
+        return;
+      }
+      case "?": event.preventDefault(); return commands.showShortcuts();
+      default: return;
     }
-    if (!event.metaKey || (event.key !== "[" && event.key !== "]")) return;
-    if (document.querySelector(".overlay.show")) return;
-    event.preventDefault();
-    event.key === "[" ? renderer.goBack() : renderer.goForward();
   });
 
   return { appState, renderer, commands };

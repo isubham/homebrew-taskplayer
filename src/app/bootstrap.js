@@ -372,61 +372,99 @@ export function bootstrapApp() {
   window.addEventListener("resize", renderer.closeRowMenu);
 
   // ── Keyboard driving ──────────────────────────────────────────────────
-  // Roving keyboard focus across two columns: the sidebar's lists and the
-  // current task list. `kbCol`/`kbIdx` track which row is focused; the visual
-  // is a single `.kb-focus` ring in the DOM (no persisted state — a re-render
-  // resets it, which is fine since navigation is what triggers re-renders).
-  let kbCol = null;
+  // Tab cycles a "focused region" through the four panels — sidebar → main →
+  // now-playing rail (only when open) → player bar — and Shift+Tab reverses.
+  // The focused region gets an outline; inside the sidebar or main, j/k move a
+  // row highlight and Enter opens the list / plays the task. h and l are left
+  // unbound for now, reserved for vim-style left/right later.
+  const REGION_ORDER = ["sidebar", "main", "rail", "player"];
+  let kbRegion = null;
   let kbIdx = -1;
-  const kbHasFocus = () => kbCol !== null;
-  function kbClear() {
+  const kbHasFocus = () => kbRegion !== null;
+
+  // Regions currently on screen, in cycle order. The rail is only present once
+  // it's been toggled open (state.railOpen), so it's skipped otherwise.
+  function kbRegions() {
+    const elFor = {
+      sidebar: document.querySelector(".side"),
+      main: document.getElementById("main"),
+      rail: appState.state.railOpen ? document.getElementById("nprail") : null,
+      player: document.querySelector(".player"),
+    };
+    return REGION_ORDER.map((key) => ({ key, el: elFor[key] })).filter((r) => r.el);
+  }
+  // Focusable rows inside a region — lists in the sidebar, task rows in main.
+  // Rail and player have no row-level navigation yet (highlight only).
+  function kbRows(region) {
+    if (region === "sidebar") return Array.from(document.querySelectorAll("#lists .list-item[data-drag-list-id]"));
+    if (region === "main") return Array.from(document.querySelectorAll("#main tr[data-drag-id]"));
+    return [];
+  }
+  function kbClearHighlights() {
+    document.querySelectorAll(".region-focus").forEach((el) => el.classList.remove("region-focus"));
     document.querySelectorAll(".kb-focus").forEach((el) => el.classList.remove("kb-focus"));
-    kbCol = null;
+  }
+  function kbClear() {
+    kbClearHighlights();
+    kbRegion = null;
     kbIdx = -1;
   }
-  function kbRows(col) {
-    if (col === "sidebar") {
-      // Filter out rows in collapsed sections (display:none) — getClientRects
-      // is reliable here since these are <div> rows.
-      return Array.from(document.querySelectorAll("#lists .list-item[data-drag-list-id]"))
-        .filter((el) => el.getClientRects().length > 0);
+  // Highlight a row within the current region. In the sidebar, a target inside
+  // a collapsed section expands it first, then re-finds the row in fresh DOM.
+  function kbFocusRow(idx) {
+    const rows = kbRows(kbRegion);
+    if (!rows.length) { kbIdx = -1; return; }
+    const clamped = Math.max(0, Math.min(rows.length - 1, idx));
+    let el = rows[clamped];
+    if (kbRegion === "sidebar") {
+      const collapsed = el.closest(".list-section.collapsed");
+      if (collapsed) {
+        const key = collapsed.querySelector(".ls-header")?.dataset.area;
+        const id = el.dataset.dragListId;
+        renderer.expandAreaSection(key);
+        el = document.querySelector(`#lists .list-item[data-drag-list-id="${id}"]`) || el;
+      }
     }
-    // Task rows are never inside a collapsed container, so no visibility filter
-    // is needed — and skipping it avoids any <tr>-specific measurement quirks.
-    return Array.from(document.querySelectorAll("#main tr[data-drag-id]"));
-  }
-  function kbApply(col, idx) {
-    const rows = kbRows(col);
-    document.querySelectorAll(".kb-focus").forEach((el) => el.classList.remove("kb-focus"));
-    if (!rows.length) { kbCol = null; kbIdx = -1; return; }
-    kbCol = col;
-    kbIdx = Math.max(0, Math.min(rows.length - 1, idx));
-    const el = rows[kbIdx];
+    document.querySelectorAll(".kb-focus").forEach((e) => e.classList.remove("kb-focus"));
+    kbIdx = clamped;
     el.classList.add("kb-focus");
     el.scrollIntoView({ block: "nearest" });
   }
+  // Move focus to a region by key: outline it only. No row is pre-selected —
+  // a task/list gets highlighted only once the user presses j/k, so opening
+  // or Tabbing into a region never lights up a "default" row unprompted.
+  function kbSetRegion(key) {
+    kbClearHighlights();
+    kbRegion = key;
+    kbIdx = -1;
+    const region = kbRegions().find((r) => r.key === key);
+    if (region) region.el.classList.add("region-focus");
+  }
+  function kbCycle(dir) {
+    const regions = kbRegions();
+    if (!regions.length) return;
+    const at = regions.findIndex((r) => r.key === kbRegion);
+    const next = at === -1 ? (dir > 0 ? 0 : regions.length - 1) : (at + dir + regions.length) % regions.length;
+    kbSetRegion(regions[next].key);
+  }
   function kbMove(delta) {
-    if (kbCol === null) {
-      kbApply("tasks", 0);
-      if (kbCol === null) kbApply("sidebar", 0);
-      return;
-    }
-    kbApply(kbCol, kbIdx + delta);
+    if (kbRegion !== "sidebar" && kbRegion !== "main") return;
+    // First j/k in a region lands on the first row; after that, it moves.
+    kbFocusRow(kbIdx === -1 ? 0 : kbIdx + delta);
   }
   function kbActivate() {
-    const el = kbRows(kbCol)[kbIdx];
+    const el = kbRows(kbRegion)[kbIdx];
     if (!el) return;
-    if (kbCol === "sidebar") dispatchAction("selectList", { id: el.dataset.dragListId });
-    else dispatchAction("play", { id: el.dataset.dragId });
+    if (kbRegion === "sidebar") dispatchAction("selectList", { id: el.dataset.dragListId });
+    else if (kbRegion === "main") dispatchAction("play", { id: el.dataset.dragId });
   }
   // Space = play/pause the "current" task, media-player style: the active one
-  // if a session is running, else the keyboard-focused task, else the last
-  // one played. play() toggles, so re-pressing on the active task pauses it.
+  // if a session is running, else the focused task, else the last one played.
   function kbPlayPause() {
     const run = appState.state.S?.run;
     if (run?.activeTaskId && run.phase) return dispatchAction("play", { id: run.activeTaskId });
-    if (kbCol === "tasks") {
-      const el = kbRows("tasks")[kbIdx];
+    if (kbRegion === "main") {
+      const el = kbRows("main")[kbIdx];
       if (el) return dispatchAction("play", { id: el.dataset.dragId });
     }
     const lastId = run?.lastTaskId || appState.state.lastTaskId;
@@ -469,15 +507,31 @@ export function bootstrapApp() {
 
     if (kbSuppressed(event)) return;
 
+    if (event.key === "Tab") {
+      event.preventDefault();
+      kbCycle(event.shiftKey ? -1 : 1);
+      return;
+    }
+
     switch (event.key) {
-      case "h": event.preventDefault(); kbClear(); return dispatchAction("goHome");
       case "i": event.preventDefault(); kbClear(); return dispatchAction("openInsightsPage");
       case "s": event.preventDefault(); kbClear(); return dispatchAction("openSettingsPage");
-      case "l": event.preventDefault(); return kbApply("sidebar", 0);
-      case "t": event.preventDefault(); return kbApply("tasks", 0);
       case "j": event.preventDefault(); return kbMove(1);
       case "k": event.preventDefault(); return kbMove(-1);
-      case "Enter": if (kbHasFocus()) { event.preventDefault(); kbActivate(); } return;
+      case "n": {
+        // Context-sensitive "new", by focused region: a list in the sidebar, a
+        // task in main, a session for the current track in the rail/player.
+        event.preventDefault();
+        if (kbRegion === "sidebar") return commands.addList();
+        if (kbRegion === "main") return commands.addTask();
+        if (kbRegion === "rail" || kbRegion === "player") {
+          const run = appState.state.S?.run;
+          const taskId = run?.activeTaskId || run?.lastTaskId;
+          if (taskId) commands.addSession(taskId);
+        }
+        return;
+      }
+      case "Enter": if (kbRegion === "sidebar" || kbRegion === "main") { event.preventDefault(); kbActivate(); } return;
       case " ": event.preventDefault(); return kbPlayPause();
       case "/": {
         event.preventDefault();

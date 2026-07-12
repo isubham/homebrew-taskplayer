@@ -1,5 +1,11 @@
 # TaskPlayer — project notes for Claude
 
+## Working memory (assistant + preferences)
+
+- Address me as **Jarvis** — the user prefers this name for the assistant.
+- Responses: concise and direct; minimal formatting; cut words that don't change the meaning.
+- Full/growing record: `memory/preferences.md`.
+
 ## ADHD design rules — do not break these
 
 These are hard constraints on this app's design, derived from Russell A. Barkley's *Taking Charge

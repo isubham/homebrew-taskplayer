@@ -170,6 +170,8 @@ body{
 .kb-focus{background:rgba(29,185,84,.14)}
 .list-item.kb-focus{box-shadow:inset 2px 0 0 0 var(--green)}
 tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
+/* Tab-focused region outline (sidebar / main / rail / player). */
+.region-focus{outline:2px solid var(--green);outline-offset:-2px}
 /* iOS-style toggle switch (Settings > Keyboard) — see keyboardSectionHtml. */
 .switch{width:40px;height:22px;border-radius:999px;background:var(--bg3);border:none;position:relative;cursor:pointer;padding:0;flex:none;transition:background .15s}
 .switch.on{background:var(--green)}

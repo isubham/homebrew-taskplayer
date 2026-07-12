@@ -193,6 +193,15 @@ export function createRenderer({ state, helpers, actions }) {
     renderSidebar();
   }
 
+  // Force a section open (idempotent) — used by keyboard navigation so moving
+  // onto a list inside a collapsed section reveals it rather than dead-ending.
+  function expandAreaSection(key) {
+    if (!key || !state.sidebarCollapsed[key]) return;
+    state.sidebarCollapsed[key] = false;
+    try { localStorage.setItem("tp.sidebarCollapsed", JSON.stringify(state.sidebarCollapsed)); } catch (e) { /* non-fatal */ }
+    renderSidebar();
+  }
+
   // Per-list accent: keyed off `listItem.color`, set directly on #main so
   // the header wash, the big play button, the playing-row highlight, and
   // the toolbar's "Add task" pill hover all pick it up through CSS
@@ -2368,6 +2377,7 @@ export function createRenderer({ state, helpers, actions }) {
     renderPinnedNav,
     renderSidebar,
     toggleAreaSection,
+    expandAreaSection,
     toggleLifeAgainst,
     selectAgainstArea,
     toggleKeybindings,

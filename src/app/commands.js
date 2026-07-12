@@ -386,11 +386,11 @@ export function createCommands({ state, ui, renderer, invoke }) {
   // Settings > Keyboard. Single source so the two never drift.
   function showShortcuts() {
     const rows = [
-      ["h", "Home"], ["i", "Insights"], ["s", "Settings"],
-      ["l", "Focus first list"], ["t", "Focus first task"],
-      ["j / k", "Move down / up"], ["Enter", "Open list / play task"],
-      ["Space", "Play / pause current"], ["/", "Search"],
-      ["⌘[ / ⌘]", "Back / forward"], ["?", "This help"], ["Esc", "Close / clear focus"],
+      ["Tab", "Next region"], ["⇧ Tab", "Previous region"],
+      ["j / k", "Move down / up in region"], ["Enter", "Open list / play task"],
+      ["n", "New list / task / session (by region)"],
+      ["Space", "Play / pause current"], ["i", "Insights"], ["s", "Settings"],
+      ["/", "Search"], ["⌘[ / ⌘]", "Back / forward"], ["?", "This help"], ["Esc", "Clear focus"],
     ];
     const body = `<div style="display:grid;grid-template-columns:auto 1fr;gap:9px 16px;align-items:center">`
       + rows.map(([k, d]) => `<kbd style="justify-self:start;background:var(--bg3);border-radius:4px;padding:2px 8px;font-family:monospace;font-size:12px;color:#fff">${k}</kbd><span style="color:var(--muted);font-size:13px">${d}</span>`).join("")

@@ -52,6 +52,10 @@ struct AppState {
     /// by `install_update`. A single slot is enough — only one "is there an
     /// update" round-trip is ever in flight from the Settings page at a time.
     pending_update: Mutex<Option<tauri_plugin_updater::Update>>,
+    /// Version string of the last update the background checker already
+    /// notified about, so the 4-hourly poll doesn't re-notify for the same
+    /// release every cycle until the user actually installs it.
+    last_notified_update_version: Mutex<Option<String>>,
     /// OS app-data directory — also where the SQLite file and session.json live.
     data_dir: PathBuf,
 }
@@ -815,6 +819,16 @@ fn set_estimate(app: AppHandle, state: State<AppState>, id: String, minutes: Opt
 }
 
 #[tauri::command]
+fn set_deadline(app: AppHandle, state: State<AppState>, id: String, deadline_at: Option<i64>) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_deadline(&id, deadline_at);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
 fn set_task_impact(app: AppHandle, state: State<AppState>, id: String, tier: Option<String>, sign: i64) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
@@ -1267,6 +1281,55 @@ async fn check_for_update(app: AppHandle, state: State<'_, AppState>) -> Result<
     }
 }
 
+/// Same check as `check_for_update`, but run unattended from the 4-hourly
+/// background loop (see the timer setup below) instead of the Settings page.
+/// Stashes the handle exactly like the manual path (so "Install" from a
+/// notification's follow-up Settings visit works without re-checking), but
+/// additionally fires a system notification — gated on
+/// `last_notified_update_version` so the same release doesn't re-notify
+/// every cycle until the user updates or a newer version ships.
+async fn check_for_update_background(app: &AppHandle) {
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(e) => {
+            log_line(format!("background update check: updater() failed: {e}"));
+            return;
+        }
+    };
+    let update = match updater.check().await {
+        Ok(u) => u,
+        Err(e) => {
+            log_line(format!("background update check failed: {e}"));
+            return;
+        }
+    };
+    let state = app.state::<AppState>();
+    let Some(update) = update else {
+        *state.pending_update.lock().unwrap() = None;
+        return;
+    };
+    let version = update.version.clone();
+    let already_notified = state.last_notified_update_version.lock().unwrap().as_deref() == Some(version.as_str());
+    *state.pending_update.lock().unwrap() = Some(update.clone());
+    if already_notified {
+        return;
+    }
+    *state.last_notified_update_version.lock().unwrap() = Some(version.clone());
+    let notif_app = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        match notif_app
+            .notification()
+            .builder()
+            .title("TaskPlayer update available")
+            .body(format!("Version {version} is ready — open Settings to install."))
+            .show()
+        {
+            Ok(()) => {}
+            Err(e) => log_line(format!("notification show() failed (update available): {e}")),
+        }
+    });
+}
+
 /// Downloads + installs whatever `check_for_update` last found, then
 /// restarts. Errors (network drop mid-download, signature mismatch, disk
 /// full) surface to the Settings page instead of leaving the app in a half
@@ -1432,6 +1495,7 @@ fn main() {
                 sync_status: Mutex::new(SyncStatus::default()),
                 music_playing: Mutex::new(false),
                 pending_update: Mutex::new(None),
+                last_notified_update_version: Mutex::new(None),
                 data_dir: dir.clone(),
             });
 
@@ -1750,6 +1814,23 @@ fn main() {
                 });
             });
 
+            // --- 4-hourly background loop: check for app updates ---
+            // The launch-time check (main.js, 4s after boot) covers "did I
+            // relaunch after you shipped a release" but nothing else — most
+            // users leave the app running for days at a stretch (it's a
+            // menu-bar timer). This is the same cadence Chrome/VS Code use
+            // for background update polling: frequent enough that a release
+            // reaches everyone within a few hours, far below GitHub's
+            // unauthenticated rate limit (60 req/hr/IP) even accounting for
+            // the launch check and any manual Settings clicks.
+            let update_handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(60 * 60 * 4));
+                guard("4h update-check loop", || {
+                    tauri::async_runtime::block_on(check_for_update_background(&update_handle));
+                });
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -1780,6 +1861,7 @@ fn main() {
             rename_task,
             set_depth,
             set_estimate,
+            set_deadline,
             set_task_impact,
             set_done,
             set_description,

@@ -10,6 +10,9 @@ create table if not exists public.lists (
 -- if this table already exists from before the "life areas" feature, run:
 -- alter table public.lists add column if not exists life_area text;
 -- alter table public.lists add column if not exists life_direction text;
+-- "Mental Wellbeing" merged into "Health & Wellbeing" (see migration 010,
+-- migrations.rs) — remap any remotely-stored wellbeing tags to match:
+-- update public.lists set life_area='health' where life_area='wellbeing';
 create table if not exists public.tasks (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -18,13 +21,16 @@ create table if not exists public.tasks (
   updated_at bigint not null default 0,
   deleted_at bigint,
   impact_tier text,
-  impact_sign bigint not null default 1
+  impact_sign bigint not null default 1,
+  deadline_at bigint
 );
 -- if this table already exists from before the "albums" feature, run:
 -- alter table public.tasks add column if not exists album text;
 -- if this table already exists from before the "impact" feature, run:
 -- alter table public.tasks add column if not exists impact_tier text;
 -- alter table public.tasks add column if not exists impact_sign bigint not null default 1;
+-- if this table already exists from before the "Now section" deadline feature, run:
+-- alter table public.tasks add column if not exists deadline_at bigint;
 create table if not exists public.sessions (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,

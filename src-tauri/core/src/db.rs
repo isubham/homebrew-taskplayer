@@ -123,7 +123,7 @@ impl Db {
     pub fn tasks(&self) -> rusqlite::Result<Vec<Task>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign FROM tasks WHERE deleted_at IS NULL ORDER BY ord")?;
+            .prepare("SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign,deadline_at FROM tasks WHERE deleted_at IS NULL ORDER BY ord")?;
         let rows = stmt.query_map([], |r| {
             Ok(Task {
                 id: r.get(0)?,
@@ -138,6 +138,7 @@ impl Db {
                 album: r.get(9)?,
                 impact_tier: r.get(10)?,
                 impact_sign: r.get::<_, Option<i64>>(11)?.unwrap_or(1),
+                deadline_at: r.get(12)?,
                 deleted_at: None,
             })
         })?;
@@ -150,7 +151,7 @@ impl Db {
             params![list_id],
             |r| r.get(0),
         )?;
-        let t = Task { id: new_id(), list_id: list_id.to_string(), name: name.to_string(), depth: None, order, estimate_min, album: None, completed_at: None, description: None, updated_at: now_ms(), impact_tier: None, impact_sign: 1, deleted_at: None };
+        let t = Task { id: new_id(), list_id: list_id.to_string(), name: name.to_string(), depth: None, order, estimate_min, album: None, completed_at: None, description: None, updated_at: now_ms(), impact_tier: None, impact_sign: 1, deadline_at: None, deleted_at: None };
         self.conn.execute(
             "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
             params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.impact_sign],
@@ -158,7 +159,7 @@ impl Db {
         Ok(t)
     }
 
-    /// Sets a task's impact tier ("low"|"medium"|"high"|"severe"|None) and
+    /// Sets a task's impact tier ("low"|"medium"|"high"|None) and
     /// sign (1 = for its list's tagged life area, -1 = against it) — see
     /// `Task`'s doc comments. This, not `estimate_min`, is what the jewel
     /// payout and life-balance radar contribution are weighed by.
@@ -185,6 +186,18 @@ impl Db {
     pub fn set_estimate(&self, id: &str, est_min: Option<i64>) -> rusqlite::Result<()> {
         self.conn
             .execute("UPDATE tasks SET est=?1, updated_at=?2 WHERE id=?3", params![est_min, now_ms(), id])?;
+        Ok(())
+    }
+
+    /// Sets (or clears, with `None`) a task's deadline — see `Task::deadline_at`'s
+    /// doc comment. Powers the Home page's "Now" section
+    /// (docs/homepage-now-spec.md); has no effect on its own until the task
+    /// also carries an `impact_tier` of at least medium.
+    pub fn set_deadline(&self, id: &str, deadline_at: Option<i64>) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET deadline_at=?1, updated_at=?2 WHERE id=?3",
+            params![deadline_at, now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -316,7 +329,7 @@ impl Db {
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         let mut tstmt = self.conn.prepare(
-            "SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign FROM tasks WHERE updated_at > ?1",
+            "SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at FROM tasks WHERE updated_at > ?1",
         )?;
         let tasks = tstmt
             .query_map(params![ts], |r| {
@@ -325,6 +338,7 @@ impl Db {
                     estimate_min: r.get(5)?, completed_at: r.get(6)?, description: r.get(7)?,
                     updated_at: r.get(8)?, deleted_at: r.get(9)?, album: r.get(10)?,
                     impact_tier: r.get(11)?, impact_sign: r.get::<_, Option<i64>>(12)?.unwrap_or(1),
+                    deadline_at: r.get(13)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -360,19 +374,20 @@ impl Db {
             )?;
         }
         for t in tasks {
-            // impact_tier/impact_sign now round-trip through Supabase like
-            // every other field (see sync.rs's RemoteTask) — the Supabase
-            // `tasks` table needs the matching columns added first (see the
-            // `alter table` note in db.sql) for a remote row to actually
-            // carry a real value here instead of the pre-migration default.
+            // impact_tier/impact_sign/deadline_at now round-trip through
+            // Supabase like every other field (see sync.rs's RemoteTask) —
+            // the Supabase `tasks` table needs the matching columns added
+            // first (see the `alter table` note in db.sql) for a remote row
+            // to actually carry a real value here instead of the
+            // pre-migration default.
             tx.execute(
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
                  ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
                    ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album,
-                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign
+                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at
                  WHERE excluded.updated_at > tasks.updated_at",
-                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign],
+                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at],
             )?;
         }
         for s in sessions {
@@ -410,8 +425,8 @@ impl Db {
         }
         for t in tasks {
             tx.execute(
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
-                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.album, t.impact_tier, t.impact_sign],
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at],
             )?;
         }
         for s in sessions {
@@ -723,9 +738,9 @@ mod tests {
         assert_eq!(t.impact_tier, None);
         assert_eq!(t.impact_sign, 1);
 
-        db.set_task_impact(&t.id, Some("severe"), -1).unwrap();
+        db.set_task_impact(&t.id, Some("high"), -1).unwrap();
         let reloaded = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap();
-        assert_eq!(reloaded.impact_tier.as_deref(), Some("severe"));
+        assert_eq!(reloaded.impact_tier.as_deref(), Some("high"));
         assert_eq!(reloaded.impact_sign, -1);
 
         // clearing the tier keeps the row (not deleted), just untagged again.

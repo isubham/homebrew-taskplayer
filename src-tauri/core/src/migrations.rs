@@ -136,6 +136,44 @@ pub const MIGRATIONS: &[Migration] = &[
         // just left unused, since nothing writes to it anymore.
         run: |conn| conn.execute_batch("DROP TABLE IF EXISTS task_areas;"),
     },
+    Migration {
+        name: "008_drop_severe_tier",
+        // `severe` (weight 8) is retired as an impact tier — `high` (weight
+        // 4) is now the top of the scale. Existing rows already tagged
+        // `severe` are remapped to `high` rather than left as an
+        // unrecognized string: IMPACT_TIERS on the frontend no longer has a
+        // `severe` entry, so an untouched row would silently stop paying
+        // out jewels and drop out of the life-balance radar the next time
+        // this task completes — remapping keeps it counted as the (now)
+        // top tier instead of quietly losing its weight.
+        run: |conn| {
+            conn.execute("UPDATE tasks SET impact_tier='high' WHERE impact_tier='severe'", [])?;
+            Ok(())
+        },
+    },
+    Migration {
+        name: "009_task_deadline",
+        // Powers the Home page's "Now" section (see
+        // docs/homepage-now-spec.md): an optional per-task deadline,
+        // independent of impact_tier/estimate_min. NULL = no deadline set,
+        // same "weightless until tagged" convention as impact_tier.
+        run: |conn| add_column(conn, "tasks", "deadline_at", "INTEGER"),
+    },
+    Migration {
+        name: "010_merge_wellbeing_into_health",
+        // "Mental Wellbeing" is folded into "Health & Fitness" as a single
+        // "Health & Wellbeing" area (see LIFE_AREAS in utils.js). The `health`
+        // key survives; lists tagged with the retired `wellbeing` key are
+        // remapped to `health` rather than left as an unrecognized string —
+        // same reasoning as 008's severe->high remap: an untouched row would
+        // otherwise drop out of the sidebar's area grouping (into "Unsorted")
+        // and out of the life-balance radar. Direction (for/against) is on the
+        // list already and is unaffected.
+        run: |conn| {
+            conn.execute("UPDATE lists SET life_area='health' WHERE life_area='wellbeing'", [])?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in

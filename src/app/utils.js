@@ -17,12 +17,17 @@
 // language instead of introducing a second one.
 export const LIFE_AREAS = [
   { key: "career", label: "Career / Work", color: "#509bf5" },
-  { key: "health", label: "Health & Fitness", color: "#1db954" },
+  // Health & Wellbeing merges the former separate "Health & Fitness" and
+  // "Mental Wellbeing" areas — physical and mental health as one axis. Keeps
+  // the "health" key so already-tagged lists need no change; lists tagged
+  // with the retired "wellbeing" key are remapped to "health" by migration
+  // 010 (see migrations.rs). Retains health's green so the axis identity
+  // (and its radar colour) carries over rather than jumping to a new hue.
+  { key: "health", label: "Health & Wellbeing", color: "#1db954" },
   { key: "relationships", label: "Relationships", color: "#e8115b" },
   { key: "growth", label: "Personal Growth", color: "#8d67ab" },
   { key: "finance", label: "Finances", color: "#e8b923" },
   { key: "recreation", label: "Recreation", color: "#ba5d07" },
-  { key: "wellbeing", label: "Mental Wellbeing", color: "#27856a" },
 ];
 
 // ---- Impact: a task's tier + direction, independent of tracked time ----
@@ -37,7 +42,7 @@ export const LIFE_AREAS = [
 // with (see LIFE_AREAS / TaskList.lifeArea below), same as it was before
 // any of this existed.
 
-// Independent of `estimateMin` on purpose — a 5-minute task can be `severe`,
+// Independent of `estimateMin` on purpose — a 5-minute task can be `high`,
 // a 2-hour one `low`. `weight` is the only number left driving anything
 // (jewel payout, and the life-balance radar's weighting — see render.js).
 // Deliberately NOT randomized: the payout for a given tier is always the
@@ -47,9 +52,8 @@ export const IMPACT_TIERS = {
   low: { label: "Low", weight: 1 },
   medium: { label: "Medium", weight: 2 },
   high: { label: "High", weight: 4 },
-  severe: { label: "Severe", weight: 8 },
 };
-export const IMPACT_TIER_KEYS = ["low", "medium", "high", "severe"];
+export const IMPACT_TIER_KEYS = ["low", "medium", "high"];
 
 // Deterministic jewel payout for completing `task` — the exact number shown
 // before the user commits (see render.js) and the same number used again
@@ -137,6 +141,31 @@ export function fmtHM(ms) {
   return hours ? (remainder ? `${hours}h ${remainder}m` : `${hours}h`) : `${minutes}m`;
 }
 
+// Exact-date deadline label for the Home page's "Now" rows (see
+// docs/homepage-now-spec.md) — "due Jul 15", with the year appended only when
+// it isn't the current one. The now-row's own filling deadline bar carries
+// the physical time cue (ADHD rule 3, "make time physical"), so the text can
+// be a plain calendar date here. Deliberately flat/factual even once overdue
+// — a past date reads as "due Jul 5", never "Overdue!" — per the ADHD x
+// gamification rules in CLAUDE.md against urgency/loss framing.
+export function deadlineDate(ts, now = Date.now()) {
+  const d = new Date(ts);
+  const sameYear = d.getFullYear() === new Date(now).getFullYear();
+  const opts = sameYear
+    ? { month: "short", day: "numeric" }
+    : { month: "short", day: "numeric", year: "numeric" };
+  return `due ${d.toLocaleDateString(undefined, opts)}`;
+}
+
+// ms epoch -> "YYYY-MM-DD" for an <input type="date">'s value attribute —
+// local calendar date, not a UTC-shifted one (deadlineAt is always stored as
+// midnight *local* time, see Task.deadline_at's doc comment).
+export function toDateInputValue(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function estPct(task, taskTotal) {
   return task.estimateMin ? Math.min(100, Math.round(taskTotal(task.id) / (task.estimateMin * 60000) * 100)) : 0;
 }
@@ -153,9 +182,9 @@ export function estPct(task, taskTotal) {
 // over-estimate part, and the readout collapses to just the total plus a
 // small "+Xh over" tag.
 // Session count used to also live here as a "×N" badge crammed into the
-// bar's corner — it's now its own column next to this one (see taskRow /
-// renderRecentPage in render.js), so this only returns `sessionCount` for
-// the caller to render there instead of drawing it itself.
+// bar's corner — it's now its own column next to this one (see taskRow in
+// render.js), so this only returns `sessionCount` for the caller to render
+// there instead of drawing it itself.
 export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {}) {
   if (!estimateMin) return null;
   const estimateMs = estimateMin * 60000;

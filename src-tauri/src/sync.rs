@@ -120,6 +120,10 @@ struct RemoteTask {
     // life_area/life_direction above.
     impact_tier: Option<String>,
     impact_sign: i64,
+    // Deadline (see models.rs's Task doc comments and
+    // docs/homepage-now-spec.md) — same "requires an `alter table` on an
+    // older Supabase project" caveat as impact_tier above.
+    deadline_at: Option<i64>,
 }
 
 impl RemoteTask {
@@ -139,6 +143,7 @@ impl RemoteTask {
             album: t.album.clone(),
             impact_tier: t.impact_tier.clone(),
             impact_sign: t.impact_sign,
+            deadline_at: t.deadline_at,
         }
     }
     fn into_local(self) -> Task {
@@ -156,6 +161,7 @@ impl RemoteTask {
             album: self.album,
             impact_tier: self.impact_tier,
             impact_sign: self.impact_sign,
+            deadline_at: self.deadline_at,
         }
     }
 }

@@ -33,15 +33,16 @@ pub struct TaskList {
     pub updated_at: i64,
     /// Life-balance area this list's tracked time counts toward (see the
     /// Home page's radar chart) — one of "career" | "health" |
-    /// "relationships" | "growth" | "finance" | "recreation" | "wellbeing",
-    /// or None for an untagged list that just doesn't factor into the
-    /// chart. `#[serde(default)]` keeps lists saved before this field
+    /// "relationships" | "growth" | "finance" | "recreation" (the retired
+    /// "wellbeing" is folded into "health" as "Health & Wellbeing", see
+    /// migration 010), or None for an untagged list that just doesn't factor
+    /// into the chart. `#[serde(default)]` keeps lists saved before this field
     /// existed deserializable.
     #[serde(default)]
     pub life_area: Option<String>,
     /// "increase" | "decrease" — whether time spent in this list should
     /// count FOR or AGAINST its tagged `life_area` (e.g. a "Doomscrolling"
-    /// list tagged decrease:wellbeing pulls that axis down instead of up).
+    /// list tagged decrease:health pulls that axis down instead of up).
     /// Meaningless when `life_area` is None. `#[serde(default)]` keeps
     /// lists saved before this field existed deserializable.
     #[serde(default)]
@@ -78,8 +79,8 @@ pub struct Task {
     /// ms epoch of last change — drives cross-device sync (last-write-wins).
     #[serde(default)]
     pub updated_at: i64,
-    /// "low" | "medium" | "high" | "severe" | None. Independent of
-    /// `estimate_min` on purpose — a 5-minute task can be `severe` and a
+    /// "low" | "medium" | "high" | None. Independent of
+    /// `estimate_min` on purpose — a 5-minute task can be `high` and a
     /// 2-hour one `low`; this (not duration) is what the frontend weighs
     /// jewel payout and the life-balance radar contribution by. None = not
     /// yet set, treated as weightless (no jewels either way) rather than
@@ -88,11 +89,21 @@ pub struct Task {
     #[serde(default)]
     pub impact_tier: Option<String>,
     /// 1 = counts FOR its list's tagged life area, -1 = AGAINST it (the
-    /// "smoked a cigarette" case — severe, but negative). Local-only for now,
+    /// "smoked a cigarette" case — outsized, but negative). Local-only for now,
     /// same as `TaskList::life_area`/`life_direction` (see the comment on
     /// those) — not yet part of the Supabase remote schema.
     #[serde(default = "default_impact_sign")]
     pub impact_sign: i64,
+    /// Optional deadline (ms epoch, date granularity — always midnight local
+    /// time of the chosen day). None = no deadline. Independent of
+    /// `estimate_min` (a deadline is *when*, an estimate is *how long*) and
+    /// of `impact_tier` (a task can carry either without the other) — the
+    /// Home page's "Now" section (see docs/homepage-now-spec.md) only
+    /// surfaces a task once it has BOTH a deadline and `impact_tier` of at
+    /// least medium. `#[serde(default)]` keeps tasks saved before this field
+    /// existed deserializable.
+    #[serde(default)]
+    pub deadline_at: Option<i64>,
     /// Soft-delete tombstone; never sent to the frontend (deleted rows are
     /// filtered out of every normal query before they'd reach a Snapshot).
     #[serde(skip)]

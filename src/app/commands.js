@@ -300,6 +300,23 @@ export function createCommands({ state, ui, renderer, invoke }) {
     apply(await invoke("set_estimate", { id, minutes: nextHours > 0 ? Math.round(nextHours * 60) : null }));
   }
 
+  // Deadline field (see render.js's renderDetail and
+  // docs/homepage-now-spec.md) — a plain <input type="date"> that commits on
+  // change, same immediate-commit contract as setEstimateInline above.
+  // Clearing the date clears the deadline. Stored as midnight-local ms epoch
+  // (date granularity only — the Now section only ever needs "which day",
+  // not a time-of-day).
+  async function setDeadlineInline(id, dateStr) {
+    const trimmed = (dateStr ?? "").trim();
+    if (trimmed === "") {
+      apply(await invoke("set_deadline", { id, deadlineAt: null }));
+      return;
+    }
+    const ms = new Date(trimmed + "T00:00:00").getTime();
+    if (isNaN(ms)) return;
+    apply(await invoke("set_deadline", { id, deadlineAt: ms }));
+  }
+
   // "Impact" used to be a separate dialog (uiForm/#dmodal), then grew a
   // per-task multi-area weighted split inline in the task panel — both cut
   // back to just these two controls (see utils.js's comment for why). Every
@@ -376,6 +393,19 @@ export function createCommands({ state, ui, renderer, invoke }) {
 
   async function reorderLists(orderedIds) {
     apply(await invoke("reorder_lists", { orderedIds }));
+  }
+
+  // Re-file a list into a life area by dragging it onto a sidebar section
+  // header (see renderSidebar in render.js). Reuses the same set_list_life_tag
+  // command the edit-list dialog uses. Moving to "Unsorted" (area = null)
+  // clears the for/against direction too, since a direction with no area is
+  // meaningless; moving between real areas keeps the existing direction.
+  async function setListArea(id, area) {
+    const current = list(id);
+    if (!current) return;
+    const normalized = area || null;
+    const direction = normalized ? (current.lifeDirection || null) : null;
+    apply(await invoke("set_list_life_tag", { id, area: normalized, direction }));
   }
 
   async function editLyrics(id) {
@@ -681,6 +711,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     addList,
     editList,
     reorderLists,
+    setListArea,
     deleteList,
     selectList,
     addTask,
@@ -690,6 +721,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     setEstimateInline,
     bumpEstimate,
     decreaseEstimate,
+    setDeadlineInline,
     setImpactTier,
     setImpactSign,
     toggleDone,

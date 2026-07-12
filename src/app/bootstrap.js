@@ -23,12 +23,17 @@ export function bootstrapApp() {
       case "setEstimateInline": return commands.setEstimateInline(id, value);
       case "bumpEstimate": return commands.bumpEstimate(id);
       case "decreaseEstimate": return commands.decreaseEstimate(id);
+      case "setDeadlineInline": return commands.setDeadlineInline(id, value);
       case "setImpactTier": return commands.setImpactTier(id, payload.tier);
       case "setImpactSign": return commands.setImpactSign(id, payload.sign);
       case "toggleDone": return commands.toggleDone(id);
       case "moveTaskInline": return commands.moveTaskInline(id, value);
       case "reorderTasks": return commands.reorderTasks(listId, payload.orderedIds);
       case "reorderLists": return commands.reorderLists(payload.orderedIds);
+      case "setListArea": return commands.setListArea(id, payload.area);
+      case "toggleAreaSection": return renderer.toggleAreaSection(payload.area);
+      case "toggleLifeAgainst": return renderer.toggleLifeAgainst();
+      case "selectAgainstArea": return renderer.selectAgainstArea(payload.key);
       case "setAlbum": return commands.setAlbum(id);
       case "moveTaskToAlbum": return commands.moveTaskToAlbum(id, value);
       case "editLyrics": return commands.editLyrics(id);
@@ -71,7 +76,6 @@ export function bootstrapApp() {
       case "searchGoTask": return renderer.searchGoTask(id);
       case "openSettingsPage": return renderer.openSettingsPage();
       case "openInsightsPage": return renderer.openInsightsPage();
-      case "openRecentPage": return renderer.openRecentPage();
       case "toggleCompleted": return renderer.toggleCompleted();
       case "playFirst": return renderer.playFirst();
       case "openRowMenu": return renderer.openRowMenu(element, id);
@@ -269,6 +273,9 @@ export function bootstrapApp() {
     document.querySelectorAll(".list-item.drag-over-top,.list-item.drag-over-bottom").forEach((other) => {
       if (other !== row) other.classList.remove("drag-over-top", "drag-over-bottom");
     });
+    // Hovering a row is a reorder, not a re-file — drop any section-header
+    // highlight left over from hovering a header a moment ago.
+    document.querySelectorAll(".ls-header.drop-zone-over").forEach((el) => el.classList.remove("drop-zone-over"));
     row.classList.toggle("drag-over-top", before);
     row.classList.toggle("drag-over-bottom", !before);
   });
@@ -295,9 +302,37 @@ export function bootstrapApp() {
     listDragId = null;
   });
 
+  // Drop a dragged list onto a life-area section header to re-file it into
+  // that area (or into "Unsorted", whose header carries an empty data-area-
+  // drop). Mirrors the album drop-zone pattern used for tasks above; the
+  // reorder handler above ignores header drops (its .list-item lookup returns
+  // null), so the two gestures never fight over one drop.
+  document.addEventListener("dragover", (event) => {
+    if (!listDragId) return;
+    const header = event.target.closest(".ls-header[data-area-drop]");
+    if (!header) return;
+    event.preventDefault();
+    document.querySelectorAll(".ls-header.drop-zone-over").forEach((el) => { if (el !== header) el.classList.remove("drop-zone-over"); });
+    document.querySelectorAll(".list-item.drag-over-top,.list-item.drag-over-bottom").forEach((el) => el.classList.remove("drag-over-top", "drag-over-bottom"));
+    header.classList.add("drop-zone-over");
+  });
+
+  document.addEventListener("drop", async (event) => {
+    if (!listDragId) return;
+    const header = event.target.closest(".ls-header[data-area-drop]");
+    if (!header) return;
+    event.preventDefault();
+    header.classList.remove("drop-zone-over");
+    const area = header.getAttribute("data-area-drop") || null;
+    const moved = listDragId;
+    listDragId = null;
+    await dispatchAction("setListArea", { id: moved, area });
+  });
+
   document.addEventListener("dragend", () => {
     document.querySelectorAll(".list-item.dragging").forEach((row) => row.classList.remove("dragging"));
     document.querySelectorAll(".list-item.drag-over-top,.list-item.drag-over-bottom").forEach((row) => row.classList.remove("drag-over-top", "drag-over-bottom"));
+    document.querySelectorAll(".ls-header.drop-zone-over").forEach((el) => el.classList.remove("drop-zone-over"));
     listDragId = null;
   });
 

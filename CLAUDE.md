@@ -40,3 +40,95 @@ features against this list before building them, not after.
 
 9. **No punitive tone.** Copy and visuals must never read as guilt-inducing or judgmental, even
    around a missed estimate, an incomplete task, or a "negative"-tagged action.
+
+## Gamification guidelines — Octalysis / 8 Core Drives
+
+Reference framework: Yu-kai Chou, *Actionable Gamification*. Use this whenever proposing or
+evaluating a gamification mechanic (rewards, streaks, badges, progress visuals, social features).
+It sits on top of the ADHD design rules above — nothing here should override rule 4, 5, or 7.
+
+**White Hat vs. Black Hat.** Every mechanic falls into one of two buckets:
+
+- **White Hat drives** (Meaning, Accomplishment, Creativity) — feel good, intrinsically
+  motivating, no anxiety or urgency involved. Prefer these as the foundation of any feature.
+- **Black Hat drives** (Scarcity, Unpredictability, Loss) — highly effective at spiking short-term
+  engagement, but operate through anxiety, compulsion, or fear of missing out. Treat these as
+  off-limits by default for this app — they conflict directly with ADHD rules 7 and 9 (no shame
+  tally, no punitive tone) and risk building compulsive rather than healthy usage patterns.
+- Ownership and Social sit in between — usable, but check them against the ADHD rules before
+  shipping (e.g., social comparison features must not create a public "failure" record).
+
+**The 8 Core Drives, and how to apply/avoid each here:**
+
+1. **Epic Meaning & Calling** (White Hat) — frame the work as mattering, not just as a checklist.
+   E.g., copy that ties a task back to the user's own stated goal, not generic "task completed!"
+   messaging.
+
+2. **Development & Accomplishment** (White Hat) — visible skill/progress growth from real effort.
+   E.g., jewels or session counts that reflect genuine completed work (ties to ADHD rule 4) —
+   never inflate this with participation-only rewards, which cheapens it.
+
+3. **Empowerment of Creativity & Feedback** (White Hat) — let the user act and see immediate
+   results. E.g., letting a user customize a session or task view and seeing that choice reflected
+   right away, rather than a fixed, non-interactive layout.
+
+4. **Ownership & Possession** (middle) — a personal collection (jewels, streak history) the user
+   wants to maintain. Fine to use, but the collection view must stay a quick glance, not a
+   browsable destination (ADHD rule 5).
+
+5. **Social Influence & Relatedness** (middle) — mentorship/comparison features. Only use if they
+   cannot produce a visible "you're behind/failing" state for any user — that would violate ADHD
+   rule 7 (no permanent negative record).
+
+6. **Scarcity & Impatience** (Black Hat — avoid) — e.g., limited-time rewards or "act now or lose
+   this" messaging. Do not use; creates urgency/anxiety incompatible with this app's purpose.
+
+7. **Unpredictability & Curiosity** (Black Hat — avoid) — e.g., randomized/variable reward sizes
+   (loot-box style). Do not use; jewels must be deterministic per ADHD rule 4, and variable
+   rewards are the mechanism behind compulsive, addictive engagement loops.
+
+8. **Loss & Avoidance** (Black Hat — avoid) — e.g., streak-break shaming, "don't lose your
+   progress" pressure. Do not use; directly conflicts with ADHD rules 7 and 9.
+
+**Rule of thumb when introducing any new gamification concept:** name which Core Drive(s) it
+uses, confirm it's White Hat (or justify the middle-tier exception), and check it against the ADHD
+design rules before proposing it.
+
+## ADHD × gamification — hard constraints (non-negotiable)
+
+Why these are stricter than generic Octalysis advice: ADHD brains are more reward-sensitive and
+more delay-averse than neurotypical brains (Barkley; Sonuga-Barke), and ADHD is a known risk
+factor for problematic/compulsive engagement with games and apps. That means Black Hat mechanics
+don't just work on this population the same as anyone else — they work *harder*. A mechanic that's
+merely "engaging" for a neurotypical user can be compulsive for an ADHD user. So the bar here is
+higher than "is this good gamification," it's "does this exploit reward-sensitivity that this
+specific user already struggles to regulate." Any new gamification feature must pass all of these
+before it ships:
+
+1. **No variable or randomized rewards, ever.** Reward size/type must be fixed and disclosed
+   before the user commits to the task. Variable-ratio reinforcement (loot-box style) is the
+   mechanism behind compulsive engagement loops, and ADHD's reward-sensitivity makes it more
+   compulsive here, not less. (Reinforces ADHD rule 4 and Core Drive 7 ban.)
+
+2. **No loss-framing, streak-break shaming, or "don't lose your progress" pressure.** ADHD
+   frequently co-occurs with rejection-sensitive dysphoria — a broken streak or lost progress can
+   land as disproportionate shame, not mild disappointment. (Reinforces ADHD rule 7 and Core
+   Drive 8 ban.)
+
+3. **No urgency or scarcity language** — countdown-to-expire rewards, "act now," limited-time
+   bonuses. Manufactured urgency compounds with ADHD impulsivity rather than motivating
+   healthily. (Core Drive 6 ban.)
+
+4. **Reward surfaces must resolve in a glance, not invite browsing.** If a progress/stats view
+   could plausibly hold a user's attention past a few seconds, it has become a new distraction
+   loop, not a reward check. (Reinforces ADHD rule 5.)
+
+5. **Every reward must trace to a real completed unit of work** — never to opening the app,
+   viewing a screen, or other engagement-only actions. Rewarding engagement instead of output
+   trains app-checking, not task-doing. (Reinforces ADHD rule 4 and Core Drive 2's "don't inflate
+   with participation-only rewards.")
+
+6. **Litmus test for any new mechanic:** does it work by the user *not knowing* what they'll get,
+   or by the user *fearing* what they'll lose? If yes to either, reject or redesign it — regardless
+   of how effective it would be at driving engagement. Effective-but-exploitative is a reason to
+   reject, not a reason to ship.

@@ -5,6 +5,17 @@ export function createAppState() {
     view: "tasks",
     completedOpen: false,
     railOpen: (localStorage.getItem("tp.rail") ?? "1") === "1",
+    // Which sidebar life-area sections are collapsed, keyed by area key (or
+    // "__unsorted__"). Purely local UI state, persisted like `railOpen` above
+    // so folding away an area you're not working in survives a restart.
+    sidebarCollapsed: (() => {
+      try { return JSON.parse(localStorage.getItem("tp.sidebarCollapsed") || "{}"); }
+      catch { return {}; }
+    })(),
+    // Home life-balance radar: whether the muted "pulling against" overlay is
+    // shown. Off by default so Home stays accomplishment-first; opt-in
+    // reflection, persisted like the flags above.
+    lifeBalanceAgainst: (localStorage.getItem("tp.lifeAgainst") ?? "0") === "1",
     route: { view: "tasks", listId: null },
     navBack: [],
     navFwd: [],

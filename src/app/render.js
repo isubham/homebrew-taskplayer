@@ -1,8 +1,9 @@
 import {
   esc, fmt, fmtLong, fmtEst, fmtHM, whenLabel, timeAgo, buildCapacityBar, albumColor, LIFE_AREAS,
-  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout,
+  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout, deadlineDate, toDateInputValue,
 } from "./utils.js";
 import { html, render as litRender } from "../vendor/lit-html.js";
+import { NOW_ITEMS_SIZE, RECENT_TASKS_SIZE } from "./constants.js";
 
 export function createRenderer({ state, helpers, actions }) {
   const { list, activeList, findTask, tasksForList, taskSessions, taskTotal, listTotal, listEstimateTotal, targetMs, modeLabel, modeGlyph } = helpers;
@@ -25,19 +26,10 @@ export function createRenderer({ state, helpers, actions }) {
 
   // Six-dot drag handle — the classic, instantly-recognizable "grab here" glyph.
   const GRIP_SVG = `<svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="14" r="1.3"/><circle cx="8" cy="14" r="1.3"/></svg>`;
-  // 15px — sized to the same visual weight as the 14px emoji glyphs beside
-  // them, both sitting in the fixed-width `.li-icon` column (see below) so
-  // every row's icon — Recent, Insights, and every list — starts at the
-  // exact same x position instead of drifting per row.
-  const CLOCK_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
-
-  // Same clock, sized for the Recent page's 160px `.hdr .cover` tile instead
-  // of the 16px sidebar icon column above — the other pages' covers (⚙, bar
-  // chart, a list's emoji) are plain text glyphs that scale automatically
-  // with the tile's 62px font-size, but an SVG's width/height attributes
-  // don't, so reusing the small CLOCK_SVG here left it stranded at 15px in
-  // a 160px box.
-  const CLOCK_SVG_HERO = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+  // Sidebar-icon convention: 15px, same visual weight as the 14px emoji
+  // glyphs beside them, both sitting in the fixed-width `.li-icon` column so
+  // every row's icon — Insights and every list — starts at the same x
+  // position instead of drifting per row.
 
   // Feather's "bar-chart-2" glyph — reads as analytics/trends, matching
   // what the Insights page actually is (day/week/month rollups, capacity
@@ -45,20 +37,29 @@ export function createRenderer({ state, helpers, actions }) {
   const INSIGHTS_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
 
   // Same bar-chart glyph, sized for the Insights page's 160px `.hdr .cover`
-  // tile — same reasoning as CLOCK_SVG_HERO above.
+  // tile — an SVG's width/height don't scale with the tile's font-size the
+  // way the other pages' text-glyph covers do, so it needs its own size.
   const INSIGHTS_SVG_HERO = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
 
   // Feather's "settings" gear — the topbar's lone icon-cluster button (see
-  // renderTopbar). Same stroke-based family as CLOCK_SVG/INSIGHTS_SVG above
-  // (used for Recent/Insights instead, as pinned sidebar rows — see
-  // renderPinnedNav), so all three still read as one icon language even
-  // though they no longer live in the same cluster.
+  // renderTopbar). Same stroke-based family as INSIGHTS_SVG above (used for
+  // Insights as a pinned sidebar row — see renderPinnedNav), so they still
+  // read as one icon language even though they don't live in the same
+  // cluster.
   const GEAR_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 
   // Same house glyph as the topbar's #tbhome button (index.html), sized to
   // the 15px sidebar-icon-column convention — used as the Home page's own
   // stickybar icon so it reads like the other pages' mini-headers.
   const HOME_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>`;
+
+  // Folder glyph for the sidebar's life-area section headers — frames each
+  // area as a playlist folder (a Spotify concept) rather than a generic
+  // productivity section, keeping the music-library metaphor intact while the
+  // lists inside stay grouped. Tinted the area's color inline (this icon is
+  // the one place the area color lives now — the old body spine is gone), so
+  // color belongs to the category's own mark rather than a separate bar.
+  const FOLDER_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
 
   // Spotify/Apple-Music-style sticky mini-header — sits above every .hdr
   // as #main's first child (see the 4 page renderers below), always
@@ -117,26 +118,21 @@ export function createRenderer({ state, helpers, actions }) {
     const nav = document.getElementById("pinnedNav");
     if (!nav) return;
     nav.innerHTML = `
-      <div class="list-item ${state.view === "recent" ? "active" : ""}" data-action="openRecentPage" title="Last 6 tasks played">
-        <span class="li-icon">${CLOCK_SVG}</span><span class="li-label">Recent</span>
-      </div>
       <div class="list-item ${state.view === "insights" ? "active" : ""}" data-action="openInsightsPage" title="Session history &amp; analytics">
         <span class="li-icon">${INSIGHTS_SVG}</span><span class="li-label">Insights</span>
       </div>`;
   }
 
-  function renderSidebar() {
-    if (!state.S) return;
-    // One line per list now — count replaces the old two-line "N tasks ·
-    // spent of estimate" meta text, which moves into the row's title
-    // tooltip instead of being always-on. `.list-grip` is positioned
-    // absolute (see CSS) precisely so it doesn't reserve flex space and
-    // shift list rows' `.li-icon` out of alignment with each other.
-    document.getElementById("lists").innerHTML = state.S.lists.map((listItem) => {
-      const count = tasksForList(listItem.id).length;
-      const detail = `${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder, double-click to edit`;
-      const isActive = state.view === "tasks" && listItem.id === state.activeListId;
-      return `
+  // One list row — count replaces the old two-line "N tasks · spent of
+  // estimate" meta text, which moves into the row's title tooltip instead of
+  // being always-on. `.list-grip` is positioned absolute (see CSS) precisely
+  // so it doesn't reserve flex space and shift list rows' `.li-icon` out of
+  // alignment with each other.
+  function sidebarListRow(listItem) {
+    const count = tasksForList(listItem.id).length;
+    const detail = `${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder or onto a section, double-click to edit`;
+    const isActive = state.view === "tasks" && listItem.id === state.activeListId;
+    return `
       <div class="list-item ${isActive ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="${esc(detail)}">
         <span class="list-grip" title="Drag to reorder">${GRIP_SVG}</span>
         <span class="li-icon">${listItem.emoji}</span>
@@ -144,7 +140,57 @@ export function createRenderer({ state, helpers, actions }) {
         <span class="count">${count}</span>
         <button class="list-edit" title="Edit name, emoji &amp; color" data-action="editList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
       </div>`;
+  }
+
+  // Sidebar lists are grouped under their life area (the same tag that feeds
+  // the Home radar), Slack-style: each area is a collapsible section header
+  // with its lists nested below. This makes the life category the top of the
+  // navigation hierarchy (area → list → album → task) without any new data —
+  // it reuses the list's existing `lifeArea` tag. Design constraints from
+  // CLAUDE.md: sections follow the canonical LIFE_AREAS order (never
+  // user-sorted — rule 8), empty areas are hidden entirely (an empty
+  // "Finances" section reads as a reproach — rules 5 & 9), and untagged lists
+  // stay a valid state in a calm "Unsorted" bucket rather than being nagged
+  // to file themselves (rule 8). Dragging a list onto a header re-files it.
+  function renderSidebar() {
+    if (!state.S) return;
+    const byArea = new Map();
+    for (const listItem of state.S.lists) {
+      const key = listItem.lifeArea || "";
+      if (!byArea.has(key)) byArea.set(key, []);
+      byArea.get(key).push(listItem);
+    }
+    const sections = [];
+    for (const area of LIFE_AREAS) {
+      const items = byArea.get(area.key);
+      if (items && items.length) sections.push({ key: area.key, dropArea: area.key, label: area.label, color: area.color, items });
+    }
+    const untagged = byArea.get("");
+    if (untagged && untagged.length) {
+      sections.push({ key: "__unsorted__", dropArea: "", label: "Unsorted", color: "var(--muted)", items: untagged });
+    }
+
+    document.getElementById("lists").innerHTML = sections.map((section) => {
+      const collapsed = !!state.sidebarCollapsed[section.key];
+      const n = section.items.length;
+      return `
+      <div class="list-section${collapsed ? " collapsed" : ""}">
+        <div class="ls-header" data-action="toggleAreaSection" data-area="${section.key}" data-area-drop="${esc(section.dropArea)}" title="${esc(section.label)} — ${n} list${n === 1 ? "" : "s"}">
+          <span class="ls-folder" style="color:${section.color}">${FOLDER_SVG}</span>
+          <span class="ls-label">${esc(section.label)}</span>
+          <span class="ls-chevron">${collapsed ? "▸" : "▾"}</span>
+        </div>
+        <div class="ls-body">${section.items.map(sidebarListRow).join("")}</div>
+      </div>`;
     }).join("");
+  }
+
+  // Collapse/expand a sidebar life-area section (persisted, see state.js).
+  function toggleAreaSection(key) {
+    if (!key) return;
+    state.sidebarCollapsed[key] = !state.sidebarCollapsed[key];
+    try { localStorage.setItem("tp.sidebarCollapsed", JSON.stringify(state.sidebarCollapsed)); } catch (e) { /* non-fatal */ }
+    renderSidebar();
   }
 
   // Per-list accent: keyed off `listItem.color`, set directly on #main so
@@ -198,7 +244,6 @@ export function createRenderer({ state, helpers, actions }) {
     if (state.view === "home") { clearAccent(main); return renderHomePage(); }
     if (state.view === "settings") { clearAccent(main); return renderSettingsPage(); }
     if (state.view === "insights") { clearAccent(main); return renderInsightsPage(); }
-    if (state.view === "recent") { clearAccent(main); return renderRecentPage(); }
 
     const listItem = activeList();
     if (!listItem) {
@@ -245,11 +290,21 @@ export function createRenderer({ state, helpers, actions }) {
       // Deterministic jewel payout (see utils.js's jewelPayout — never
       // randomized, so this preview is always exactly what completing the
       // task actually pays). null for a task with no impact tier set, which
-      // renders nothing.
+      // renders nothing. Shown as that many literal jewels rather than a
+      // single dot + numeral — "2 jewels" reads instantly as a count
+      // without making the user parse a number, and since severe (weight 8)
+      // is gone, high (weight 4) tops this out at 4 dots, still a glance.
+      // Colored by the list's life area so what KIND of jewel it is is
+      // legible without a hover, same as the rest of the app's color
+      // language (see LIFE_AREAS) — a negative payout stays red regardless
+      // of area, matching the existing "against" convention.
       const payout = jewelPayout(task);
       const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
+      const areaColor = listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
       const jewelHtml = payout
-        ? `<i class="jewel-dot ${payout.amount < 0 ? "neg" : ""}" title="${esc(payoutTitle)}"></i>`
+        ? `<span class="jewel-group" title="${esc(payoutTitle)}">${Array.from({ length: Math.abs(payout.amount) }, () =>
+            `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
+          ).join("")}</span>`
         : "";
       const playTitle = elsewhere
         ? `Playing on ${state.S.run.deviceName || "another device"} — click to play here`
@@ -537,10 +592,6 @@ export function createRenderer({ state, helpers, actions }) {
     navigate({ view: "insights", listId: null });
   }
 
-  function openRecentPage() {
-    navigate({ view: "recent", listId: null });
-  }
-
   // Lands on the dashboard (see renderHomePage below) — greeting, today's
   // stats, "Jump back in", and a grid of every list — rather than dropping
   // straight back onto whichever task list was last active.
@@ -684,7 +735,7 @@ export function createRenderer({ state, helpers, actions }) {
   // — no separate Save step and no local "draft" state, since this panel
   // re-renders from scratch on every state-changed event.
   function renderImpactSection(task) {
-    // Each pill shows its own weight (·1/·2/·4/·8) directly, not just the
+    // Each pill shows its own weight (·1/·2/·4) directly, not just the
     // tier name — so what a tier is actually worth is visible before you've
     // picked one, instead of only appearing in the payout-preview line
     // below once a tier is already selected.
@@ -717,8 +768,11 @@ export function createRenderer({ state, helpers, actions }) {
     </div>`;
 
     const payout = jewelPayout(task);
-    const areaLabel = listItem && listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).label : null;
-    const payoutHtml = `<div class="payout-preview">Earns on completion: <span class="amt"><i class="jewel-dot ${payout.amount < 0 ? "neg" : ""}"></i><b>${payout.amount > 0 ? "+" : ""}${payout.amount}</b>${areaLabel ? " " + esc(areaLabel) : ""}</span></div>`;
+    const area = listItem && listItem.lifeArea ? LIFE_AREAS.find((a) => a.key === listItem.lifeArea) : null;
+    const dotsHtml = Array.from({ length: Math.abs(payout.amount) }, () =>
+      `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && area ? ` style="background:${area.color}"` : ""}></i>`
+    ).join("");
+    const payoutHtml = `<div class="payout-preview">Earns on completion: <span class="amt">${dotsHtml}<b>${payout.amount > 0 ? "+" : ""}${payout.amount}</b>${area ? " " + esc(area.label) : ""}</span></div>`;
 
     return `
       <h4>Impact</h4>
@@ -820,6 +874,8 @@ export function createRenderer({ state, helpers, actions }) {
         <textarea class="lyrics-inline" data-action="setLyricsInline" data-id="${task.id}" placeholder="What will finishing this feel like? Add the goal, a note, a link…" rows="3">${esc(task.description || "")}</textarea>
         <h4>Depth</h4>
         ${depthSegHtml}
+        <h4>Deadline</h4>
+        <input class="deadline-input" type="date" value="${task.deadlineAt ? toDateInputValue(task.deadlineAt) : ""}" data-action="setDeadlineInline" data-id="${task.id}">
         ${renderImpactSection(task)}
         <h4>List</h4>
         ${listSelectHtml}
@@ -1400,10 +1456,23 @@ export function createRenderer({ state, helpers, actions }) {
     initStickyHeader();
   }
 
-  // "Recent" — a pinned sidebar entry (not a real list) that opens a
-  // read-only page of the last 6 distinct tasks played, most-recent first,
-  // across every list. Playing the same task again just moves it back to
-  // #1 rather than adding a duplicate row.
+  // A task counts as "against" — a negative-impact activity — if it carries a
+  // negative impact sign, or it lives in a list tagged to DECREASE its life
+  // area (e.g. a "Substance Abuse" list). Kept in sync with the same rule
+  // lifeBalanceScores/againstContributors use.
+  function isAgainstTask(task) {
+    if (!task) return false;
+    const payout = jewelPayout(task);
+    if (payout && payout.amount < 0) return true;
+    const listItem = list(task.listId);
+    return !!(listItem && listItem.lifeDirection === "decrease");
+  }
+
+  // The last 6 distinct tasks played, most-recent first, across every list —
+  // feeds the Home page's "Jump back in" cards. Playing the same task again
+  // just moves it back to #1 rather than adding a duplicate row. Against
+  // (negative-impact) tasks are deliberately excluded: a "pick up where you
+  // left off" nudge should never resurface a habit the user is trying to cut.
   function recentTasks(limit = 6) {
     if (!state.S) return [];
     const now = Date.now();
@@ -1420,9 +1489,55 @@ export function createRenderer({ state, helpers, actions }) {
 
     return Array.from(lastPlayedAt.entries())
       .map(([taskId, at]) => ({ task: findTask(taskId), at, live: taskId === liveTaskId }))
-      .filter((entry) => entry.task && !entry.task.completedAt)
+      .filter((entry) => entry.task && !entry.task.completedAt && !isAgainstTask(entry.task))
       .sort((a, b) => b.at - a.at)
       .slice(0, limit);
+  }
+
+  // "What should I be doing now" — the Home page's "Now" section (see
+  // docs/homepage-now-spec.md). Distinct from recentTasks above: that
+  // surfaces what WAS played; this surfaces what's being avoided — tagged as
+  // mattering (impactTier medium/high), carrying a deadline, and left
+  // untouched while that deadline closes in. Three named, boundable factors
+  // (impact weight, urgency, neglect) rather than a black-box score, so a
+  // card's reason for showing is always explainable in one sentence rather
+  // than a number nobody could reconstruct.
+  function nowCandidates(limit = 3) {
+    if (!state.S) return [];
+    const now = Date.now();
+    const run = state.S.run;
+    const liveTaskId = run.activeTaskId && run.phase === "work" && run.runningStart ? run.activeTaskId : null;
+
+    const lastTouch = new Map();
+    for (const session of state.S.sessions) {
+      const at = session.end ?? now;
+      if (!lastTouch.has(session.taskId) || at > lastTouch.get(session.taskId)) {
+        lastTouch.set(session.taskId, at);
+      }
+    }
+
+    return state.S.tasks
+      .filter((task) => !task.completedAt && task.id !== liveTaskId)
+      .filter((task) => task.deadlineAt && (task.impactTier === "medium" || task.impactTier === "high"))
+      .map((task) => {
+        const daysLeft = (task.deadlineAt - now) / 86400000;
+        const touchedAt = lastTouch.get(task.id) ?? null;
+        const daysSinceTouch = touchedAt ? (now - touchedAt) / 86400000 : Infinity;
+        // 0 (a week or more out) to 1 (today or overdue) — clamped so an
+        // old overdue task can't keep climbing past "maximally urgent"
+        // forever. That unbounded growth is exactly the loss/urgency shape
+        // the ADHD x gamification hard constraints in CLAUDE.md ban.
+        const urgency = Math.max(0, Math.min(1, 1 - daysLeft / 7));
+        // Has this task been left alone while its deadline closes in? A
+        // task touched today scores low here even with a near deadline —
+        // it's already in motion, doesn't need resurfacing.
+        const neglect = Math.max(0, Math.min(1, daysSinceTouch / Math.max(daysLeft, 1)));
+        const weight = IMPACT_TIERS[task.impactTier].weight;
+        return { task, score: weight * (0.6 * urgency + 0.4 * neglect) };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((entry) => entry.task);
   }
 
   function greeting() {
@@ -1506,11 +1621,12 @@ export function createRenderer({ state, helpers, actions }) {
   // A completed, impact-tagged task contributes this many ms-equivalent per
   // tier weight point to its axis (see jewelPayout's `weight`) instead of its
   // actual session time — this is the whole point of tagging impact
-  // separately from duration: a 5-minute `severe` task (weight 8) swings the
-  // axis by 320min, more than a `low` (weight 1) task's 40min even if the
-  // low-tier one ran for hours. Chosen so a `severe` task alone can swing
-  // most of LIFE_BALANCE_CAP_MS, matching the original "outsized
-  // consequence" idea this whole layer started from.
+  // separately from duration: a 5-minute `high` task (weight 4) swings the
+  // axis by 160min, more than a `low` (weight 1) task's 40min even if the
+  // low-tier one ran for hours. `high` is the top tier now that `severe`
+  // (weight 8) has been dropped, so a single task's max swing is smaller
+  // than it used to be — no longer "most of LIFE_BALANCE_CAP_MS," just a
+  // clear, still-outsized nudge relative to low/medium.
   const IMPACT_WEIGHT_TO_MS = 40 * 60 * 1000;
 
   // Scores every LIFE_AREAS axis from the trailing 7 days, for the Home
@@ -1525,20 +1641,33 @@ export function createRenderer({ state, helpers, actions }) {
   // start/end is clamped into the 7-day window (same overlap trick as
   // todayTotalMs) so a long-running session only counts its portion that
   // actually falls in range.
+  // Positive and negative contributions are accumulated separately (not just
+  // netted) so the radar can optionally show an "against" overlay — how much
+  // time/impact pulled *against* each area — instead of that drag silently
+  // disappearing under the 0% floor the way a pure net score does. `pct`
+  // stays the net (the main green shape, unchanged); `negPct` is the against
+  // magnitude, only surfaced when the user toggles it on (see renderHomePage
+  // / buildLifeRadar). Both are windowed to the trailing 7 days, so the
+  // against shape fades with time and never becomes a standing record
+  // (CLAUDE.md rule 7).
   function lifeBalanceScores() {
-    const empty = LIFE_AREAS.map((area) => ({ ...area, ms: 0, pct: 0 }));
+    const empty = LIFE_AREAS.map((area) => ({ ...area, ms: 0, pct: 0, negMs: 0, negPct: 0 }));
     if (!state.S) return empty;
     const now = Date.now();
     const windowStart = now - 7 * 24 * 60 * 60 * 1000;
-    const rawMs = new Map(LIFE_AREAS.map((area) => [area.key, 0]));
+    const posMs = new Map(LIFE_AREAS.map((area) => [area.key, 0]));
+    const negMs = new Map(LIFE_AREAS.map((area) => [area.key, 0]));
+    const addPos = (key, ms) => posMs.set(key, posMs.get(key) + ms);
+    const addNeg = (key, ms) => negMs.set(key, negMs.get(key) + ms);
     for (const listItem of state.S.lists) {
-      if (!listItem.lifeArea || !rawMs.has(listItem.lifeArea)) continue;
+      if (!listItem.lifeArea || !posMs.has(listItem.lifeArea)) continue;
       let timeMs = 0;
-      let tierMs = 0;
       for (const task of tasksForList(listItem.id)) {
         const payout = jewelPayout(task);
         if (payout && task.completedAt && task.completedAt >= windowStart && task.completedAt <= now) {
-          tierMs += payout.amount * IMPACT_WEIGHT_TO_MS;
+          const swing = payout.amount * IMPACT_WEIGHT_TO_MS;
+          if (swing >= 0) addPos(listItem.lifeArea, swing);
+          else addNeg(listItem.lifeArea, -swing);
           continue;
         }
         for (const session of taskSessions(task.id)) {
@@ -1547,18 +1676,20 @@ export function createRenderer({ state, helpers, actions }) {
           timeMs += Math.max(0, segEnd - segStart);
         }
       }
-      const signedTime = listItem.lifeDirection === "decrease" ? -timeMs : timeMs;
-      rawMs.set(listItem.lifeArea, rawMs.get(listItem.lifeArea) + signedTime + tierMs);
+      if (listItem.lifeDirection === "decrease") addNeg(listItem.lifeArea, timeMs);
+      else addPos(listItem.lifeArea, timeMs);
     }
     return LIFE_AREAS.map((area) => {
-      const ms = rawMs.get(area.key);
-      const pct = Math.max(0, Math.min(100, Math.round((ms / LIFE_BALANCE_CAP_MS) * 100)));
-      return { ...area, ms, pct };
+      const neg = negMs.get(area.key);
+      const net = posMs.get(area.key) - neg;
+      const pct = Math.max(0, Math.min(100, Math.round((net / LIFE_BALANCE_CAP_MS) * 100)));
+      const negPct = Math.max(0, Math.min(100, Math.round((neg / LIFE_BALANCE_CAP_MS) * 100)));
+      return { ...area, ms: net, pct, negMs: neg, negPct };
     });
   }
 
   // A single day, per area, is judged "full" past this — a solid session or
-  // one severe-tier task. Independent of LIFE_BALANCE_CAP_MS (that one's a
+  // one high-tier task. Independent of LIFE_BALANCE_CAP_MS (that one's a
   // whole-week budget spread across every axis); this is its own per-day,
   // per-area scale for the grid below, since "how loud was Tuesday" isn't
   // the same question as "how loud was this week."
@@ -1668,6 +1799,75 @@ export function createRenderer({ state, helpers, actions }) {
     renderHomePage();
   }
 
+  // Which area's "pulling against" detail is open (radar overlay is clickable
+  // — see buildLifeRadar's against dots). Same one-at-a-time, reset-on-reload
+  // contract as selectedGridCell above.
+  let selectedAgainstArea = null;
+  function selectAgainstArea(areaKey) {
+    selectedAgainstArea = selectedAgainstArea === areaKey ? null : areaKey;
+    renderHomePage();
+  }
+
+  // The tasks that pulled against one area over the trailing 7 days — the
+  // detail behind a clicked against-vertex. Mirrors lifeBalanceScores' own
+  // "what counts as against" rule exactly: a completed task with a negative
+  // impact tier (regardless of its list's direction), or raw tracked time in
+  // a list tagged `decrease`. Same window, so it fades with the radar shape.
+  function againstContributors(areaKey) {
+    if (!state.S) return [];
+    const now = Date.now();
+    const windowStart = now - 7 * 24 * 60 * 60 * 1000;
+    const out = [];
+    for (const listItem of state.S.lists) {
+      if (listItem.lifeArea !== areaKey) continue;
+      for (const task of tasksForList(listItem.id)) {
+        const payout = jewelPayout(task);
+        if (payout && task.completedAt && task.completedAt >= windowStart && task.completedAt <= now) {
+          if (payout.amount < 0) {
+            out.push({ taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color,
+              kind: "tier", tier: task.impactTier, amount: payout.amount, ms: -payout.amount * IMPACT_WEIGHT_TO_MS });
+          }
+          continue;
+        }
+        if (listItem.lifeDirection !== "decrease") continue;
+        let ms = 0;
+        for (const session of taskSessions(task.id)) {
+          const segStart = Math.max(session.start, windowStart);
+          const segEnd = Math.min(session.end ?? now, now);
+          ms += Math.max(0, segEnd - segStart);
+        }
+        if (ms > 0) out.push({ taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color, kind: "time", ms });
+      }
+    }
+    return mergeContributors(out);
+  }
+
+  // Detail panel for a clicked against-vertex — same row vocabulary as the
+  // grid's buildGridCellDetail (tap-through to the task via searchGoTask), but
+  // week-scoped and against-only. Neutral wording ("pulling against"), no
+  // count-of-failures tally — CLAUDE.md rules 7/9.
+  function buildAgainstDetail(areaKey) {
+    const area = LIFE_AREAS.find((a) => a.key === areaKey);
+    if (!area) return "";
+    const items = againstContributors(areaKey);
+    const rows = items.length
+      ? items.map((c) => {
+          const amountHtml = c.kind === "tier"
+            ? `<span class="lg-item-amt"><i class="jewel-dot neg"></i>${c.amount} ${esc(IMPACT_TIERS[c.tier]?.label ?? "")}</span>`
+            : `<span class="lg-item-amt">−${fmtLong(c.ms)}</span>`;
+          return `<div class="lg-item" data-action="searchGoTask" data-id="${c.taskId}">
+            <span class="lg-item-dot" style="background:${c.listColor || "#555"}"></span>
+            <span class="lg-item-name">${esc(c.taskName)}</span>
+            ${amountHtml}
+          </div>`;
+        }).join("")
+      : `<div class="lg-item-empty">Nothing pulling against here.</div>`;
+    return `<div class="lg-detail against-detail">
+      <div class="lg-detail-head">Pulling against ${esc(area.label)} <span class="lg-detail-day">last 7 days</span></div>
+      ${rows}
+    </div>`;
+  }
+
   // The clicked cell's own contributors, listed newest-swing-first, each
   // one a tap-through to that task via searchGoTask — same "Mostly <task>"
   // job the old bars did, just answering for one day instead of the week.
@@ -1728,7 +1928,7 @@ export function createRenderer({ state, helpers, actions }) {
   // then the actual data as a filled polygon on top. Plain trigonometry —
   // axis i sits at angle -90° + i*(360/n)°, so axis 0 is straight up and
   // the rest go clockwise, matching how radar charts conventionally read.
-  function buildLifeRadar(scores) {
+  function buildLifeRadar(scores, { against = false, selectedAgainst = null } = {}) {
     // Non-square viewBox, wider than it is tall — the grid itself is round,
     // but its text labels aren't: "Health & Fitness"/"Relationships"/
     // "Mental Wellbeing" etc. sit anchor-start/anchor-end off the left and
@@ -1767,34 +1967,103 @@ export function createRenderer({ state, helpers, actions }) {
     // it, so the radar itself doesn't need to carry any interaction of its
     // own.
     const dots = dataPts.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="3" fill="var(--green)"><title>${esc(scores[i].label)}: ${scores[i].pct}%</title></circle>`).join("");
+    // Optional "pulling against" overlay (see lifeBalanceScores' negPct) —
+    // drawn under the green net shape, in a muted dashed grey rather than red:
+    // it reads as a quiet counterweight, not an alarm (CLAUDE.md rules 7/9 —
+    // no shame tally, no punitive tone). Only rendered when the user toggles
+    // it on AND something actually pulled against an area this week, so it's
+    // never standing chrome.
+    const showAgainst = against && scores.some((s) => s.negPct > 0);
+    const againstPts = scores.map((s, i) => pointAt(i, s.negPct / 100));
+    const againstPoly = showAgainst
+      ? `<polygon points="${againstPts.map((p) => p.join(",")).join(" ")}" fill="#8f8f8f" fill-opacity="0.12" stroke="#8f8f8f" stroke-width="1.5" stroke-dasharray="3 3"/>`
+      : "";
+    const againstDots = showAgainst
+      ? scores.map((s, i) => {
+          if (s.negPct <= 0) return "";
+          const sel = selectedAgainst === s.key;
+          return `<circle class="radar-against-dot" cx="${againstPts[i][0]}" cy="${againstPts[i][1]}" r="${sel ? 5 : 4}" fill="#8f8f8f"${sel ? ' stroke="#fff" stroke-width="1.5"' : ""} data-action="selectAgainstArea" data-key="${s.key}"><title>${esc(s.label)} — pulling against: ${s.negPct}% · click for detail</title></circle>`;
+        }).join("")
+      : "";
     const labels = scores.map((s, i) => {
       const [lx, ly] = pointAt(i, 1.2);
       const anchor = Math.abs(lx - cx) < 4 ? "middle" : lx > cx ? "start" : "end";
       return `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-size="11" fill="var(--muted)">${esc(s.label)}</text>`;
     }).join("");
-    return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="300">${rings}${spokes}${dataPoly}${dots}${labels}</svg>`;
+    return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="300">${rings}${spokes}${againstPoly}${dataPoly}${dots}${againstDots}${labels}</svg>`;
+  }
+
+  // Toggle the radar's "pulling against" overlay (persisted, default off —
+  // Home stays calm and accomplishment-first unless the user opts into the
+  // reflection view). See renderHomePage / buildLifeRadar.
+  function toggleLifeAgainst() {
+    state.lifeBalanceAgainst = !state.lifeBalanceAgainst;
+    if (!state.lifeBalanceAgainst) selectedAgainstArea = null;
+    try { localStorage.setItem("tp.lifeAgainst", state.lifeBalanceAgainst ? "1" : "0"); } catch (e) { /* non-fatal */ }
+    renderHomePage();
   }
 
   // Home — the dashboard #tbhome/goHome() lands on: a time-of-day greeting,
   // four at-a-glance stats, the life-balance radar (lifeBalanceScores()/
   // buildLifeRadar() above — now itself weighted by impact tier, see that
-  // function's comment), a "Jump back in" row of the same recentTasks()
-  // used by the Recent page (but as cards, not a table), and the 3 lists
-  // worked in most recently (recentLists() above) — not every list, so the
-  // page stays a quick "pick up where you left off" glance rather than a
-  // second copy of the sidebar. Reuses the standard .hdr/.cover/.info
-  // header component (clearAccent() below keeps it on the plain grey wash,
-  // same as Settings/Insights/Recent) so it gets the same drag region,
+  // function's comment), a "Jump back in" row of recentTasks() as cards,
+  // and the 3 lists worked in most recently (recentLists() above) — not
+  // every list, so the page stays a quick "pick up where you left off"
+  // glance rather than a second copy of the sidebar. Reuses the standard
+  // .hdr/.cover/.info header component (clearAccent() below keeps it on the
+  // plain grey wash, same as Settings/Insights) so it gets the same drag region,
   // gradient and sticky mini-header behavior as every other page for free.
   // This page used to also carry a separate "Impact & progress" section
   // (mana bar, per-area vitality rings, a rank ladder card) — cut; see
   // utils.js's comment for why. The radar above is now the one place impact
   // shows up on Home.
+  // Row markup for the Home page's "Now" section — see nowCandidates() above
+  // and docs/homepage-now-spec.md. Deliberately built from the same row
+  // vocabulary as the to-do list's taskRow (.idx num→▶-on-hover, .tname +
+  // .jewel-group, right-aligned bar cell) so a Now item reads as the same
+  // kind of thing as a task in a list, not a separate bespoke card. The one
+  // Now-specific column is the deadline: a filling bar (physical time cue,
+  // ADHD rule 3) next to an exact "due <date>" (deadlineDate). Bar fill
+  // reuses nowCandidates' own urgency formula (0 = a week+ out, 1 =
+  // due/overdue) so a row further along the bar is exactly the one
+  // nowCandidates ranked as more urgent. Jewel dots reuse jewelPayout()'s
+  // markup — no new reward mechanism, the same deterministic, disclosed one.
+  function nowRowHtml(task, index) {
+    const listItem = list(task.listId);
+    const now = Date.now();
+    const daysLeft = (task.deadlineAt - now) / 86400000;
+    const pct = Math.round(Math.max(0, Math.min(1, 1 - daysLeft / 7)) * 100);
+    const payout = jewelPayout(task);
+    const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
+    const areaColor = listItem && listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
+    const jewelHtml = payout
+      ? `<span class="jewel-group" title="${esc(payoutTitle)}">${Array.from({ length: Math.abs(payout.amount) }, () =>
+          `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
+        ).join("")}</span>`
+      : "";
+    return `<tr data-action="searchGoTask" data-id="${task.id}" title="Open ${esc(task.name)}">
+      <td class="idx">
+        <span class="num">${index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to start${payoutTitle ? " — earns " + payoutTitle : ""}">▶</button>
+      </td>
+      <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}${jewelHtml}</td>
+      <td class="r due-cell">
+        <span class="now-bar"><span class="now-bar-fill" style="width:${pct}%"></span></span>
+        <span class="now-due">${deadlineDate(task.deadlineAt, now)}</span>
+      </td>
+    </tr>`;
+  }
+
   function renderHomePage() {
     if (!state.S) return;
     const radarScores = lifeBalanceScores();
     const hasLifeTags = state.S.lists.some((listItem) => listItem.lifeArea);
-    const jump = recentTasks(6);
+    const hasAgainst = radarScores.some((s) => s.negPct > 0);
+    const againstOn = state.lifeBalanceAgainst;
+    const nowTasks = nowCandidates(NOW_ITEMS_SIZE);
+    const nowHtml = nowTasks.length
+      ? `<table class="albrows now-table"><tbody>${nowTasks.map((task, i) => nowRowHtml(task, i)).join("")}</tbody></table>`
+      : `<div class="home-empty">Nothing needs attention right now.</div>`;
+    const jump = recentTasks(RECENT_TASKS_SIZE);
     const jumpHtml = jump.length
       ? jump.map((entry) => {
           const { task, at, live } = entry;
@@ -1841,9 +2110,13 @@ export function createRenderer({ state, helpers, actions }) {
           <div class="hs-stat"><div class="hs-num">${state.S.lists.length}</div><div class="hs-label">Lists</div></div>
         </div>
         <section class="home-section">
-          <h4>Life balance <span class="home-sub-note">· last 7 days</span></h4>
+          <h4>Needs attention</h4>
+          ${nowHtml}
+        </section>
+        <section class="home-section">
+          <h4>Life balance <span class="home-sub-note">· last 7 days</span>${hasLifeTags && hasAgainst ? `<button class="home-toggle" data-action="toggleLifeAgainst">${againstOn ? "Hide what's pulling against" : "Show what's pulling against"}</button>` : ""}</h4>
           ${hasLifeTags
-            ? `<div class="home-radar">${buildLifeRadar(radarScores)}</div>${buildLifeBalanceGrid()}`
+            ? `<div class="home-radar">${buildLifeRadar(radarScores, { against: againstOn, selectedAgainst: againstOn ? selectedAgainstArea : null })}</div>${againstOn && hasAgainst ? `<div class="radar-legend"><span class="rl-swatch"></span>Time pulling against your areas · last 7 days · tap a grey dot for detail</div>` : ""}${againstOn && selectedAgainstArea ? `<div class="against-detail-wrap">${buildAgainstDetail(selectedAgainstArea)}</div>` : ""}${buildLifeBalanceGrid()}`
             : `<div class="home-empty">Tag a list with a life area (Edit list, or when creating a new one) to see your balance here.</div>`}
         </section>
         <section class="home-section">
@@ -1855,50 +2128,6 @@ export function createRenderer({ state, helpers, actions }) {
           <div class="hl-grid">${listsHtml}</div>
         </section>
       </div>`;
-    initStickyHeader();
-  }
-
-  function renderRecentPage() {
-    if (!state.S) return;
-    const entries = recentTasks(6);
-
-    const rows = entries.map((entry, index) => {
-      const { task, at, live } = entry;
-      const listItem = list(task.listId);
-      const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
-      if (live) durations.push(Date.now() - state.S.run.runningStart);
-      const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
-      const sessionCount = bar ? bar.sessionCount : durations.length;
-      const sessionsCell = sessionCount
-        ? `<span class="sess-count" title="${bar ? bar.sessionLabel : sessionCount + " session" + (sessionCount === 1 ? "" : "s")} logged">${sessionCount}</span>`
-        : `<span class="sess-count sess-count-empty" title="No sessions logged yet">–</span>`;
-      const barCell = bar ? bar.html : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
-      const when = live ? `<span style="color:var(--green)">now · recording</span>` : timeAgo(at);
-
-      return `<tr class="${live ? "playing" : ""}">
-        <td class="idx">
-          <span class="num">${index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to ${live ? "stop" : "start"}">${live ? "⏸" : "▶"}</button>
-        </td>
-        <td class="tname">
-          <div>${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span>` : esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}</div>
-          <span class="list-tag"><i style="background:${listItem ? listItem.color : "#555"}"></i>${listItem ? `<span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span>` : ""}</span>
-        </td>
-        <td class="r sess-cell">${sessionsCell}</td>
-        <td class="r bar-cell">${barCell}</td>
-        <td class="rwhen">${when}</td>
-      </tr>`;
-    }).join("");
-
-    document.getElementById("main").innerHTML = `
-      ${stickyBarHtml(CLOCK_SVG, "Recent")}
-      <div class="hdr" data-tauri-drag-region>
-        <div class="cover" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c);color:var(--muted)">${CLOCK_SVG_HERO}</div>
-        <div class="info"><small>History</small><h1>Recent</h1><div class="sub">Last ${entries.length} task${entries.length === 1 ? "" : "s"} played, across all lists</div></div>
-      </div>
-      ${entries.length
-        ? `<table><thead><tr><th class="idx">#</th><th>Task</th><th class="r sess-cell">Sessions</th><th class="r">Progress</th><th class="rwhen">Last played</th></tr></thead>
-           <tbody>${rows}</tbody></table>`
-        : `<div class="empty">No tasks played yet. Press play on a task to start tracking.</div>`}`;
     initStickyHeader();
   }
 
@@ -2108,8 +2337,6 @@ export function createRenderer({ state, helpers, actions }) {
     renderInsightsPage,
     toggleSessionGroup,
     setInsightsPeriod,
-    renderRecentPage,
-    openRecentPage,
     renderHomePage,
     selectGridCell,
     renderMusic,
@@ -2120,6 +2347,9 @@ export function createRenderer({ state, helpers, actions }) {
     renderTopbar,
     renderPinnedNav,
     renderSidebar,
+    toggleAreaSection,
+    toggleLifeAgainst,
+    selectAgainstArea,
     renderMain,
     renderPlayer,
     sessionControlsHtml,

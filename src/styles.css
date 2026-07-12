@@ -1,6 +1,6 @@
 :root{
   --bg:#121212; --bg2:#181818; --bg3:#242424; --elev:#2a2a2a;
-  --green:#1db954; --green-hi:#1ed760; --blue:#509bf5;
+  --green:#1db954; --green-hi:#1ed760; --blue:#509bf5; --amber:#e8b923;
   --text:#fff; --muted:#b3b3b3; --line:#2e2e2e;
 }
 *{box-sizing:border-box}
@@ -141,8 +141,7 @@ body{
 .list-item .li-icon{width:16px;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;color:var(--muted)}
 .list-item:hover .li-icon,.list-item.active .li-icon{color:inherit}
 .list-item .li-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.list-item .count{flex:none;color:var(--muted);font-weight:500;font-size:10px;background:var(--bg3);border-radius:999px;padding:1px 7px;text-align:center}
-.list-item:hover .count,.list-item.active .count{background:var(--elev)}
+.list-item .count{flex:none;color:var(--muted);font-weight:500;font-size:11px}
 .list-edit{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:3px 6px;border-radius:5px;opacity:0;flex:none}
 .list-item:hover .list-edit{opacity:1}
 .list-edit:hover{color:#fff;background:var(--elev)}
@@ -162,6 +161,25 @@ body{
 .list-item.dragging{opacity:.4}
 .list-item.drag-over-top{box-shadow:inset 0 2px 0 0 var(--green)}
 .list-item.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--green)}
+/* Sidebar life-area sections (see renderSidebar in render.js) — lists grouped
+   under a collapsible area header, Slack-style. Colour lives on the folder
+   glyph itself (tinted per area, set inline), not a separate bar or wash: the
+   category's own mark carries its identity, while the header text and counts
+   stay quiet. Deliberately calm — no uppercase, no pills, no always-on
+   chevron (see the "sense of calm" redesign, direction B). */
+.list-section{margin-bottom:16px}
+.ls-header{display:flex;align-items:center;gap:6px;padding:4px 8px 6px 10px;cursor:pointer;
+  color:var(--muted);font-weight:500;font-size:11px;user-select:none}
+.ls-header:hover{color:#fff}
+.ls-folder{flex:none;display:flex;align-items:center}
+.ls-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Chevron is a trailing, hover-only affordance so it isn't standing chrome —
+   it also stays visible while collapsed, as the one hint there's more below. */
+.ls-chevron{flex:none;width:12px;text-align:center;font-size:9px;opacity:0;transition:opacity .12s}
+.ls-header:hover .ls-chevron,.list-section.collapsed .ls-chevron{opacity:.55}
+.list-section.collapsed .ls-body{display:none}
+/* Re-file drop target: dragging a list onto a section header highlights it. */
+.ls-header.drop-zone-over{outline:2px dashed var(--green);outline-offset:-2px;border-radius:6px;color:#fff}
 .add-btn{flex:none;margin:12px 8px 0;width:calc(100% - 16px);background:none;border:1px dashed #444;color:var(--muted);padding:9px;border-radius:6px;cursor:pointer;font-weight:600}
 .add-btn:hover{border-color:#777;color:#fff}
 /* Settings page (rendered in main area) */
@@ -238,7 +256,7 @@ body{
    artist/list-details block and can't bleed into the toolbar or task rows
    below it. Falls back to the old grey on pages with no accent (Settings,
    Insights, Recent — see clearAccent()). */
-.hdr{padding:56px 32px 28px;display:flex;align-items:flex-end;gap:26px;-webkit-app-region:drag;background:linear-gradient(180deg,var(--accent,#3a3a3a) 0%,var(--bg) 100%)}
+.hdr{padding:20px 32px 28px;display:flex;align-items:flex-end;gap:26px;-webkit-app-region:drag;background:linear-gradient(180deg,var(--accent,#3a3a3a) 0%,var(--bg) 100%)}
 .hdr button,.toolbar button{-webkit-app-region:no-drag}
 /* Sticky mini-header — a permanently `position:sticky` first child of
    #main (see stickyBarHtml()/initStickyHeader() in render.js), invisible
@@ -248,7 +266,7 @@ body{
    Left padding matches .hdr's own 32px — back/forward now live in
    .topbar-left (normal document flow, up in .topbar), not a floating
    fixed-position element over .main, so there's nothing left to dodge. */
-.stickybar{position:sticky;top:0;z-index:5;height:44px;display:flex;align-items:center;gap:12px;padding:0 32px;background:var(--bg2);border-bottom:1px solid var(--line);opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .18s ease,transform .18s ease;-webkit-app-region:drag}
+.stickybar{position:sticky;top:0;z-index:5;height:44px;margin-bottom:-44px;display:flex;align-items:center;gap:12px;padding:0 32px;background:var(--bg2);border-bottom:1px solid var(--line);opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .18s ease,transform .18s ease;-webkit-app-region:drag}
 .stickybar.show{opacity:1;transform:translateY(0);pointer-events:auto}
 .stickybar .sb-icon{flex:none;width:20px;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
 .stickybar .sb-icon svg{display:block}
@@ -270,6 +288,18 @@ body{
 .home-section{margin-bottom:32px}
 .home-section h4{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px}
 .home-sub-note{text-transform:none;letter-spacing:0;font-weight:400;opacity:.7}
+/* Opt-in "pulling against" toggle on the Life balance header — quiet, sentence
+   case (not the uppercased h4), sits inline to the right. */
+.home-toggle{float:right;text-transform:none;letter-spacing:0;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0}
+.home-toggle:hover{color:#fff}
+/* Legend for the muted against overlay — a dashed grey swatch matching the
+   radar polygon, so the second shape is never unexplained. */
+.radar-legend{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:11px;margin:2px auto 0}
+.radar-legend .rl-swatch{width:16px;border-top:2px dashed #8f8f8f;display:inline-block}
+/* Against-vertex is a tap target for its detail (see buildAgainstDetail). */
+.radar-against-dot{cursor:pointer}
+.against-detail-wrap{max-width:560px;margin:10px auto 0}
+.against-detail-wrap .against-detail{background:var(--bg3);border-radius:10px;padding:6px 14px}
 .home-empty{padding:14px 0;color:var(--muted);font-size:13px}
 /* Life balance radar (buildLifeRadar() in render.js) — centered, capped
    width so it doesn't stretch edge-to-edge on a wide window the way the
@@ -322,6 +352,26 @@ body{
 .jb-meta{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jb-play{flex:none;width:30px;height:30px;border-radius:50%;background:var(--green);color:#000;border:none;font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s}
 .jb-card:hover .jb-play{opacity:1}
+/* Home page "Now" section (see nowCandidates()/nowRowHtml/renderHomePage in
+   render.js, docs/homepage-now-spec.md) — rendered with the same row
+   vocabulary as the to-do list (table.albrows + .idx/.tname/.jewel-group) so
+   a Now item reads as the same kind of thing as a task in a list. These
+   overrides only drop the list-only affordances the Now table doesn't use
+   (the drag-grip gutter / album indentation baked into .idx's padding) and
+   tighten the row padding for a compact glance. */
+.now-table{margin-top:0}
+.now-table td{padding:10px 14px}
+.now-table .idx{width:auto;padding-left:14px}
+/* Deadline cell: filling bar (physical time cue, ADHD rule 3) + an exact
+   "due <date>", right-aligned so the bars line up down the column. */
+.due-cell{vertical-align:middle;white-space:nowrap;text-align:right}
+.due-cell .now-bar{display:inline-block;vertical-align:middle;margin-right:8px}
+/* Fill only ever grows toward amber and caps at 100% — never red, never an
+   unbounded/pulsing state. See the ADHD x gamification hard constraints in
+   CLAUDE.md against urgency/loss framing. */
+.now-bar{width:70px;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden}
+.now-bar-fill{display:block;height:100%;background:var(--amber)}
+.now-due{font-size:11px;color:var(--muted);white-space:nowrap}
 /* Fixed 3-column, capped width — recentLists() (render.js) always hands
    back exactly 3 cards now, so this shouldn't stretch to fill a wide
    window the way an auto-fill grid of "every list" used to. */
@@ -620,6 +670,14 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .list-select{appearance:none;-webkit-appearance:none;width:100%;background:var(--bg3);border:1.5px solid transparent;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:10px 34px 10px 14px;border-radius:7px}
 .list-select:hover{border-color:#555}
 .list-select:focus{border-color:var(--green);outline:none}
+/* Deadline field, task panel (see renderDetail in render.js) — same filled-
+   pill look as .list-select just above so the two "plain value" fields in
+   this modal read consistently. color-scheme:dark keeps the native
+   calendar-icon/picker glyph light instead of rendering near-invisible
+   black-on-dark, which browsers otherwise assume by default. */
+.deadline-input{color-scheme:dark;width:100%;background:var(--bg3);border:1.5px solid transparent;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:10px 14px;border-radius:7px;box-sizing:border-box}
+.deadline-input:hover{border-color:#555}
+.deadline-input:focus{border-color:var(--green);outline:none}
 /* Depth's 3-way segmented control, in the consolidated task panel — used to
    be two separate row-⋯-menu toggle buttons ("Mark deep work"/"Mark
    shallow"); now one inline control, set-exactly rather than toggled. Same
@@ -789,13 +847,18 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
    comes from its list's existing life-area tag, so there's no per-task area
    UI left at all. See utils.js's comment on jewelPayout() for why. */
 
-/* Small diamond marking a task row/payout line's jewel amount — green for a
-   positive payout, red for a negative one (the "smoked a cigarette" case).
-   Margin is scoped to the task-row usage (.tname), not the base class, so
-   it doesn't add extra space against the payout-preview's own flex gap. */
+/* Small diamond marking a task row/payout line's jewel amount — one dot per
+   jewel earned (payout weight is 1/2/4, so at most 4 in a row), colored by
+   the task's list's life area inline so the jewel "type" reads at a glance
+   without a hover. `.neg` overrides that to red for a negative payout (the
+   "smoked a cigarette" case) regardless of area. */
 .jewel-dot{display:inline-block;width:8px;height:8px;transform:rotate(45deg);border-radius:2px;flex:none;background:var(--green-hi);vertical-align:middle}
 .jewel-dot.neg{background:#e5484d}
-.tname .jewel-dot{margin-left:8px}
+/* Wraps a task row's repeated jewel-dots — gap between dots, margin against
+   the task name scoped here (not on .jewel-dot itself) so N dots don't each
+   carry their own margin. */
+.jewel-group{display:inline-flex;align-items:center;gap:3px;vertical-align:middle}
+.tname .jewel-group{margin-left:8px}
 
 /* Impact tier dial (task edit panel) — 4 plain segmented buttons rather
    than a radio group, so the selected one gets a clear filled state without
@@ -804,8 +867,8 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .impact-notch{flex:1;min-width:64px;text-align:center;padding:10px 12px;border-radius:7px;background:var(--bg3);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid transparent}
 .impact-notch:hover{color:#fff}
 .impact-notch.sel{background:rgba(229,72,77,.14);color:#e5484d;border-color:#e5484d}
-/* Each pill's own weight (1/2/4/8) — shown before a tier is even picked, so
-   what "Severe" is actually worth doesn't wait until the payout-preview
+/* Each pill's own weight (1/2/4) — shown before a tier is even picked, so
+   what "High" is actually worth doesn't wait until the payout-preview
    line below to become visible. */
 .impact-notch small{display:block;font-size:9.5px;font-weight:600;opacity:.65;margin-top:2px}
 

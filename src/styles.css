@@ -1,6 +1,11 @@
 :root{
   --bg:#121212; --bg2:#181818; --bg3:#242424; --elev:#2a2a2a;
-  --green:#1db954; --green-hi:#1ed760; --blue:#509bf5; --amber:#e8b923;
+  /* Calm teal, not Spotify's brand green — deliberately distinct hue (not just
+     a darker/lighter shade of it) so the app's identity doesn't read as
+     borrowed. Variable names (--green/--green-hi) are kept as-is rather than
+     renamed to avoid a repo-wide rename touching every consumer for a
+     purely cosmetic reason. */
+  --green:#2f9e8f; --green-hi:#3dbfac; --blue:#509bf5; --amber:#e8b923;
   --text:#fff; --muted:#b3b3b3; --line:#2e2e2e;
 }
 *{box-sizing:border-box}

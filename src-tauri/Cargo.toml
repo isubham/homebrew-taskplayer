@@ -2,7 +2,7 @@
 name = "taskplayer"
 version = "0.7.3"
 edition = "2021"
-description = "TaskPlayer — a Spotify-style deep-work timer for macOS"
+description = "TaskPlayer — a playlist-style deep-work timer for macOS"
 default-run = "taskplayer"
 
 [[bin]]

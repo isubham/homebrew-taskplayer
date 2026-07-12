@@ -21,14 +21,30 @@ export const LIFE_AREAS = [
   // "Mental Wellbeing" areas — physical and mental health as one axis. Keeps
   // the "health" key so already-tagged lists need no change; lists tagged
   // with the retired "wellbeing" key are remapped to "health" by migration
-  // 010 (see migrations.rs). Retains health's green so the axis identity
-  // (and its radar colour) carries over rather than jumping to a new hue.
-  { key: "health", label: "Health & Wellbeing", color: "#1db954" },
+  // 010 (see migrations.rs). Retains health's teal-green so the axis
+  // identity (and its radar colour) carries over rather than jumping to a
+  // new hue — updated from Spotify's exact brand green to the app's new
+  // calm teal accent (see styles.css's --green), same hue family.
+  { key: "health", label: "Health & Wellbeing", color: "#2f9e8f" },
   { key: "relationships", label: "Relationships", color: "#e8115b" },
   { key: "growth", label: "Personal Growth", color: "#8d67ab" },
   { key: "finance", label: "Finances", color: "#e8b923" },
   { key: "recreation", label: "Recreation", color: "#ba5d07" },
 ];
+
+// A list's color is derived from its life area, not chosen independently —
+// every list tagged to the same area renders the same color, so the color
+// itself carries category identity instead of being a free personalization
+// choice that can drift from (or contradict) the tag. Untagged ("Unsorted")
+// lists get a fixed neutral gray rather than a rotating palette pick, since
+// there's no category to derive from — visibly desaturated against every
+// LIFE_AREAS hue, reading as "uncategorized" rather than an arbitrary color.
+const UNTAGGED_LIST_COLOR = "#6b6b6b";
+export function colorForArea(areaKey) {
+  if (!areaKey) return UNTAGGED_LIST_COLOR;
+  const area = LIFE_AREAS.find((a) => a.key === areaKey);
+  return area ? area.color : UNTAGGED_LIST_COLOR;
+}
 
 // ---- Impact: a task's tier + direction, independent of tracked time ----
 // This started as a much bigger system (per-task multi-area weighted
@@ -80,7 +96,7 @@ export function esc(s) {
 // Albums are just a freeform name on a task — no color/emoji of their own is
 // stored, so a deterministic hash of the name picks a stable tile color
 // (same album always renders the same color, without a DB column for it).
-const ALBUM_PALETTE = ["#509bf5", "#e8b923", "#8d67ab", "#e13300", "#27856a", "#e8115b", "#ba5d07", "#1db954"];
+const ALBUM_PALETTE = ["#509bf5", "#e8b923", "#8d67ab", "#e13300", "#27856a", "#e8115b", "#ba5d07", "#2f9e8f"];
 export function albumColor(name) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;

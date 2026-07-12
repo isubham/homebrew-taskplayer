@@ -2,7 +2,7 @@ use crate::models::*;
 use rusqlite::{params, Connection};
 
 const PALETTE: [&str; 8] = [
-    "#1db954", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
+    "#2f9e8f", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
 ];
 
 pub struct Db {
@@ -637,7 +637,7 @@ impl Db {
         let deep = self.add_list("Deep Work")?;
         // give the seeded list a signature color/emoji
         self.conn.execute(
-            "UPDATE lists SET emoji='🎯', color='#1db954' WHERE id=?1",
+            "UPDATE lists SET emoji='🎯', color='#2f9e8f' WHERE id=?1",
             params![deep.id],
         )?;
         let admin = self.add_list("Admin & Errands")?;

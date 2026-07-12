@@ -1093,7 +1093,7 @@ export function createRenderer({ state, helpers, actions }) {
       ? `<p class="hint" style="color:var(--green-hi)">Update available: v${esc(info.version)}</p>
          <div class="setrow"><button class="pill" data-action="promptInstallUpdate" ${installing ? "disabled" : ""}>${installing ? "⟳ Installing…" : "⤓ Download & install"}</button></div>`
       : "";
-    return `<p class="hint" style="margin-top:0">TaskPlayer ${version} — a Spotify-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p>
+    return `<p class="hint" style="margin-top:0">TaskPlayer ${version} — a playlist-style deep-work timer. One task runs at a time; the menu-bar item shows live time.</p>
       <div class="setrow"><button class="pill" data-action="checkForUpdates" ${checking ? "disabled" : ""}>${checking ? "⟳ Checking…" : "⟳ Check for updates"}</button></div>
       ${updateRow}`;
   }
@@ -1159,7 +1159,7 @@ export function createRenderer({ state, helpers, actions }) {
       </div>
       <div class="settings-page">
         ${settingsAlbumHtml("👤", "#509bf5", "Account", acctSubtitle, accountSectionHtml())}
-        ${settingsAlbumHtml("⏱️", "#1db954", "Workflow", "How the timer runs", sessionControlsHtml())}
+        ${settingsAlbumHtml("⏱️", "#2f9e8f", "Workflow", "How the timer runs", sessionControlsHtml())}
         ${settingsAlbumHtml("🔔", "#f5a623", "Notifications", "Sounds & alerts", notificationsSectionHtml())}
         ${settingsAlbumHtml("⌨️", "#8d67ab", "Keyboard", "Shortcuts", keyboardSectionHtml())}
         ${settingsAlbumHtml("🛠️", "#9aa0a6", "Diagnostics", "Backups & logs", diagnosticsSectionHtml())}

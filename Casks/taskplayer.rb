@@ -4,7 +4,7 @@ cask "taskplayer" do
 
   url "https://github.com/isubham/homebrew-taskplayer/releases/download/v#{version}/TaskPlayer.app.tar.gz"
   name "TaskPlayer"
-  desc "Spotify-style deep-work timer"
+  desc "Playlist-style deep-work timer"
   homepage "https://github.com/isubham/homebrew-taskplayer"
 
   depends_on macos: :big_sur

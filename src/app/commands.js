@@ -1,4 +1,4 @@
-import { esc, LIFE_AREAS } from "./utils.js";
+import { esc, LIFE_AREAS, colorForArea } from "./utils.js";
 
 // Curated set for the "Edit list" emoji picker, grouped into the categories
 // a task list tends to fall into — still a curated pick per category (24
@@ -38,11 +38,6 @@ const lifeDirOptionsHtml = (selected) => `
   <option value="increase" ${selected !== "decrease" ? "selected" : ""}>Increases this area</option>
   <option value="decrease" ${selected === "decrease" ? "selected" : ""}>Decreases this area</option>`;
 
-// Mirrors the Rust-side PALETTE (src-tauri/core/src/db.rs) that add_list uses
-// to give each new list a rotating default color — replicated here so the New
-// list dialog's color picker can seed with the exact color the list would get
-// by default. Keep the two in the same order; update both if either changes.
-const LIST_PALETTE = ["#1db954", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a"];
 
 export function createCommands({ state, ui, renderer, invoke }) {
   // `uiForm` itself isn't destructured here — a local wrapper of the same
@@ -67,10 +62,16 @@ export function createCommands({ state, ui, renderer, invoke }) {
   // Shared builder for the New list / Edit list dialogs — one definition so
   // the two can't drift apart (they used to: New list had no emoji, no color,
   // and no live preview). Renders the preview tile, name field, paged emoji
-  // picker, color input, and life-area + effect selects, wires the live
-  // preview, and resolves to {name, emoji, color, area, direction} (or
-  // undefined if cancelled / name blank). `current` seeds every field; pass
-  // `deleteId` to include the Edit-only "Delete list" button.
+  // picker, and life-area + effect selects, wires the live preview, and
+  // resolves to {name, emoji, color, area, direction} (or undefined if
+  // cancelled / name blank). `current` seeds every field; pass `deleteId` to
+  // include the Edit-only "Delete list" button.
+  //
+  // No standalone color field: color is derived from the selected life area
+  // (see utils.js's colorForArea), not an independent choice, so every list
+  // in the same category reads as the same color rather than something that
+  // can drift from the tag. The preview swatch re-derives live off the
+  // life-area <select> instead of a color input.
   async function openListForm({ title, confirmText, current, deleteId = null }) {
     // Starts as the given emoji even if it isn't one of the curated picker
     // choices — only changes when a tile is actually clicked, so saving
@@ -96,7 +97,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
       confirmText,
       focusSel: "#listNameIn",
       bodyHtml: `
-        <div class="ffield"><label>Preview</label><span id="stylePreview" style="${previewStyle(current.color)}">${chosenEmoji}</span></div>
+        <div class="ffield"><label>Preview</label><span id="stylePreview" style="${previewStyle(colorForArea(current.lifeArea))}">${chosenEmoji}</span></div>
         <div class="ffield"><label>Name</label><input type="text" id="listNameIn" value="${esc(current.name || "")}" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
         <div class="ffield" style="align-items:flex-start">
           <label>Emoji</label>
@@ -109,17 +110,15 @@ export function createCommands({ state, ui, renderer, invoke }) {
             <div class="emoji-grid" id="emojiGrid">${catGridHtml()}</div>
           </div>
         </div>
-        <div class="ffield"><label>Color</label><input type="color" id="listColorIn" value="${esc(current.color)}"></div>
         <div class="ffield"><label>Life area</label><select id="listAreaIn">${lifeAreaOptionsHtml(current.lifeArea || "")}</select></div>
         <div class="ffield"><label>Effect</label><select id="listDirIn">${lifeDirOptionsHtml(current.lifeDirection)}</select></div>
         ${deleteHtml}`,
       collect: () => {
         const name = document.getElementById("listNameIn").value.trim();
         if (!name) return undefined;
-        const color = document.getElementById("listColorIn").value;
         const area = document.getElementById("listAreaIn").value || null;
         const direction = area ? document.getElementById("listDirIn").value : null;
-        return { name, emoji: chosenEmoji, color, area, direction };
+        return { name, emoji: chosenEmoji, color: colorForArea(area), area, direction };
       },
     });
     // Wider than the default dialog so each category's 24 emoji fit 2 rows
@@ -127,7 +126,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const modal = document.getElementById("dmodal");
     modal?.classList.add("dlg-emoji");
     const preview = document.getElementById("stylePreview");
-    const colorInput = document.getElementById("listColorIn");
+    const areaSelect = document.getElementById("listAreaIn");
     const grid = document.getElementById("emojiGrid");
     const catLabel = document.getElementById("emojiCatLabel");
     const catPrev = document.getElementById("emojiCatPrev");
@@ -150,8 +149,11 @@ export function createCommands({ state, ui, renderer, invoke }) {
     };
     catPrev?.addEventListener("click", () => goToCategory(-1));
     catNext?.addEventListener("click", () => goToCategory(1));
-    colorInput?.addEventListener("input", () => {
-      if (preview) preview.style.cssText = previewStyle(colorInput.value);
+    // Preview swatch re-colors live as the life area changes — this is the
+    // replacement for the old color-input listener, now driven by the
+    // derived color instead of a free pick.
+    areaSelect?.addEventListener("change", () => {
+      if (preview) preview.style.cssText = previewStyle(colorForArea(areaSelect.value || null));
     });
     const value = await formPromise;
     modal?.classList.remove("dlg-emoji");
@@ -165,15 +167,13 @@ export function createCommands({ state, ui, renderer, invoke }) {
   // user clicked to create it, instead of defaulting to "Unsorted" and
   // making them re-pick the same category they just came from.
   async function addList(presetArea = null) {
-    // Full parity with Edit list (name, emoji, color, life tag) so a list gets
-    // its identity at creation, not only afterward. Seeds the color with the
-    // same rotating palette default add_list would assign, so leaving it
-    // untouched reproduces the prior behavior exactly.
-    const paletteColor = LIST_PALETTE[(state.S?.lists.length ?? 0) % LIST_PALETTE.length];
+    // Full parity with Edit list (name, emoji, life tag) so a list gets its
+    // identity at creation, not only afterward. No color to seed here
+    // anymore — openListForm derives the preview swatch from `lifeArea`.
     const value = await openListForm({
       title: "New list",
       confirmText: "Create",
-      current: { name: "", emoji: "📁", color: paletteColor, lifeArea: presetArea || "", lifeDirection: "increase" },
+      current: { name: "", emoji: "📁", lifeArea: presetArea || "", lifeDirection: "increase" },
     });
     if (!value) return;
     const snap = await invoke("add_list", { name: value.name });
@@ -414,6 +414,11 @@ export function createCommands({ state, ui, renderer, invoke }) {
     if (!current) return;
     const normalized = area || null;
     const direction = normalized ? (current.lifeDirection || null) : null;
+    // Color is derived from the area (see colorForArea / openListForm's doc
+    // comment) — re-filing a list via drag-and-drop changes its category
+    // just as much as the Edit dialog does, so it needs the same recolor,
+    // not just the tag update the old single `set_list_life_tag` call did.
+    await invoke("set_list_style", { id, emoji: current.emoji, color: colorForArea(normalized) });
     apply(await invoke("set_list_life_tag", { id, area: normalized, direction }));
   }
 

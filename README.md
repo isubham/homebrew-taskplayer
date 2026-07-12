@@ -1,11 +1,11 @@
 # TaskPlayer for macOS
 
-A Spotify-style **deep-work timer** as a native macOS app. One task plays at a time,
+A playlist-style **deep-work timer** as a native macOS app. One task plays at a time,
 every play/stop logs a session to **SQLite**, and a **menu-bar status item** shows the
 live minutes worked and toggles play/pause.
 
 Built with **Tauri v2** — a Rust core (data + timing engine) wrapping the reused
-Spotify-dark web UI. No login, no server; all data is local.
+dark, playlist-style web UI. No login, no server; all data is local.
 
 ## Requirements (build on a Mac)
 
@@ -75,7 +75,7 @@ To ship with zero warnings later, sign + notarize with an Apple Developer ID and
 
 ## Features
 
-- **Single active task** — starting one stops+logs the previous (Spotify model).
+- **Single active task** — starting one stops+logs the previous (like switching tracks on a playlist).
 - **Menu-bar status item** — shows `▶ 25m` (or `☕ 4m` on break); click for Open / Play-Pause / Quit.
 - **Task detail** — total time + full session history.
 - **Row ⋯ menu** — history, rename, start/stop, deep/shallow tag, delete. Lists rename via ✎ or double-click.

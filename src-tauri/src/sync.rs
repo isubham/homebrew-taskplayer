@@ -386,8 +386,15 @@ fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), String> {
 }
 
 /// Returns `true` if anything pulled from the remote actually changed local data.
-fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
-    let cursor = db.get_pull_cursor();
+///
+/// `force`: when true, applies every pulled row unconditionally (remote wins
+/// even over a locally-newer row) via `upsert_from_remote_force`, and pulls
+/// from the epoch (`cursor=0`) regardless of the stored pull cursor, instead
+/// of the normal incremental `updated_at > cursor` watermark. Used only for
+/// the one-time authoritative pull right after sign-in — see `sync_login`'s
+/// doc comment for why plain LWW isn't good enough there.
+fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
+    let cursor = if force { 0 } else { db.get_pull_cursor() };
     let now = now_ms();
 
     // Parent-before-child, same as `Db::upsert_from_remote` applies them —
@@ -419,7 +426,11 @@ fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
 
     let mut changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
     if changed {
-        db.upsert_from_remote(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
+        if force {
+            db.upsert_from_remote_force(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
+        } else {
+            db.upsert_from_remote(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
+        }
     }
     // Applied separately from the three above: `upsert_run_from_remote`
     // guards on `RunState::updated_at` itself (there's no local SQL row for
@@ -446,10 +457,33 @@ fn pull(db: &Db, access_token: &str) -> Result<bool, String> {
     Ok(changed)
 }
 
-/// Push local changes, then pull remote ones. Returns `true` if the pull
-/// side changed any local data (so the caller knows whether a full
-/// `Snapshot` re-render is warranted).
+/// Push local changes, then pull remote ones (plain last-write-wins on both
+/// sides). Returns `true` if the pull side changed any local data (so the
+/// caller knows whether a full `Snapshot` re-render is warranted). This is
+/// the normal cadence — the 60s background tick, "Sync now", "Full sync" —
+/// for every sync *except* the one right after signing in.
 pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, String> {
     push(db, access_token, user_id)?;
-    pull(db, access_token)
+    pull(db, access_token, false)
+}
+
+/// The one-time sync run immediately after a fresh sign-in (see
+/// `main.rs`'s `run_login_sync`). Deliberately pull-only, and forced: no
+/// `push()` at all in this cycle, and the pull applies remote rows
+/// unconditionally rather than only-if-newer.
+///
+/// Why not just `sync_once`: plain LWW means whichever `updated_at` is newer
+/// wins, and push/pull order doesn't change that outcome. Signing out only
+/// clears the auth session — it never touches local SQLite — so edits made
+/// while signed out (deletes included) are ordinary, real, newer-than-remote
+/// writes. The very next `sync_once` after signing back in would then
+/// faithfully push those as "the latest truth," silently tombstoning
+/// whatever's on the server. Skipping push and forcing remote to win for
+/// this one cycle treats the account's server-side state as authoritative at
+/// the moment of sign-in, instead of whatever happened to accumulate locally
+/// while disconnected. A row that only exists locally (never reached the
+/// server at all) is untouched by the forced pull and still syncs up
+/// normally on the next regular cycle.
+pub fn sync_login(db: &Db, access_token: &str) -> Result<bool, String> {
+    pull(db, access_token, true)
 }

@@ -13,6 +13,7 @@ export function bootstrapApp() {
     const { event, element, id, value, key, overlay, view, listId, mode } = payload;
     switch (action) {
       case "addList": return commands.addList();
+      case "addListInArea": return commands.addList(payload.area || null);
       case "editList": return commands.editList(id);
       case "deleteList": return commands.deleteList(id);
       case "selectList": return commands.selectList(id);

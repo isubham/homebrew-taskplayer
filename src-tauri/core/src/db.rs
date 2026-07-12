@@ -362,16 +362,47 @@ impl Db {
     /// Postgres-side `lww_guard` trigger: a row only overwrites the local
     /// copy if its `updated_at` is strictly newer.
     pub fn upsert_from_remote(&self, lists: &[TaskList], tasks: &[Task], sessions: &[Session]) -> rusqlite::Result<()> {
+        self.upsert_from_remote_inner(lists, tasks, sessions, false)
+    }
+
+    /// Same as `upsert_from_remote`, but applies every row unconditionally —
+    /// skips the `WHERE excluded.updated_at > x.updated_at` last-write-wins
+    /// guard entirely, so remote wins even over a *newer* local row.
+    ///
+    /// Used exactly once per sign-in (see `sync::sync_login` / `main.rs`'s
+    /// `run_login_sync`), never for the normal periodic/manual sync cycle.
+    /// Rationale: local edits made while signed out (deletes included) are
+    /// still real SQLite writes — signing out only clears the auth session,
+    /// it doesn't sandbox local editing — so by the time the next sign-in
+    /// happens, a local delete can easily be *newer* than the last known
+    /// remote state. Plain LWW would then treat that delete as "the latest
+    /// truth" and push it, silently tombstoning the account's real data on
+    /// the very next sync. Forcing remote to win specifically at sign-in
+    /// time is what stops that: any row that still exists on the server
+    /// overwrites the local copy outright, regardless of which one is
+    /// newer. A row that's genuinely local-only (no remote counterpart at
+    /// all) is untouched here and still syncs up normally afterward via the
+    /// regular push path.
+    pub fn upsert_from_remote_force(&self, lists: &[TaskList], tasks: &[Task], sessions: &[Session]) -> rusqlite::Result<()> {
+        self.upsert_from_remote_inner(lists, tasks, sessions, true)
+    }
+
+    fn upsert_from_remote_inner(&self, lists: &[TaskList], tasks: &[Task], sessions: &[Session], force: bool) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         for l in lists {
-            tx.execute(
+            let sql = if force {
+                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)
+                 ON CONFLICT(id) DO UPDATE SET name=excluded.name, emoji=excluded.emoji, color=excluded.color,
+                   ord=excluded.ord, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                   life_area=excluded.life_area, life_direction=excluded.life_direction"
+            } else {
                 "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)
                  ON CONFLICT(id) DO UPDATE SET name=excluded.name, emoji=excluded.emoji, color=excluded.color,
                    ord=excluded.ord, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
                    life_area=excluded.life_area, life_direction=excluded.life_direction
-                 WHERE excluded.updated_at > lists.updated_at",
-                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.deleted_at, l.life_area, l.life_direction],
-            )?;
+                 WHERE excluded.updated_at > lists.updated_at"
+            };
+            tx.execute(sql, params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.deleted_at, l.life_area, l.life_direction])?;
         }
         for t in tasks {
             // impact_tier/impact_sign/deadline_at now round-trip through
@@ -380,24 +411,34 @@ impl Db {
             // first (see the `alter table` note in db.sql) for a remote row
             // to actually carry a real value here instead of the
             // pre-migration default.
-            tx.execute(
+            let sql = if force {
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
+                 ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
+                   ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
+                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album,
+                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at"
+            } else {
                 "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
                  ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
                    ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album,
                    impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at
-                 WHERE excluded.updated_at > tasks.updated_at",
-                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at],
-            )?;
+                 WHERE excluded.updated_at > tasks.updated_at"
+            };
+            tx.execute(sql, params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at])?;
         }
         for s in sessions {
-            tx.execute(
+            let sql = if force {
+                "INSERT INTO sessions(id,task_id,start,end,updated_at,deleted_at) VALUES(?1,?2,?3,?4,?5,?6)
+                 ON CONFLICT(id) DO UPDATE SET task_id=excluded.task_id, start=excluded.start, end=excluded.end,
+                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at"
+            } else {
                 "INSERT INTO sessions(id,task_id,start,end,updated_at,deleted_at) VALUES(?1,?2,?3,?4,?5,?6)
                  ON CONFLICT(id) DO UPDATE SET task_id=excluded.task_id, start=excluded.start, end=excluded.end,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
-                 WHERE excluded.updated_at > sessions.updated_at",
-                params![s.id, s.task_id, s.start, s.end, s.updated_at, s.deleted_at],
-            )?;
+                 WHERE excluded.updated_at > sessions.updated_at"
+            };
+            tx.execute(sql, params![s.id, s.task_id, s.start, s.end, s.updated_at, s.deleted_at])?;
         }
         tx.commit()
     }

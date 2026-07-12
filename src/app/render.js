@@ -148,10 +148,20 @@ export function createRenderer({ state, helpers, actions }) {
   // navigation hierarchy (area → list → album → task) without any new data —
   // it reuses the list's existing `lifeArea` tag. Design constraints from
   // CLAUDE.md: sections follow the canonical LIFE_AREAS order (never
-  // user-sorted — rule 8), empty areas are hidden entirely (an empty
-  // "Finances" section reads as a reproach — rules 5 & 9), and untagged lists
-  // stay a valid state in a calm "Unsorted" bucket rather than being nagged
-  // to file themselves (rule 8). Dragging a list onto a header re-files it.
+  // user-sorted — rule 8), and untagged lists stay a valid state in a calm
+  // "Unsorted" bucket rather than being nagged to file themselves (rule 8).
+  // Dragging a list onto a header re-files it.
+  //
+  // Every LIFE_AREAS entry always renders, even with zero lists — an earlier
+  // version hid empty sections outright (an empty "Finances" section reading
+  // as a reproach, per rule 9), but that also meant a category you'd never
+  // touched was invisible, not just empty, with no way to discover it existed
+  // short of the New List dialog's dropdown. The fix keeping rule 9 intact
+  // isn't hiding the section — it's making the empty state itself carry zero
+  // judgment: the `.ls-invite` row below is a plain "+ Start a list", the
+  // same wording and visual weight regardless of *which* category is empty
+  // or how long it's been that way, so it reads as a standing option, never
+  // a status report on the category.
   function renderSidebar() {
     if (!state.S) return;
     const byArea = new Map();
@@ -162,8 +172,8 @@ export function createRenderer({ state, helpers, actions }) {
     }
     const sections = [];
     for (const area of LIFE_AREAS) {
-      const items = byArea.get(area.key);
-      if (items && items.length) sections.push({ key: area.key, dropArea: area.key, label: area.label, color: area.color, items });
+      const items = byArea.get(area.key) || [];
+      sections.push({ key: area.key, dropArea: area.key, label: area.label, color: area.color, items });
     }
     const untagged = byArea.get("");
     if (untagged && untagged.length) {
@@ -173,6 +183,9 @@ export function createRenderer({ state, helpers, actions }) {
     document.getElementById("lists").innerHTML = sections.map((section) => {
       const collapsed = !!state.sidebarCollapsed[section.key];
       const n = section.items.length;
+      const body = n
+        ? section.items.map(sidebarListRow).join("")
+        : `<button type="button" class="ls-invite" data-action="addListInArea" data-area="${esc(section.dropArea)}" title="Create the first list in ${esc(section.label)}">+ Start a list</button>`;
       return `
       <div class="list-section${collapsed ? " collapsed" : ""}">
         <div class="ls-header" data-action="toggleAreaSection" data-area="${section.key}" data-area-drop="${esc(section.dropArea)}" title="${esc(section.label)} — ${n} list${n === 1 ? "" : "s"}">
@@ -180,7 +193,7 @@ export function createRenderer({ state, helpers, actions }) {
           <span class="ls-label">${esc(section.label)}</span>
           <span class="ls-chevron">${collapsed ? "▸" : "▾"}</span>
         </div>
-        <div class="ls-body">${section.items.map(sidebarListRow).join("")}</div>
+        <div class="ls-body">${body}</div>
       </div>`;
     }).join("");
   }

@@ -36,3 +36,5 @@ session.json
 .claude/
 
 concepts/
+
+dist_verify/

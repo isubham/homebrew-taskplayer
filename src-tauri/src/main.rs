@@ -521,12 +521,36 @@ fn store_session(app: &AppHandle, session: auth::Session) {
     let _ = db.set_account(Some(&session.account));
 }
 
-/// Common tail of both the sign-in callback and the startup silent refresh:
-/// store the new session, then immediately push+pull once.
+/// Tail of the startup silent refresh (and any later proactive/reactive
+/// re-refresh that also wants an immediate sync): store the new session,
+/// then run the normal push+pull cycle. Deliberately plain last-write-wins
+/// here — a silent refresh means the app was never actually signed out in
+/// the interim, so there's no "local edits made while disconnected from the
+/// account" scenario to guard against; it's just resuming the same session,
+/// same as any other periodic sync tick. See `apply_session_login` for the
+/// one case that needs different treatment.
 fn apply_session(app: &AppHandle, session: auth::Session) {
     store_session(app, session);
     push(app);
     run_sync(app);
+}
+
+/// Tail of the explicit sign-in callback specifically (Google OAuth deep
+/// link) — store the new session, then run the one-time authoritative,
+/// pull-only login sync instead of the normal push+pull cycle.
+///
+/// Why this needs to differ from `apply_session`: signing out only clears
+/// the auth session, never local SQLite, so any edits made while signed out
+/// — including deletes — are real, newer-than-remote local writes sitting
+/// there waiting. A plain `run_sync` (push-then-pull, LWW) would treat those
+/// as "the latest truth" and push them straight to the server the moment you
+/// sign back in, silently overwriting/tombstoning whatever's actually there.
+/// `run_login_sync` skips the push and forces remote to win for this one
+/// cycle, so signing in always shows you what's actually in your account.
+fn apply_session_login(app: &AppHandle, session: auth::Session) {
+    store_session(app, session);
+    push(app);
+    run_login_sync(app);
 }
 
 /// Loads the stored refresh token and exchanges it for a new session,
@@ -626,6 +650,68 @@ fn run_sync(app: &AppHandle) {
     // loop actually use — reconcile the two now so a session taken over on
     // another device shows up here without needing an app restart. See
     // `reconcile_run_after_sync`'s doc comment.
+    reconcile_run_after_sync(state.inner());
+    reconcile_config_after_sync(state.inner());
+    push(app);
+}
+
+/// Companion to `run_sync`, used exactly once — right after a fresh explicit
+/// sign-in (see `apply_session_login`). Same shape (token refresh, 401 retry,
+/// sync_status bookkeeping, reconcile calls), but calls `sync::sync_login`
+/// instead of `sync::sync_once`: no push, and the pull applies remote
+/// unconditionally rather than only-if-newer. See `sync::sync_login`'s doc
+/// comment for the full rationale.
+fn run_login_sync(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let Some(mut access_token) = ensure_fresh_token(app) else { return };
+    // `sync_login` doesn't push, so it has no need for `user_id` — but a
+    // missing local account here would still mean "not really signed in
+    // yet," so keep the same guard `run_sync` uses before doing any network
+    // work.
+    if state.db.lock().unwrap().get_account().is_none() {
+        return;
+    }
+
+    state.sync_status.lock().unwrap().syncing = true;
+    push(app);
+
+    let mut result = {
+        let db = state.db.lock().unwrap();
+        sync::sync_login(&db, &access_token)
+    };
+
+    // Same 401-retry-once safety net as `run_sync`.
+    if matches!(&result, Err(e) if e.contains("HTTP 401")) {
+        match do_refresh(app) {
+            Ok(new_token) => {
+                access_token = new_token;
+                let db = state.db.lock().unwrap();
+                result = sync::sync_login(&db, &access_token);
+            }
+            Err(e) => {
+                log_line(format!("token refresh after 401 failed, signing out: {e}"));
+                *state.access_token.lock().unwrap() = None;
+            }
+        }
+    }
+
+    {
+        let mut status = state.sync_status.lock().unwrap();
+        status.syncing = false;
+        match &result {
+            Ok(_) => {
+                status.last_synced_at = Some(now_ms());
+                status.last_sync_error = None;
+            }
+            Err(e) => {
+                status.last_sync_error = Some(e.clone());
+            }
+        }
+    }
+
+    if let Err(e) = &result {
+        log_line(format!("login sync failed: {e}"));
+    }
     reconcile_run_after_sync(state.inner());
     reconcile_config_after_sync(state.inner());
     push(app);
@@ -1516,7 +1602,7 @@ fn main() {
                     };
                     let handle2 = handle.clone();
                     std::thread::spawn(move || match auth::exchange_code(&code, &pkce.verifier) {
-                        Ok(session) => apply_session(&handle2, session),
+                        Ok(session) => apply_session_login(&handle2, session),
                         Err(e) => log_line(format!("Google sign-in failed: {e}")),
                     });
                 });

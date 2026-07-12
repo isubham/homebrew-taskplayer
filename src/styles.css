@@ -196,6 +196,17 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .list-section.collapsed .ls-body{display:none}
 /* Re-file drop target: dragging a list onto a section header highlights it. */
 .ls-header.drop-zone-over{outline:2px dashed var(--green);outline-offset:-2px;border-radius:6px;color:#fff}
+/* Empty-category invite row (see renderSidebar's `body` in render.js) — every
+   life area always renders now, so an area with no lists yet needs something
+   in its place. Deliberately NOT `.add-btn`'s dashed-border treatment (too
+   loud for something that appears by default, unprompted, in every empty
+   category) — same padding/font as a real `.list-item` row so it lines up
+   in the list, but styled like a disabled control: quiet muted text, no
+   background fill even on hover, just a small brightening. It should read as
+   a standing option to notice if you're looking, not a call-out. */
+.ls-invite{display:block;width:100%;text-align:left;background:none;border:none;padding:6px 8px 6px 11px;
+  border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500;font-size:13px;opacity:.7}
+.ls-invite:hover{opacity:1;color:#fff}
 .add-btn{flex:none;margin:12px 8px 0;width:calc(100% - 16px);background:none;border:1px dashed #444;color:var(--muted);padding:9px;border-radius:6px;cursor:pointer;font-weight:600}
 .add-btn:hover{border-color:#777;color:#fff}
 /* Settings page (rendered in main area) */

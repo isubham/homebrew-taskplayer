@@ -158,7 +158,13 @@ export function createCommands({ state, ui, renderer, invoke }) {
     return value;
   }
 
-  async function addList() {
+  // `presetArea`: set when this came from a sidebar section's empty-state
+  // "+ Start a list" row (see render.js's `sections.map` in renderSidebar)
+  // rather than the toolbar's generic New List action — pre-selects that
+  // category in the life-area dropdown so the list lands exactly where the
+  // user clicked to create it, instead of defaulting to "Unsorted" and
+  // making them re-pick the same category they just came from.
+  async function addList(presetArea = null) {
     // Full parity with Edit list (name, emoji, color, life tag) so a list gets
     // its identity at creation, not only afterward. Seeds the color with the
     // same rotating palette default add_list would assign, so leaving it
@@ -167,7 +173,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const value = await openListForm({
       title: "New list",
       confirmText: "Create",
-      current: { name: "", emoji: "📁", color: paletteColor, lifeArea: "", lifeDirection: "increase" },
+      current: { name: "", emoji: "📁", color: paletteColor, lifeArea: presetArea || "", lifeDirection: "increase" },
     });
     if (!value) return;
     const snap = await invoke("add_list", { name: value.name });

@@ -17,6 +17,10 @@ would otherwise be repeatedly debated. Do not create one for routine implementat
 | [0001](0001-documentation-system.md) | Accepted | Separate current features, release history, and durable decisions |
 | [0002](0002-automatic-pomodoro-transitions.md) | Accepted | Start Pomodoro break/work phases automatically at boundaries |
 | [0003](0003-backward-compatible-storage-and-sync.md) | Accepted | Preserve compatibility across SQLite, Supabase, and client versions |
+| [0004](0004-lit-html-component-model.md) | Accepted | Use one lit-html module per UI component |
+| [0005](0005-fold-personal-growth-into-health.md) | Accepted | Fold Personal Growth into Health & Wellbeing |
+| [0006](0006-desktop-window-minimum.md) | Accepted | Keep the desktop workspace at or above 1280×800 |
+| [0007](0007-now-playing-focus-page.md) | Accepted | Make Now Playing a temporary focus page instead of a persistent rail |
 
 ## Creating a record
 

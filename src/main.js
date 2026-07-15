@@ -40,7 +40,7 @@ import { bootstrapApp } from "./app/bootstrap.js";
   // without waiting for an unrelated state-changed re-render
   await listen("tick", () => {
     renderer.renderPlayer();
-    renderer.renderNowPlaying();
+    if (appState.state.view === "playing") renderer.renderMain();
   });
 
   // Tray menu-bar music controls (Play/Pause music, Next track) — the tray

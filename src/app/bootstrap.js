@@ -10,6 +10,35 @@ export function bootstrapApp() {
   const renderer = createRenderer({ state: appState.state, helpers: appState, actions: null });
   const commands = createCommands({ state: appState.state, ui, renderer, invoke: window.__TAURI__.core.invoke });
 
+  const ZOOM_MIN = 0.8;
+  const ZOOM_MAX = 1.3;
+  const ZOOM_STEP = 0.1;
+  let savedZoom = 1;
+  try { savedZoom = Number.parseFloat(localStorage.getItem("tp.zoom") || "1"); } catch (_) { /* use 100% */ }
+  let zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number.isFinite(savedZoom) ? savedZoom : 1));
+  let appliedZoom = 1;
+  let zoomQueue = Promise.resolve();
+  let zoomRequestId = 0;
+  const persistZoom = (level) => {
+    try { localStorage.setItem("tp.zoom", String(level)); } catch (_) { /* non-fatal */ }
+  };
+  const setZoom = (next) => {
+    zoomLevel = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)) * 10) / 10;
+    const requested = zoomLevel;
+    const requestId = ++zoomRequestId;
+    zoomQueue = zoomQueue.then(async () => {
+      await window.__TAURI__.core.invoke("set_app_zoom", { scale: requested });
+      appliedZoom = requested;
+      if (requestId === zoomRequestId) persistZoom(requested);
+    }).catch(() => {
+      if (requestId === zoomRequestId) {
+        zoomLevel = appliedZoom;
+        persistZoom(appliedZoom);
+      }
+    });
+  };
+  setZoom(zoomLevel);
+
   const dispatchAction = async (action, payload = {}) => {
     const { event, element, id, value, key, overlay, view, listId, mode } = payload;
     switch (action) {
@@ -81,7 +110,7 @@ export function bootstrapApp() {
         const next = modeValue ? order[(order.indexOf(modeValue) + 1) % order.length] : "open";
         return commands.setMode(next);
       }
-      case "toggleRail": return renderer.toggleRail();
+      case "openNowPlaying": return renderer.openNowPlaying();
       case "navigate": return renderer.navigate({ view: view || "tasks", listId: listId || null });
       case "goBack": return renderer.goBack();
       case "goForward": return renderer.goForward();
@@ -91,7 +120,6 @@ export function bootstrapApp() {
       case "openSettingsPage": return renderer.openSettingsPage();
       case "openInsightsPage": return renderer.openInsightsPage();
       case "toggleCompleted": return renderer.toggleCompleted();
-      case "playFirst": return renderer.playFirst();
       case "openRowMenu": return renderer.openRowMenu(element, id);
       case "rowMenu": return renderer.rowMenu(payload.action ?? value, id);
       case "closeRowMenu": return renderer.closeRowMenu();
@@ -494,29 +522,27 @@ export function bootstrapApp() {
   window.addEventListener("resize", renderer.closeRowMenu);
 
   // ── Keyboard driving ──────────────────────────────────────────────────
-  // Tab cycles a "focused region" through the four panels — sidebar → main →
-  // now-playing rail (only when open) → player bar — and Shift+Tab reverses.
+  // Tab cycles a "focused region" through the visible panels — sidebar →
+  // main → player bar — and Shift+Tab reverses.
   // The focused region gets an outline; inside the sidebar or main, j/k move a
   // row highlight and Enter opens the list / plays the task. h and l are left
   // unbound for now, reserved for vim-style left/right later.
-  const REGION_ORDER = ["sidebar", "main", "rail", "player"];
+  const REGION_ORDER = ["sidebar", "main", "player"];
   let kbRegion = null;
   let kbIdx = -1;
   const kbHasFocus = () => kbRegion !== null;
 
-  // Regions currently on screen, in cycle order. The rail is only present once
-  // it's been toggled open (state.railOpen), so it's skipped otherwise.
+  // Regions currently on screen, in cycle order.
   function kbRegions() {
     const elFor = {
       sidebar: document.querySelector(".side"),
       main: document.getElementById("main"),
-      rail: appState.state.railOpen ? document.getElementById("nprail") : null,
       player: document.querySelector(".player"),
     };
     return REGION_ORDER.map((key) => ({ key, el: elFor[key] })).filter((r) => r.el);
   }
   // Focusable rows inside a region — lists in the sidebar, task rows in main.
-  // Rail and player have no row-level navigation yet (highlight only).
+  // The player has no row-level navigation yet (highlight only).
   function kbRows(region) {
     if (region === "sidebar") return Array.from(document.querySelectorAll("#lists .list-item[data-drag-list-id]"));
     if (region === "main") return Array.from(document.querySelectorAll("#main tr[data-drag-id]"));
@@ -627,6 +653,14 @@ export function bootstrapApp() {
       return;
     }
 
+    if ((event.metaKey || event.ctrlKey) && ["+", "=", "-", "_", "0"].includes(event.key)) {
+      event.preventDefault();
+      if (event.key === "0") setZoom(1);
+      else if (event.key === "+" || event.key === "=") setZoom(zoomLevel + ZOOM_STEP);
+      else setZoom(zoomLevel - ZOOM_STEP);
+      return;
+    }
+
     if (kbSuppressed(event)) return;
 
     if (event.key === "Tab") {
@@ -642,11 +676,11 @@ export function bootstrapApp() {
       case "k": event.preventDefault(); return kbMove(-1);
       case "n": {
         // Context-sensitive "new", by focused region: a list in the sidebar, a
-        // task in main, a session for the current track in the rail/player.
+        // task on a list page, or a session for the current track in player.
         event.preventDefault();
         if (kbRegion === "sidebar") return commands.addList();
-        if (kbRegion === "main") return commands.addTask();
-        if (kbRegion === "rail" || kbRegion === "player") {
+        if (kbRegion === "main" && appState.state.view === "tasks") return commands.addTask();
+        if (kbRegion === "player") {
           const run = appState.state.S?.run;
           const taskId = run?.activeTaskId || run?.lastTaskId;
           if (taskId) commands.addSession(taskId);

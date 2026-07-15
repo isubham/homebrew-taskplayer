@@ -34,7 +34,12 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Individual task-list pages.
 - Pinned Insights page.
 - Settings page.
-- Now Playing rail and task/track overlays.
+- Dedicated Now Playing focus page and task/track overlays.
+- The desktop window opens at 1280×840 and cannot be resized below 1280×800, preserving the
+  sidebar, task workspace, and bottom player without a compact mobile layout.
+- Clicking the current task identity in the bottom player opens Now Playing as a dedicated page.
+  It keeps the familiar list panel for orientation, keeps playback in the global player, and
+  restores the exact previous page and scroll position on Back.
 - Back/forward navigation with animated page transitions and `⌘[` / `⌘]` shortcuts.
 - Sticky mini-headers appear after large page headers scroll away.
 
@@ -48,7 +53,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Keyboard control — Shipped
 
 - Optional single-key shortcut mode in Settings.
-- Tab and Shift+Tab cycle sidebar, main content, Now Playing rail, and player.
+- `⌘+` and `⌘−` zoom the full app interface in 10% steps from 80% to 130%; `⌘0` resets to 100%.
+- Tab and Shift+Tab cycle the visible sidebar, main content, and player regions.
 - `j` / `k` move through list or task rows; Enter activates the focused row.
 - Space plays or pauses the active, focused, or last-played task.
 - `n` creates a list, task, or session according to the focused region.
@@ -62,6 +68,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Motion-based list/life-area drag reordering.
 - A single centered toast component is the app-wide transient feedback channel.
 - Life-area reorder feedback explains the relationship created by the move.
+- The top bar, pinned navigation, grouped sidebar, task-list page, task rows, sticky task header,
+  and Daily Jam update through isolated `lit-html` components. Re-renders patch those surfaces in
+  place, preserving their DOM identity and automatically escaping displayed task/list text.
 
 ## 2. Lists and life areas
 
@@ -75,8 +84,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Life-area filing — Shipped
 
-- Six fixed areas: Career / Work, Health & Wellbeing, Relationships, Personal Growth,
-  Finances, and Recreation.
+- Five fixed areas: Career / Work, Health & Wellbeing, Relationships, Finances, and Recreation.
+- Personal Growth is folded into Health & Wellbeing. Legacy `growth` values from supported older
+  clients are accepted and normalized instead of appearing as Unsorted.
 - Lists may be left Unsorted.
 - A list may count **for** or **against** its area.
 - List color is derived from its life area; Unsorted uses neutral gray.
@@ -109,12 +119,26 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Task management — Shipped
 
 - Create and edit use the same two-column task-detail layout.
+- The One-time/Daily repeat selector uses compact horizontal pills so it does not compete with
+  the primary task fields.
 - Rename, move, reorder, delete, complete/uncomplete, and group tasks into free-form albums.
 - Add or edit notes (“Lyrics”) inline or from the dedicated overlay.
+- The Now Playing focus page keeps the current task’s free-form context directly editable and
+  pairs it with two glanceable progress surfaces: the current session and the task overall.
+  Open sessions use a running clock without an invented percentage; Target sessions fill against
+  the configured target; Pomodoro work and break phases fill against their configured block
+  lengths. The live clock uses a calm, static tabular readout alongside the mode-appropriate
+  progress bar or open-session ruler. One-time task progress uses tracked time against its estimate, while Daily
+  progress is limited to today. Playback remains in the persistent bottom player instead of being
+  duplicated, and task editing stays in task detail rather than adding another action here.
 - Mark effort as Deep, Shallow, or None.
 - Set deterministic impact as Low, Medium, High, or untagged.
 - Set impact direction as for/against the list’s life area.
 - Move a task to another list from task detail.
+- List detail uses a playlist-style hero with cover art, track/completion counts, recorded time,
+  life-area direction, a compact availability summary, and a physical tracked-versus-estimated
+  time bar. A top-right Edit List icon stays in the hero while Add Task gets its own row directly
+  below it; there is no list-wide Play action, and the sidebar no longer carries edit pencils.
 - Task lists show Daily tasks first and One-time tasks below, with blue section labels.
 - Completed tasks live in an animated collapsible section.
 
@@ -133,8 +157,12 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Repeat can be set to Daily.
 - Estimates and deadlines are hidden because they do not describe repeating routines well.
 - Daily rows show today’s session count and tracked time instead of lifetime estimate progress.
-- Daily Jam collects positive daily tasks across all lists and sorts unfinished-today items
-  first.
+- Daily Jam groups positive daily tasks into a two-column life-area card grid ordered by the
+  sidebar's life-area priority. Each card keeps unfinished-today items first, shows today's
+  progress and earliest fixed time, reuses the task-list row with play, session, progress, jewel,
+  and menu controls, and initially exposes up to four tasks with inline expansion.
+- The five life-area cards remain visible as a stable map; tasks without a life area appear in an
+  additional Unsorted card so older or partially synced data is never hidden.
 - Daily rewards are derived from whether a session started on that local calendar day; no
   streak or missed-day history is stored.
 - **Known gap:** the generic list-row checkbox still writes terminal `completed_at`, while
@@ -168,6 +196,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Persistent player — Shipped
 
 - Bottom player shows the active/last task, list, live elapsed time, and task progress.
+- Its workflow icon cycles the timer mode immediately without opening Settings; detailed mode
+  lengths remain in Settings.
 - Play/pause/stop controls are available from task rows, player, keyboard, and tray.
 - Another device’s live task is shown read-only with a “play here” takeover action.
 - Timer state continues while the main window is closed.
@@ -243,25 +273,33 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 - Time-of-day greeting and today’s tracked time.
 - Current rank badge.
-- Today’s earned jewels and lifetime net jewels.
-- Jump Back In is the first section after summary stats, with up to six recently played distinct
-  tasks.
-- Daily Jam with today-only completion state.
-- “Needs attention” tasks based on impact, deadline pressure, and neglect.
+- Jump Back In is the first section after the greeting, with up to six recently played distinct
+  tasks. Aggregate time, completion, list, and jewel totals live on Insights instead.
+- Daily Jam with today-only completion state, priority-ordered life-area cards, fixed-time cues,
+  and the existing open/play controls at each task row.
 - Life balance for the trailing seven days.
-- Three recently active lists.
+- List navigation stays in the sidebar instead of being duplicated on Home.
 - Sections are intentionally bounded; no open-ended reward feed exists.
 
-### Needs attention — Shipped
+### Distributed attention cues — Shipped
 
 - Eligible tasks require a deadline plus Medium or High impact.
 - Scoring combines impact, deadline proximity, and lack of recent work.
-- Reasons are expressed in human-readable copy rather than an unexplained score.
-- The surface is capped and uses neutral language.
+- The derived set is capped at six and excludes the actively running task.
+- A list containing a qualifying task gets one calm, unnumbered muted-blue dot at the far right of
+  its sidebar row.
+- The actively recording list uses a subtly animated three-bar equalizer. The active task row uses
+  the same live indicator in place of its static musical note; reduced-motion mode keeps both
+  indicators static.
+- The corresponding task row uses the same fixed muted blue for its bounded deadline bar and
+  shows a factual due date beside the existing deterministic jewel preview.
+- Attention color never varies by life area or urgency; life-area colors remain category identity.
+- No separate Needs Attention destination, notification count, stored failure history, or
+  unexplained score is shown.
 
 ### Life balance — Shipped
 
-- Six-axis radar based on the trailing seven days.
+- Five-axis radar based on the trailing seven days.
 - Impact-weighted task contributions inherit their list’s life area and direction.
 - Optional view of what is pulling against an area.
 - Seven-day area grid supports drill-down to contributing tasks.
@@ -290,6 +328,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Session analytics — Shipped
 
+- A static quick-glance summary shows time tracked today and all-time, completed tasks, lists,
+  jewels earned today, and lifetime net jewels.
 - Day, week, and month periods.
 - Day view uses time-positioned session lanes and a current-time needle.
 - Week view groups sessions by day and task.

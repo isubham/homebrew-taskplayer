@@ -1,12 +1,17 @@
 import {
-  esc, fmt, fmtLong, fmtEst, fmtHM, whenLabel, timeAgo, buildCapacityBar, albumColor, LIFE_AREAS,
-  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout, deadlineDate, toDateInputValue, dailyPayoutOn, dailyPayoutDayCount,
+  esc, fmt, fmtLong, fmtEst, fmtHM, whenLabel, timeAgo, LIFE_AREAS,
+  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout, toDateInputValue, dailyPayoutOn, dailyPayoutDayCount,
   RANKS, RANK_AREA_CAP_RATIO,
 } from "./utils.js";
 import { html, render as litRender } from "../vendor/lit-html.js";
 import { animate } from "../vendor/motion.js";
-import { NOW_ITEMS_SIZE, RECENT_TASKS_SIZE } from "./constants.js";
+import { ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE } from "./constants.js";
 import { simpleScheduleEditorHtml } from "./weekly-schedule.js";
+import { topbar } from "./components/topbar.js";
+import { pinnedNav } from "./components/pinned-nav.js";
+import { sidebar, sidebarListRow as sidebarListRowComponent, sidebarToggleIcon } from "./components/sidebar.js";
+import { taskListPage } from "./components/task-list-page.js";
+import { dailyJam } from "./components/daily-jam.js";
 
 export function createRenderer({ state, helpers, actions }) {
   const { list, activeList, findTask, tasksForList, taskSessions, taskTotal, listTotal, listEstimateTotal, targetMs, modeLabel, modeGlyph } = helpers;
@@ -53,8 +58,6 @@ export function createRenderer({ state, helpers, actions }) {
   const api = {};
   const dispatch = (action, payload) => (api.actions || actions || (() => undefined))(action, payload);
 
-  // Six-dot drag handle — the classic, instantly-recognizable "grab here" glyph.
-  const GRIP_SVG = `<svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="14" r="1.3"/><circle cx="8" cy="14" r="1.3"/></svg>`;
   // Sidebar-icon convention: 15px, same visual weight as the 14px emoji
   // glyphs beside them, both sitting in the fixed-width `.li-icon` column so
   // every row's icon — Insights and every list — starts at the same x
@@ -70,42 +73,20 @@ export function createRenderer({ state, helpers, actions }) {
   // way the other pages' text-glyph covers do, so it needs its own size.
   const INSIGHTS_SVG_HERO = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
 
-  // Feather's "settings" gear — the topbar's lone icon-cluster button (see
-  // renderTopbar). Same stroke-based family as INSIGHTS_SVG above (used for
-  // Insights as a pinned sidebar row — see renderPinnedNav), so they still
-  // read as one icon language even though they don't live in the same
-  // cluster.
-  const GEAR_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
-
   // Same house glyph as the topbar's #tbhome button (index.html), sized to
   // the 15px sidebar-icon-column convention — used as the Home page's own
   // stickybar icon so it reads like the other pages' mini-headers.
   const HOME_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>`;
-
-  // Folder glyph for the sidebar's life-area section headers — frames each
-  // area as a playlist folder (a Spotify concept) rather than a generic
-  // productivity section, keeping the music-library metaphor intact while the
-  // lists inside stay grouped. Tinted the area's color inline (this icon is
-  // the one place the area color lives now — the old body spine is gone), so
-  // color belongs to the category's own mark rather than a separate bar.
-  const FOLDER_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
-
-  // The equalizer is separate from the list's user-chosen emoji and reserved
-  // for a genuinely running work session, so identity and status stay distinct.
-  const SIDEBAR_EQUALIZER_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="9" width="3" height="12" rx="1.5"/><rect x="10.5" y="3" width="3" height="18" rx="1.5"/><rect x="18" y="7" width="3" height="14" rx="1.5"/></svg>`;
-  const SIDEBAR_EXPAND_ALL_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 5 5 5-5"/><path d="m7 13 5 5 5-5"/></svg>`;
-  const SIDEBAR_COLLAPSE_ALL_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="m7 17 5-5 5 5"/></svg>`;
 
   // Spotify/Apple-Music-style sticky mini-header — sits above every .hdr
   // as #main's first child (see the 4 page renderers below), always
   // `position:sticky;top:0` (see CSS) but invisible at rest. It only fades
   // in once the big header's own <h1> — the "artist name" — scrolls out of
   // view; initStickyHeader() below is what watches for that.
-  const stickyBarHtml = (icon, name, playAction) => `
+  const stickyBarHtml = (icon, name) => `
     <div class="stickybar" id="stickybar">
       <span class="sb-icon">${icon}</span>
       <span class="sb-name">${name}</span>
-      ${playAction ? `<button class="sb-play" data-action="${playAction}" title="Play first task">▶</button>` : ""}
     </div>`;
 
   // Every page renderer fully replaces #main's innerHTML, which would
@@ -137,8 +118,7 @@ export function createRenderer({ state, helpers, actions }) {
     if (!state.S) return;
     const icons = document.getElementById("topbarIcons");
     if (!icons) return;
-    icons.innerHTML = `
-      <button class="${state.view === "settings" ? "active" : ""}" data-action="openSettingsPage" title="Settings">${GEAR_SVG}</button>`;
+    litRender(topbar({ activeView: state.view }), icons);
   }
 
   // Recent/Insights as pinned sidebar rows, sitting above the "Your Lists"
@@ -152,10 +132,7 @@ export function createRenderer({ state, helpers, actions }) {
     if (!state.S) return;
     const nav = document.getElementById("pinnedNav");
     if (!nav) return;
-    nav.innerHTML = `
-      <div class="list-item ${state.view === "insights" ? "active" : ""}" data-action="openInsightsPage" title="Session history &amp; analytics">
-        <span class="li-icon">${INSIGHTS_SVG}</span><span class="li-label">Insights</span>
-      </div>`;
+    litRender(pinnedNav({ activeView: state.view }), nav);
   }
 
   // One list row — count replaces the old two-line "N tasks · spent of
@@ -163,22 +140,24 @@ export function createRenderer({ state, helpers, actions }) {
   // being always-on. `.list-grip` is positioned absolute (see CSS) precisely
   // so it doesn't reserve flex space and shift list rows' `.li-icon` out of
   // alignment with each other.
-  function sidebarListRow(listItem) {
+  function sidebarListRowForState(listItem, attentionIds) {
     const count = tasksForList(listItem.id).length;
     const liveTask = state.S.run.activeTaskId && state.S.run.phase === "work" && state.S.run.runningStart
       ? findTask(state.S.run.activeTaskId)
       : null;
     const isPlaying = liveTask?.listId === listItem.id;
-    const detail = `${isPlaying ? "Recording now · " : ""}${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder or onto a section, double-click to edit`;
-    const isActive = state.view === "tasks" && listItem.id === state.activeListId;
-    return `
-      <div class="list-item sidebar-track${isActive ? " active" : ""}${isPlaying ? " playing-list" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="${esc(detail)}">
-        <span class="list-grip" title="Drag to reorder">${GRIP_SVG}</span>
-        <span class="li-icon">${listItem.emoji}</span>
-        <span class="li-label">${esc(listItem.name)}</span>
-        ${isPlaying ? `<span class="sidebar-equalizer" title="Recording now" aria-label="Recording now">${SIDEBAR_EQUALIZER_SVG}</span>` : ""}
-        <button class="list-edit" title="Edit name, emoji &amp; color" data-action="editList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
-      </div>`;
+    const detail = `${isPlaying ? "Recording now · " : ""}${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder or onto a section`;
+    const playingTask = state.view === "playing" ? nowPlayingSelection().task : null;
+    const isActive = (state.view === "tasks" && listItem.id === state.activeListId)
+      || (state.view === "playing" && playingTask?.listId === listItem.id);
+    const attention = tasksForList(listItem.id).some((task) => attentionIds.has(task.id));
+    return sidebarListRowComponent({
+      listItem,
+      detail,
+      active: isActive,
+      playing: isPlaying,
+      attention,
+    });
   }
 
   // Sidebar lists are grouped under their life area (the same tag that feeds
@@ -228,29 +207,18 @@ export function createRenderer({ state, helpers, actions }) {
     const toggleAll = document.getElementById("sidebarToggleAll");
     if (toggleAll) {
       const label = anyCollapsed ? "Expand all list sections" : "Collapse all list sections";
-      toggleAll.innerHTML = anyCollapsed ? SIDEBAR_EXPAND_ALL_SVG : SIDEBAR_COLLAPSE_ALL_SVG;
+      litRender(sidebarToggleIcon({ anyCollapsed }), toggleAll);
       toggleAll.title = label;
       toggleAll.setAttribute("aria-label", label);
       toggleAll.setAttribute("aria-expanded", String(!anyCollapsed));
     }
 
-    document.getElementById("lists").innerHTML = sections.map((section) => {
-      const collapsed = !!state.sidebarCollapsed[section.key];
-      const n = section.items.length;
-      const body = n
-        ? section.items.map(sidebarListRow).join("")
-        : `<button type="button" class="ls-invite" data-action="addListInArea" data-area="${esc(section.dropArea)}" title="Create the first list in ${esc(section.label)}">+ Start a list</button>`;
-      return `
-      <div class="list-section${collapsed ? " collapsed" : ""}">
-        <div class="ls-header" data-action="toggleAreaSection" data-area="${section.key}" data-area-drop="${esc(section.dropArea)}" ${section.priorityRank ? `data-priority-area="${section.key}"` : ""} title="${esc(section.label)} — ${n} list${n === 1 ? "" : "s"}">
-          ${section.priorityRank ? `<span class="ls-priority-grip" draggable="true" data-drag-area="${section.key}" title="Drag to change planning priority">${GRIP_SVG}</span>` : ""}
-          <span class="ls-folder" style="color:${section.color}">${FOLDER_SVG}</span>
-          <span class="ls-label">${esc(section.label)}</span>
-          <span class="ls-chevron">›</span>
-        </div>
-        <div class="ls-body">${body}</div>
-      </div>`;
-    }).join("");
+    const attentionIds = new Set(attentionTasks().map((task) => task.id));
+    litRender(sidebar({
+      sections,
+      collapsed: state.sidebarCollapsed,
+      rowForList: (listItem) => sidebarListRowForState(listItem, attentionIds),
+    }), document.getElementById("lists"));
   }
 
   // Collapse/expand a sidebar life-area section (persisted, see state.js).
@@ -303,48 +271,166 @@ export function createRenderer({ state, helpers, actions }) {
   }
 
   // Per-list accent: keyed off `listItem.color`, set directly on #main so
-  // the header wash, the big play button, the playing-row highlight, and
-  // the toolbar's "Add task" pill hover all pick it up through CSS
-  // `var(--accent, ...fallback)` rules — and so every other page (Settings,
-  // Insights, Recent) automatically stays plain green, since none of those
-  // set it. Hex + alpha-suffix strings (not `color-mix()`) to match how the
-  // rest of the app already tints things — Big Sur's WebKit predates
-  // `color-mix()` support.
-  // `.play-all`'s glyph used to be a hardcoded black, safe when the button
-  // was always the fixed Spotify green — now it's an arbitrary color from
-  // the list's own picker (any hex the native color input allows, including
-  // near-black), so black-on-black is a real possibility. WCAG relative
-  // luminance decides black vs. white ink; this isn't chasing an exact
-  // contrast ratio, just picking the readable side.
-  function relativeLuminance(hex) {
-    const clean = hex.replace("#", "");
-    const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
-    const n = parseInt(full, 16);
-    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
-      const s = c / 255;
-      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  }
-
+  // the header wash and supporting list surfaces share the list identity.
+  // Other pages clear these properties and keep their neutral treatment.
   function setAccent(main, color) {
     main.style.setProperty("--accent", color);
     main.style.setProperty("--accent-soft", `${color}1f`);
     main.style.setProperty("--accent-softer", `${color}29`);
-    // 0.179 isn't a round-number guess — it's the luminance where black-ink
-    // and white-ink contrast ratios cross over (solving (L+.05)/.05 =
-    // 1.05/(L+.05) against the WCAG formula), so this is the actual
-    // higher-contrast pick either side of it, not an approximation. It also
-    // happens to keep every existing PALETTE color (including the default
-    // green) on black ink exactly as before — only genuinely dark custom
-    // colors flip to white.
-    main.style.setProperty("--accent-ink", relativeLuminance(color) > 0.179 ? "#000" : "#fff");
   }
   function clearAccent(main) {
     main.style.removeProperty("--accent");
     main.style.removeProperty("--accent-soft");
     main.style.removeProperty("--accent-softer");
-    main.style.removeProperty("--accent-ink");
+  }
+
+  function nowPlayingSelection() {
+    const run = state.S?.run;
+    const running = run?.activeTaskId && run.phase ? findTask(run.activeTaskId) : null;
+    let task = running || (run?.lastTaskId ? findTask(run.lastTaskId) : null);
+    if (!running && task?.completedAt) task = null;
+    return { run, running, task, listItem: task ? list(task.listId) : null };
+  }
+
+  function currentSessionProgressHtml(task, running, run) {
+    const config = state.S.config;
+    if (!running) {
+      return `<section class="focus-progress-section">
+        <div class="focus-section-label">Current session</div>
+        <div class="focus-time">Paused</div>
+        <div class="focus-progress-note">Resume from the player when you are ready.</div>
+      </section>`;
+    }
+
+    if (run.phase === "break") {
+      const target = (run.longBreak ? config.longBreakMin : config.breakMin) * 60000;
+      const elapsed = run.breakStart ? Math.max(0, Date.now() - run.breakStart) : 0;
+      const pct = Math.min(100, elapsed / target * 100);
+      return `<section class="focus-progress-section">
+        <div class="focus-section-label">${run.longBreak ? "Long break" : "Break"}</div>
+        <div class="focus-time" role="timer">${fmt(Math.min(elapsed, target))} <span>of ${fmt(target)}</span></div>
+        <div class="focus-meter break" role="img" aria-label="${Math.round(pct)}% of break elapsed"><span style="width:${pct}%"></span></div>
+        <div class="focus-progress-note">The player keeps the break controls within reach.</div>
+      </section>`;
+    }
+
+    if (run.phase === "awaiting_break" || run.phase === "awaiting_work") {
+      const waitingFor = run.phase === "awaiting_break" ? "Break ready" : "Work ready";
+      return `<section class="focus-progress-section">
+        <div class="focus-section-label">Current session</div>
+        <div class="focus-time">${waitingFor}</div>
+        <div class="focus-progress-note">This is a compatibility state from an older client. Continue from the player.</div>
+      </section>`;
+    }
+
+    const elapsed = run.runningStart ? Math.max(0, Date.now() - run.runningStart) : 0;
+    if (config.mode === "open") {
+      return `<section class="focus-progress-section">
+        <div class="focus-section-label">Open session</div>
+        <div class="focus-time" role="timer">${fmt(elapsed)}</div>
+        <div class="focus-open-ruler" aria-label="Open session has no time target"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="focus-progress-note">No target · the clock continues with you.</div>
+      </section>`;
+    }
+
+    const target = (config.mode === "pomodoro" ? config.workMin : config.targetMin) * 60000;
+    const pct = Math.min(100, elapsed / target * 100);
+    const reached = elapsed >= target;
+    const label = config.mode === "pomodoro"
+      ? `Pomodoro · cycle ${run.cyclesCompleted + 1} of ${config.cyclesBeforeLongBreak}`
+      : "Target session";
+    const note = config.mode === "target" && reached
+      ? "Target reached · the clock continues."
+      : `${Math.round(pct)}% of this ${config.mode === "pomodoro" ? "work block" : "target"}`;
+    return `<section class="focus-progress-section">
+      <div class="focus-section-label">${label}</div>
+      <div class="focus-time" role="timer">${fmt(elapsed)} <span>of ${fmt(target)}</span></div>
+      <div class="focus-meter${reached ? " reached" : ""}" role="img" aria-label="${esc(note)}"><span style="width:${pct}%"></span></div>
+      <div class="focus-progress-note">${esc(note)}</div>
+    </section>`;
+  }
+
+  function taskProgressHtml(task, running, run) {
+    const now = Date.now();
+    const working = !!(running && run.phase === "work" && run.runningStart);
+    const sessions = taskSessions(task.id);
+    const isDaily = task.cadence === "daily";
+    const todayStart = new Date(now).setHours(0, 0, 0, 0);
+    const relevant = isDaily
+      ? sessions.filter((session) => (session.end ?? now) > todayStart)
+      : sessions;
+    const completedMs = relevant.reduce((sum, session) => {
+      const start = isDaily ? Math.max(session.start, todayStart) : session.start;
+      return sum + Math.max(0, (session.end ?? now) - start);
+    }, 0);
+    const liveMs = working ? Math.max(0, now - Math.max(run.runningStart, isDaily ? todayStart : 0)) : 0;
+    const total = completedMs + liveMs;
+    const count = relevant.length + (working ? 1 : 0);
+    const estimate = !isDaily && task.estimateMin ? task.estimateMin * 60000 : null;
+    const pct = estimate ? Math.min(100, total / estimate * 100) : null;
+    const title = isDaily ? "Today" : "Task progress";
+    const time = estimate ? `${fmtHM(total)} <span>of ${fmtEst(task.estimateMin)}</span>` : fmtHM(total);
+    return `<section class="focus-progress-section focus-task-progress">
+      <div class="focus-section-label">${title}</div>
+      <div class="focus-time">${time}</div>
+      ${pct === null ? "" : `<div class="focus-meter task" role="img" aria-label="${esc(fmtHM(total))} of ${esc(fmtEst(task.estimateMin))}"><span style="width:${pct}%"></span></div>`}
+      <div class="focus-progress-note">${count} session${count === 1 ? "" : "s"}${isDaily ? " today" : " recorded"}</div>
+    </section>`;
+  }
+
+  function focusProgressHtml(task, running, run) {
+    return `${currentSessionProgressHtml(task, running, run)}${taskProgressHtml(task, running, run)}`;
+  }
+
+  function nowPlayingStatus(running, run) {
+    if (!running) return "Paused";
+    if (run.phase === "break") return run.longBreak ? "Long break" : "Break";
+    if (run.phase === "work") return "Recording";
+    return "Waiting";
+  }
+
+  function nowPlayingStatusTone(running, run) {
+    if (!running || (run.phase !== "work" && run.phase !== "break")) return "neutral";
+    return run.phase === "break" ? "break" : "work";
+  }
+
+  function renderPlayingPage() {
+    const main = document.getElementById("main");
+    const { run, running, task, listItem } = nowPlayingSelection();
+    if (!task || !listItem) {
+      clearAccent(main);
+      main.innerHTML = `<div class="focus-empty"><div class="focus-empty-icon">▤</div><h1>Nothing playing</h1><p>Start a task from its row, then open its title here.</p></div>`;
+      return;
+    }
+    setAccent(main, listItem.color);
+
+    const existing = main.querySelector(`.now-playing-page[data-task-id="${CSS.escape(task.id)}"]`);
+    if (existing) {
+      existing.querySelector("#focusProgress").innerHTML = focusProgressHtml(task, running, run);
+      existing.querySelector("#focusStatus").textContent = nowPlayingStatus(running, run);
+      existing.querySelector("#focusStatusDot").className = `focus-status-dot ${nowPlayingStatusTone(running, run)}`;
+      existing.querySelector("#focusTaskName").textContent = task.name;
+      existing.querySelector("#focusListName").textContent = listItem.name;
+      const notes = existing.querySelector(".focus-notes");
+      if (document.activeElement !== notes && notes.value !== (task.description || "")) notes.value = task.description || "";
+      return;
+    }
+
+    main.innerHTML = `<div class="now-playing-page" data-task-id="${esc(task.id)}">
+      <section class="focus-context-card">
+        <div class="focus-identity">
+          <div class="focus-cover" style="--cover:${listItem.color};--cover-soft:${listItem.color}88">${esc(listItem.emoji)}</div>
+          <div class="focus-identity-copy">
+            <div class="focus-list"><span id="focusListName">${esc(listItem.name)}</span> <span aria-hidden="true">›</span></div>
+            <h1 id="focusTaskName">${esc(task.name)}</h1>
+            <div class="focus-status"><span id="focusStatusDot" class="focus-status-dot ${nowPlayingStatusTone(running, run)}"></span><span id="focusStatus">${nowPlayingStatus(running, run)}</span></div>
+          </div>
+        </div>
+        <div class="focus-notes-head"><label for="focusNotes">Task context</label><span>Saved when you leave the field</span></div>
+        <textarea id="focusNotes" class="focus-notes" data-action="setLyricsInline" data-id="${task.id}" aria-label="Task context" placeholder="Add the goal, where you left off, or useful links…">${esc(task.description || "")}</textarea>
+      </section>
+      <aside class="focus-progress-card" id="focusProgress">${focusProgressHtml(task, running, run)}</aside>
+    </div>`;
   }
 
   function renderMain() {
@@ -353,6 +439,7 @@ export function createRenderer({ state, helpers, actions }) {
     if (state.view === "home") { clearAccent(main); return renderHomePage(); }
     if (state.view === "settings") { clearAccent(main); return renderSettingsPage(); }
     if (state.view === "insights") { clearAccent(main); return renderInsightsPage(); }
+    if (state.view === "playing") return renderPlayingPage();
 
     const listItem = activeList();
     if (!listItem) {
@@ -362,192 +449,30 @@ export function createRenderer({ state, helpers, actions }) {
     }
     setAccent(main, listItem.color);
 
-    const all = tasksForList(listItem.id);
-    const todo = all.filter((task) => !task.completedAt);
-    const dailyTodo = todo.filter((task) => task.cadence === "daily");
-    const oneTimeTodo = todo.filter((task) => task.cadence !== "daily");
-    const done = all.filter((task) => task.completedAt).sort((a, b) => b.completedAt - a.completedAt);
-
-    const taskRow = (task, index) => {
-      const active = state.S.run.activeTaskId === task.id && state.S.run.phase;
-      const working = active && state.S.run.phase === "work" && state.S.run.runningStart;
-      const onBreak = active && (state.S.run.phase === "break" || state.S.run.phase === "awaiting_break" || state.S.run.phase === "awaiting_work");
-      // Active, but owned by another of this account's devices (see
-      // docs/session-sync-design.md) — the row still highlights, but the
-      // button can't offer to "pause" a session this device isn't actually
-      // running; it offers to take over instead.
-      const elsewhere = active && state.S.run.deviceId && state.S.deviceId && state.S.run.deviceId !== state.S.deviceId;
-
-      // Total time + estimate live on the capacity bar (fill = total time,
-      // "spent │ estimate" readout, calm blue once over) in its own
-      // "Progress" column. How many sessions that total came from is a
-      // separate "Sessions" column right before it — it used to be a corner
-      // badge crammed onto the bar itself, competing with the readout;
-      // splitting it out gives both their own quick-glance answer instead
-      // of one crowded cell trying to answer two questions at once.
-      const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
-      if (working) durations.push(Date.now() - state.S.run.runningStart);
-      const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
-
-      // A "daily" task has no lifetime total worth showing — it's not
-      // building toward a finish line, it resets its own question every
-      // midnight. So instead of the lifetime session count + capacity bar
-      // every other row gets, it shows today's session count and time. No
-      // streak or history of missed days (ADHD rule 7) — just today's work,
-      // recomputed fresh on every render.
-      const isDaily = task.cadence === "daily";
-      const todayStartMs = new Date().setHours(0, 0, 0, 0);
-      const todayMs = isDaily ? todayMsForTask(task.id) : 0;
-      const todaySessionCount = isDaily
-        ? taskSessions(task.id).filter((session) => session.start >= todayStartMs).length
-          + (working && state.S.run.runningStart >= todayStartMs ? 1 : 0)
-        : 0;
-
-      const sessionCount = bar ? bar.sessionCount : durations.length;
-      const sessionsCell = isDaily
-        ? todaySessionCount
-          ? `<span class="sess-count today-done" title="${todaySessionCount} session${todaySessionCount === 1 ? "" : "s"} logged today">${todaySessionCount}</span>`
-          : `<span class="sess-count sess-count-empty" title="No session logged today">–</span>`
-        : sessionCount
-          ? `<span class="sess-count" title="${bar ? bar.sessionLabel : sessionCount + " session" + (sessionCount === 1 ? "" : "s")} logged">${sessionCount}</span>`
-          : `<span class="sess-count sess-count-empty" title="No sessions logged yet">–</span>`;
-      const rbarline = isDaily
-        ? `<span class="rbar-status">${onBreak ? "on break" : todayMs > 0 ? fmtHM(todayMs) + " today" : "Not yet today"}</span>`
-        : onBreak
-          ? `<span class="rbar-status">on break</span>`
-          : bar
-            ? bar.html
-            : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
-
-      // Deterministic jewel payout (see utils.js's jewelPayout — never
-      // randomized, so this preview is always exactly what completing the
-      // task actually pays). null for a task with no impact tier set, which
-      // renders nothing. Shown as that many literal jewels rather than a
-      // single dot + numeral — "2 jewels" reads instantly as a count
-      // without making the user parse a number, and since severe (weight 8)
-      // is gone, high (weight 4) tops this out at 4 dots, still a glance.
-      // Colored by the list's life area so what KIND of jewel it is is
-      // legible without a hover, same as the rest of the app's color
-      // language (see LIFE_AREAS) — a negative payout stays red regardless
-      // of area, matching the existing "against" convention. Color alone
-      // isn't reliable here though — the Relationships area's #e8115b sits
-      // close enough to the negative red (#e5484d) to be ambiguous at 8px,
-      // worse for colorblind users — so a negative group also gets an
-      // explicit "−" glyph up front. Positive stays glyph-free: it's every
-      // task's default sign, so marking the common case would just be
-      // noise where the exception is what actually needs flagging.
-      const payout = jewelPayout(task);
-      const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
-      // Same deterministic jewelPayout(), just retitled for a daily task —
-      // the amount never changes with cadence, only when it's disclosed as
-      // firing: once ever ("on completion") vs. once per qualifying day
-      // ("for today's session").
-      const payoutWhen = isDaily ? " for today's session" : "";
-      const areaColor = listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
-      const jewelHtml = payout
-        ? `<span class="jewel-group${payout.amount < 0 ? " neg" : ""}" title="${esc(payoutTitle + payoutWhen)}">${payout.amount < 0 ? `<span class="jewel-sign">−</span>` : ""}${Array.from({ length: Math.abs(payout.amount) }, () =>
-            `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
-          ).join("")}</span>`
-        : "";
-      const playTitle = elsewhere
-        ? `Playing on ${state.S.run.deviceName || "another device"} — click to play here`
-        : `Click to ${active ? "stop" : "start"}${payoutTitle ? " — earns " + payoutTitle + payoutWhen : ""}`;
-      return `<tr class="${active ? "playing" : ""}" draggable="true" data-drag-id="${task.id}" data-list-id="${listItem.id}" data-album="${esc(task.album || "")}" title="Drag to reorder">
-        <td class="idx">
-          <span class="grip" title="Drag to reorder">${GRIP_SVG}</span>
-          <span class="num">${working ? "♪" : onBreak ? "☕" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="${esc(playTitle)}">${active && !elsewhere ? "⏸" : "▶"}</button>
-        </td>
-        <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}${jewelHtml}</td>
-        <td class="r sess-cell">${sessionsCell}</td>
-        <td class="r bar-cell">${rbarline}</td>
-        <td class="menu-cell"><button class="menu-btn" title="More" data-action="openRowMenu" data-id="${task.id}" data-stop-propagation="true">⋯</button></td>
-      </tr>`;
-    };
-
-    // Shared column header for every album/singles table below — one
-    // labeled row per section (not per page) so "Sessions" and "Progress"
-    // are always named, never left to a bare number and an unlabeled bar to
-    // explain themselves.
-    const taskTheadHtml = `<thead><tr><th class="idx">#</th><th>Task</th><th class="r sess-cell">Sessions</th><th class="r">Progress</th><th class="menu-cell"></th></tr></thead>`;
-
-    const dailySection = `<div class="task-kind-label">Daily <span>· ${dailyTodo.length}</span></div>${
-      dailyTodo.length
-        ? `<table class="albrows task-kind-rows">${taskTheadHtml}<tbody>${dailyTodo.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
-        : `<div class="task-kind-empty">No daily tasks in this list.</div>`
-    }`;
-
-    // Group one-time tasks into album sections — related tasks sharing a
-    // task.album value, in order of that album's first appearance, with
-    // ungrouped tasks (no album) collected into a trailing "Singles"
-    // section. Track numbering (the # column) restarts per section, like a
-    // real album's track list.
-    const albumOrder = [];
-    const byAlbum = new Map();
-    for (const task of oneTimeTodo) {
-      const key = task.album || "";
-      let bucket = byAlbum.get(key);
-      if (!bucket) { bucket = []; byAlbum.set(key, bucket); albumOrder.push(key); }
-      bucket.push(task);
+    // #main is also owned by legacy page renderers. Give Lit a dedicated
+    // child host so its cached marker can never outlive or conflict with a
+    // Settings/Home/Insights innerHTML replacement.
+    let taskPageHost = main.firstElementChild;
+    if (!taskPageHost || taskPageHost.dataset.litPage !== "tasks") {
+      main.replaceChildren();
+      taskPageHost = document.createElement("div");
+      taskPageHost.className = "lit-page-root";
+      taskPageHost.dataset.litPage = "tasks";
+      main.append(taskPageHost);
     }
-    const singles = byAlbum.get("") || [];
-    const sections = albumOrder.filter((key) => key !== "").map((key) => {
-      const tasks = byAlbum.get(key);
-      const totalMs = tasks.reduce((sum, task) => sum + taskTotal(task.id), 0);
-      const totalEst = tasks.reduce((sum, task) => sum + (task.estimateMin || 0), 0);
-      const color = albumColor(key);
-      return `<div class="albhead" data-album-drop="${esc(key)}" title="Drop a task here to add it to this album">
-          <div class="alb-tile" style="background:${color}22;color:${color}">💿</div>
-          <div class="alb-meta"><div class="alb-name">${esc(key)}</div><div class="alb-sub">${tasks.length} task${tasks.length === 1 ? "" : "s"} · ${withEst(fmtLong(totalMs), totalEst)}</div></div>
-          <button class="alb-play" data-action="play" data-id="${tasks[0].id}" data-stop-propagation="true" title="Play first task in this album">▶</button>
-        </div>
-        <table class="albrows">${taskTheadHtml}<tbody>${tasks.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`;
-    }).join("");
-    // Once at least one album exists, "Singles" is always shown (even
-    // empty) so there's somewhere to drop a task to take it out of its
-    // album — otherwise there'd be no valid drop target for that gesture.
-    const singlesSection = sections
-      ? `<div class="singles-tag" data-album-drop="" title="Drop a task here to remove it from its album">Singles</div>${
-          singles.length
-            ? `<table class="albrows">${taskTheadHtml}<tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
-            : `<div class="empty-singles" data-album-drop="">Drop a task here to remove it from its album</div>`
-        }`
-      : singles.length
-        ? `<table class="albrows">${taskTheadHtml}<tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
-        : "";
-    const oneTimeSection = `<div class="task-kind-label one-time">One-time <span>· ${oneTimeTodo.length}</span></div>${
-      oneTimeTodo.length
-        ? `${sections}${singlesSection}`
-        : `<div class="task-kind-empty">No one-time tasks in this list.</div>`
-    }`;
-
-    const doneRows = done.map((task) => `
-      <div class="crow" data-action="openDetail" data-id="${task.id}">
-        <button class="ccheck" title="Mark as not done" data-action="toggleDone" data-id="${task.id}" data-stop-propagation="true">✓</button>
-        <span class="cname">${esc(task.name)}</span>
-        <span class="ctime">${fmtHM(taskTotal(task.id))}</span>
-        <button class="menu-btn" title="More" data-action="openRowMenu" data-id="${task.id}" data-stop-propagation="true">⋯</button>
-      </div>`).join("");
-    const completedGroup = done.length ? `
-      <div class="cgroup ${state.completedOpen ? "open" : ""}">
-        <div class="chead" data-action="toggleCompleted"><span class="chev">›</span> Completed · ${done.length}</div>
-        <div class="clist">${doneRows}</div>
-      </div>` : "";
-
-    main.innerHTML = `
-      ${stickyBarHtml(listItem.emoji, esc(listItem.name), "playFirst")}
-      <div class="hdr" data-tauri-drag-region>
-        <div class="cover" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
-        <div class="info"><small>Task List</small><h1>${esc(listItem.name)}</h1><div class="sub">${todo.length} to do${done.length ? " · " + done.length + " done" : ""} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} tracked</div></div>
-      </div>
-      <div class="toolbar">
-        <button class="play-all" data-action="playFirst" title="Play first task">▶</button>
-        <button class="pill" data-action="addTask">＋ Add task</button>
-      </div>
-      ${todo.length ? `${dailySection}${oneTimeSection}`
-        : `<div class="empty">${all.length ? "All done here. 🎉" : "No tasks yet. Click <b>Add task</b> to start."}</div>`}
-      ${completedGroup}
-      <p class="note">Only one task runs at a time. The menu-bar item shows live minutes and toggles play/pause.</p>`;
+    litRender(taskListPage({
+      state,
+      listItem,
+      all: tasksForList(listItem.id),
+      taskSessions,
+      taskTotal,
+      listTotal,
+      listEstimateTotal,
+      attentionTaskIds: new Set(attentionTasks().map((task) => task.id)),
+    }), taskPageHost);
     initStickyHeader();
+    return;
+
   }
 
   function renderPlayer() {
@@ -581,7 +506,7 @@ export function createRenderer({ state, helpers, actions }) {
       } else {
         clockText = "waiting";
       }
-      litRender(html`<div class="art" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</div><div><div class="t"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${listItem.name}">${task.name}</span></div><div class="l">Playing on ${esc(run.deviceName || "another device")}</div></div>`, np);
+      litRender(html`<button class="player-task-link" data-action="openNowPlaying" title="Open Now Playing"><span class="art" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span><span class="player-task-copy"><span class="t">${task.name}</span><span class="l">Playing on ${esc(run.deviceName || "another device")}</span></span></button>`, np);
       litRender(html`<div class="controls">${badge}<button class="bigaction" data-action="play" data-id="${task.id}" title="Take over on this device">▶ Play here</button></div>
         <div class="timeline"><span class="clock" id="liveclock" style="color:var(--muted)">${clockText}</span><div class="bar live"><span id="livebar" style="width:40%;animation:pulse 1.6s ease-in-out infinite"></span></div><span class="clock">elsewhere</span></div>`, center);
       return;
@@ -594,7 +519,7 @@ export function createRenderer({ state, helpers, actions }) {
       return;
     }
 
-    litRender(html`<div class="art" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</div><div><div class="t"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${listItem.name}">${task.name}</span></div><div class="l"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${listItem.name}</span>${running ? "" : " · paused"}</div></div>`, np);
+    litRender(html`<button class="player-task-link" data-action="openNowPlaying" title="Open Now Playing"><span class="art" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span><span class="player-task-copy"><span class="t">${task.name}</span><span class="l">${listItem.name}${running ? "" : " · paused"}</span></span></button>`, np);
 
     if (!running) {
       const timerTarget = targetMs();
@@ -675,18 +600,13 @@ export function createRenderer({ state, helpers, actions }) {
     if (navBackButton) navBackButton.disabled = !state.navBack.length;
     if (navForwardButton) navForwardButton.disabled = !state.navFwd.length;
     document.getElementById("tbhome")?.classList.toggle("active", state.view === "home");
-    document.getElementById("app")?.classList.toggle("rail", state.railOpen);
-    document.getElementById("railtoggle")?.classList.toggle("on", state.railOpen);
-    renderNowPlaying();
-  }
-
-  function toggleRail() {
-    state.railOpen = !state.railOpen;
-    localStorage.setItem("tp.rail", state.railOpen ? "1" : "0");
-    render();
   }
 
   const sameRoute = (a, b) => a.view === b.view && (a.listId || null) === (b.listId || null);
+
+  function capturedRoute() {
+    return { ...state.route, scrollTop: document.getElementById("main")?.scrollTop || 0 };
+  }
 
   function applyRoute() {
     state.view = state.route.view;
@@ -694,6 +614,8 @@ export function createRenderer({ state, helpers, actions }) {
       state.activeListId = state.route.listId;
     }
     render();
+    const main = document.getElementById("main");
+    if (main) main.scrollTop = state.route.scrollTop || 0;
     animatePage();
   }
 
@@ -712,22 +634,22 @@ export function createRenderer({ state, helpers, actions }) {
       applyRoute();
       return;
     }
-    state.navBack.push(state.route);
+    state.navBack.push(capturedRoute());
     state.navFwd.length = 0;
-    state.route = next;
+    state.route = { ...next, scrollTop: next.scrollTop || 0 };
     applyRoute();
   }
 
   function goBack() {
     if (!state.navBack.length) return;
-    state.navFwd.push(state.route);
+    state.navFwd.push(capturedRoute());
     state.route = state.navBack.pop();
     applyRoute();
   }
 
   function goForward() {
     if (!state.navFwd.length) return;
-    state.navBack.push(state.route);
+    state.navBack.push(capturedRoute());
     state.route = state.navFwd.pop();
     applyRoute();
   }
@@ -738,6 +660,13 @@ export function createRenderer({ state, helpers, actions }) {
 
   function openInsightsPage() {
     navigate({ view: "insights", listId: null });
+  }
+
+  function openNowPlaying() {
+    const { task } = nowPlayingSelection();
+    if (!task) return;
+    clearSearch();
+    navigate({ view: "playing", listId: null });
   }
 
   // Lands on the dashboard (see renderHomePage below) — greeting, today's
@@ -811,23 +740,6 @@ export function createRenderer({ state, helpers, actions }) {
       const nextGroup = document.querySelector(".cgroup");
       await animateDisclosure(nextGroup?.querySelector(".clist"), nextGroup?.querySelector(".chev"), true);
     }
-  }
-
-  function playFirst() {
-    // Mirrors renderMain's album grouping: named-album tasks (in the order
-    // their album first appears) come before ungrouped "singles" ones, so
-    // "play first task" always starts whichever row renders first on screen.
-    const todo = tasksForList(activeList().id).filter((item) => !item.completedAt);
-    const albumOrder = [];
-    const byAlbum = new Map();
-    for (const item of todo) {
-      const key = item.album || "";
-      let bucket = byAlbum.get(key);
-      if (!bucket) { bucket = []; byAlbum.set(key, bucket); albumOrder.push(key); }
-      bucket.push(item);
-    }
-    const ordered = [...albumOrder.filter((key) => key !== ""), ...(byAlbum.has("") ? [""] : [])].flatMap((key) => byAlbum.get(key));
-    if (ordered.length) dispatch("play", { id: ordered[0].id });
   }
 
   function openRowMenu(anchorEl, id) {
@@ -959,7 +871,7 @@ export function createRenderer({ state, helpers, actions }) {
   // or stopping the timer, the running total, and the estimate-vs-progress
   // bar all used to live here too, but that's a live-tracking concern with
   // its own point of performance already — the row's own play button, the
-  // Now Playing rail — not something this panel needs to duplicate. What's
+  // Now Playing page — not something this panel needs to duplicate. What's
   // left is every field that's actually a *value*: depth, impact, list,
   // sessions (including the estimate, since a target time is just another
   // stored number, not a live thing), and notes. Every one of them commits
@@ -1019,7 +931,7 @@ export function createRenderer({ state, helpers, actions }) {
             <div class="depth-hint" id="taskDepthHint">Not classified.</div>
             <h4>Repeat</h4>
             <input type="hidden" id="taskCadenceIn" value="">
-            <span class="depth-seg" data-choice-group="cadence">
+            <span class="depth-seg cadence-seg" data-choice-group="cadence">
               <button type="button" class="sel" data-action="setCreateTaskChoice" data-choice-field="Cadence" data-choice-value="">${CADENCE_ICONS.once}<span>One-time</span></button>
               <button type="button" data-action="setCreateTaskChoice" data-choice-field="Cadence" data-choice-value="daily">${CADENCE_ICONS.daily}<span>Daily</span></button>
             </span>
@@ -1080,7 +992,13 @@ export function createRenderer({ state, helpers, actions }) {
       closeDetail();
       return;
     }
-    const listItem = list(task.listId);
+    const listItem = list(task.listId) || {
+      id: task.listId,
+      name: "Unsorted",
+      emoji: "•",
+      color: "#6b6b6b",
+      lifeArea: null,
+    };
     const active = state.S.run.activeTaskId === task.id && state.S.run.phase;
     const working = active && state.S.run.phase === "work" && state.S.run.runningStart;
     let entries = taskSessions(task.id).map((entry) => ({ id: entry.id, start: entry.start, end: entry.end }));
@@ -1121,7 +1039,7 @@ export function createRenderer({ state, helpers, actions }) {
     const cadenceCaption = task.cadence === "daily"
       ? "Repeats every day. No finish line, no streak kept — today's jewel is the same size every day."
       : "Finishes once. Its jewel (if tagged) pays on completion.";
-    const cadenceSegHtml = `<span class="depth-seg" data-id="${task.id}">
+    const cadenceSegHtml = `<span class="depth-seg cadence-seg" data-id="${task.id}">
       <button class="${!task.cadence ? "sel" : ""}" data-action="setCadence" data-id="${task.id}" data-cadence="" data-stop-propagation="true">${CADENCE_ICONS.once}<span>One-time</span></button>
       <button class="${task.cadence === "daily" ? "sel" : ""}" data-action="setCadence" data-id="${task.id}" data-cadence="daily" data-stop-propagation="true">${CADENCE_ICONS.daily}<span>Daily</span></button>
     </span>
@@ -1238,60 +1156,6 @@ export function createRenderer({ state, helpers, actions }) {
         <button class="lyr-x" data-action="closeLyrics">×</button>
       </div>
       <div class="lyr-body">${body}</div>`;
-  }
-
-  function renderNowPlaying() {
-    if (!state.S) return;
-    const rail = document.getElementById("nprail");
-    if (!rail || !state.railOpen) return;
-    const run = state.S.run;
-    const running = run.activeTaskId && run.phase ? findTask(run.activeTaskId) : null;
-    let task = running || (run.lastTaskId ? findTask(run.lastTaskId) : null);
-    if (!running && task && task.completedAt) task = null;
-    const listItem = task ? list(task.listId) : null;
-    if (!task || !listItem) {
-      rail.innerHTML = `<div class="lab">Now playing</div>
-        <div class="np-empty"><div class="np-art idle">▤</div><p>Nothing playing.<br>Press ▶ on a task to start.</p></div>`;
-      return;
-    }
-
-    const status = !running
-      ? "paused"
-      : run.phase === "break"
-        ? (run.longBreak ? "on long break" : "on break")
-        : run.phase === "awaiting_break"
-          ? (run.longBreak ? "long break time — waiting to start" : "break time — waiting to start")
-          : run.phase === "awaiting_work"
-            ? "back to work — waiting to start"
-            : "recording…";
-    const description = (task.description || "").trim();
-    let entries = taskSessions(task.id).map((session) => ({ start: session.start, end: session.end }));
-    if (running && run.phase === "work" && run.runningStart) entries.push({ start: run.runningStart, end: null, live: true });
-    entries.sort((a, b) => b.start - a.start);
-    const now = Date.now();
-    // Capped at 3, not 6 — this rail is a glance, not a log to scroll (see
-    // docs/adhd-design-principles.md, rule 5: the reward-check surface has
-    // to stay quick, never grow into its own browsable destination). Full
-    // history already has a real home on the Insights page; this just
-    // points there once there's more than fits.
-    const sessions = entries.slice(0, 3).map((entry) => `<div class="ses"><span class="w">${whenLabel(entry.start)}${entry.live ? " · now" : ""}</span><span class="d">${fmt((entry.end ?? now) - entry.start)}</span></div>`).join("") || `<div class="ses"><span class="w">No sessions yet</span></div>`;
-    const moreSessionsLink = entries.length > 3
-      ? `<button class="linkbtn" data-action="openInsightsPage">All sessions</button>`
-      : "";
-
-    rail.innerHTML = `
-      <div class="lab">Now playing</div>
-      <div class="np-card np-info">
-        <div class="np-art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}88)">${listItem.emoji}</div>
-        <h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span></h2>
-        <div class="m"><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true">${esc(listItem.name)}</span> · ${status}${task.estimateMin ? " · est " + fmtEst(task.estimateMin) : ""}</div>
-        ${running ? `<div class="acts"><button class="donebtn" data-action="toggleDone" data-id="${task.id}">✓ Mark as done</button></div>` : ""}
-      </div>
-      <div class="np-card">
-        <h4>♪ Lyrics <button class="linkbtn" data-action="editLyrics" data-id="${task.id}">${description ? "Edit" : "＋ Add"}</button></h4>
-        ${description ? `<div class="lyrics">${esc(description)}</div>` : `<div class="lyrics empty" data-action="editLyrics" data-id="${task.id}">What will finishing this feel like? Add the goal, a note…</div>`}
-      </div>
-      <div class="np-card"><h4>Recent sessions ${moreSessionsLink}</h4>${sessions}</div>`;
   }
 
   function accountSectionHtml() {
@@ -1567,10 +1431,10 @@ export function createRenderer({ state, helpers, actions }) {
     // and buildLifeBalanceGrid) — rather than inventing a second grouping
     // for tasks to be sorted into (ADHD rule 8: categorization must be a
     // fact, not a decision). Untagged lists land in a fixed "Other" lane
-    // rather than being forced into one of the six real areas, since
+    // rather than being forced into one of the five real areas, since
     // untagged is itself a valid, already-supported state elsewhere in the
     // app. Only areas actually touched that day get a row — a fixed
-    // six-or-seven-lane grid would leave most days mostly empty rows, which
+    // five-or-six-lane grid would leave most days mostly empty rows, which
     // is exactly the kind of clutter rule 5 (quick glance, not a browsable
     // destination) warns against. Lane order follows the canonical
     // LIFE_AREAS order (never user-sorted, same rule 8), with Other last.
@@ -1862,12 +1726,25 @@ export function createRenderer({ state, helpers, actions }) {
       <button class="${insightsPeriod === "week" ? "active" : ""}" data-action="setInsightsPeriod" data-value="week">Week</button>
       <button class="${insightsPeriod === "month" ? "active" : ""}" data-action="setInsightsPeriod" data-value="month">Month</button>
     </div>`;
+    const todayMs = todayTotalMs();
+    const allMs = state.S.lists.reduce((sum, listItem) => sum + listTotal(listItem.id), 0);
+    const doneCount = state.S.tasks.filter((task) => task.completedAt).length;
+    const todayJewelCount = todayJewels();
+    const allTimeJewelCount = lifetimeJewelsNet();
 
     document.getElementById("main").innerHTML = `
       ${stickyBarHtml(INSIGHTS_SVG, "Insights")}
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#2e7d4f,#0c3f26)">${INSIGHTS_SVG_HERO}</div>
         <div class="info"><small>History</small><h1>Insights</h1><div class="sub">${items.length} session${items.length === 1 ? "" : "s"} across all tasks</div></div>
+      </div>
+      <div class="insights-summary">
+        <div class="hs-stat"><div class="hs-num">${fmtHM(todayMs)}</div><div class="hs-label">Today</div></div>
+        <div class="hs-stat"><div class="hs-num">${fmtHM(allMs)}</div><div class="hs-label">All time</div></div>
+        <div class="hs-stat"><div class="hs-num">${doneCount}</div><div class="hs-label">Completed</div></div>
+        <div class="hs-stat"><div class="hs-num">${state.S.lists.length}</div><div class="hs-label">Lists</div></div>
+        <div class="hs-stat"><div class="hs-num">${todayJewelCount > 0 ? "+" : ""}${todayJewelCount}</div><div class="hs-label">Jewels today</div></div>
+        <div class="hs-stat"><div class="hs-num">${allTimeJewelCount > 0 ? "+" : ""}${allTimeJewelCount}</div><div class="hs-label">Jewels all-time</div></div>
       </div>
       <div class="insights-page">${periodTabs}${body}</div>`;
     initStickyHeader();
@@ -1943,15 +1820,11 @@ export function createRenderer({ state, helpers, actions }) {
     return entries;
   }
 
-  // "What should I be doing now" — the Home page's "Now" section (see
-  // docs/homepage-now-spec.md). Distinct from recentTasks above: that
-  // surfaces what WAS played; this surfaces what's being avoided — tagged as
-  // mattering (impactTier medium/high), carrying a deadline, and left
-  // untouched while that deadline closes in. Three named, boundable factors
-  // (impact weight, urgency, neglect) rather than a black-box score, so a
-  // card's reason for showing is always explainable in one sentence rather
-  // than a number nobody could reconstruct.
-  function nowCandidates(limit = 3) {
+  // A bounded, derived attention set used only for calm sidebar dots and
+  // factual cues on the corresponding task rows. The ranking stays the same
+  // as the former Home section: impact, deadline proximity, and lack of
+  // recent work. Nothing is stored, counted over time, or shown as a failure.
+  function attentionTasks(limit = ATTENTION_TASKS_SIZE) {
     if (!state.S) return [];
     const now = Date.now();
     const run = state.S.run;
@@ -2038,40 +1911,6 @@ export function createRenderer({ state, helpers, actions }) {
       const segEnd = Math.min(session.end ?? now, now);
       return sum + Math.max(0, segEnd - segStart);
     }, 0);
-  }
-
-  // Same idea as recentTasks() but rolled up to the list level: last-active
-  // timestamp per list (from its tasks' sessions, or "now" if one of its
-  // tasks is the live running one), most-recent first. A brand-new
-  // workspace has no session history yet, so any remaining slots are padded
-  // out with the rest of the lists in their normal order rather than
-  // leaving the section looking broken/empty.
-  function recentLists(limit = 3) {
-    if (!state.S) return [];
-    const now = Date.now();
-    const lastByList = new Map();
-    for (const session of state.S.sessions) {
-      const task = findTask(session.taskId);
-      if (!task) continue;
-      const at = session.end ?? now;
-      if (!lastByList.has(task.listId) || at > lastByList.get(task.listId)) {
-        lastByList.set(task.listId, at);
-      }
-    }
-    const run = state.S.run;
-    if (run.activeTaskId && run.phase === "work" && run.runningStart) {
-      const activeTask = findTask(run.activeTaskId);
-      if (activeTask) lastByList.set(activeTask.listId, now);
-    }
-    const ranked = Array.from(lastByList.entries())
-      .map(([listId, at]) => ({ listItem: list(listId), at }))
-      .filter((entry) => entry.listItem)
-      .sort((a, b) => b.at - a.at)
-      .map((entry) => entry.listItem);
-    if (ranked.length >= limit) return ranked.slice(0, limit);
-    const seen = new Set(ranked.map((listItem) => listItem.id));
-    const rest = state.S.lists.filter((listItem) => !seen.has(listItem.id));
-    return [...ranked, ...rest].slice(0, limit);
   }
 
   // 5 hours in a 7-day window is treated as "full" (100%) on every radar
@@ -2624,12 +2463,10 @@ export function createRenderer({ state, helpers, actions }) {
   }
 
   // Home — the dashboard #tbhome/goHome() lands on: a time-of-day greeting,
-  // four at-a-glance stats, the life-balance radar (lifeBalanceScores()/
-  // buildLifeRadar() above — now itself weighted by impact tier, see that
-  // function's comment), a "Jump back in" row of recentTasks() as cards,
-  // and the 3 lists worked in most recently (recentLists() above) — not
-  // every list, so the page stays a quick "pick up where you left off"
-  // glance rather than a second copy of the sidebar. Reuses the standard
+  // the life-balance radar (lifeBalanceScores()/buildLifeRadar() above — now
+  // itself weighted by impact tier, see that function's comment), and a
+  // "Jump back in" row of recentTasks() as cards. List navigation stays in
+  // the sidebar rather than being duplicated here. Reuses the standard
   // .hdr/.cover/.info header component (clearAccent() below keeps it on the
   // plain grey wash, same as Settings/Insights) so it gets the same drag region,
   // gradient and sticky mini-header behavior as every other page for free.
@@ -2637,99 +2474,15 @@ export function createRenderer({ state, helpers, actions }) {
   // (mana bar, per-area vitality rings, a rank ladder card) — cut; see
   // utils.js's comment for why. The radar above is now the one place impact
   // shows up on Home.
-  // Row markup for the Home page's "Now" section — see nowCandidates() above
-  // and docs/homepage-now-spec.md. Deliberately built from the same row
-  // vocabulary as the to-do list's taskRow (.idx num→▶-on-hover, .tname +
-  // .jewel-group, right-aligned bar cell) so a Now item reads as the same
-  // kind of thing as a task in a list, not a separate bespoke card. The one
-  // Now-specific column is the deadline: a filling bar (physical time cue,
-  // ADHD rule 3) next to an exact "due <date>" (deadlineDate). Bar fill
-  // reuses nowCandidates' own urgency formula (0 = a week+ out, 1 =
-  // due/overdue) so a row further along the bar is exactly the one
-  // nowCandidates ranked as more urgent. Jewel dots reuse jewelPayout()'s
-  // markup — no new reward mechanism, the same deterministic, disclosed one.
-  function nowRowHtml(task, index) {
-    const listItem = list(task.listId);
-    const now = Date.now();
-    const daysLeft = (task.deadlineAt - now) / 86400000;
-    const pct = Math.round(Math.max(0, Math.min(1, 1 - daysLeft / 7)) * 100);
-    const payout = jewelPayout(task);
-    const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
-    const areaColor = listItem && listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
-    const jewelHtml = payout
-      ? `<span class="jewel-group" title="${esc(payoutTitle)}">${Array.from({ length: Math.abs(payout.amount) }, () =>
-          `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
-        ).join("")}</span>`
-      : "";
-    return `<tr data-action="searchGoTask" data-id="${task.id}" title="Open ${esc(task.name)}">
-      <td class="idx">
-        <span class="num">${index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="Click to start${payoutTitle ? " — earns " + payoutTitle : ""}">▶</button>
-      </td>
-      <td class="tname">${esc(task.name)}${task.depth ? `<span class="tag ${task.depth}">${task.depth}</span>` : ""}${jewelHtml}</td>
-      <td class="r due-cell">
-        <span class="now-bar"><span class="now-bar-fill" style="width:${pct}%"></span></span>
-        <span class="now-due">${deadlineDate(task.deadlineAt, now)}</span>
-      </td>
-    </tr>`;
-  }
-
-  // Row markup for "Daily Jam" (see dailyJamTasks() above) — same .idx/
-  // .tname/.jewel-group row vocabulary as the Now table and the to-do list
-  // itself, so it reads as the same kind of row everywhere. Status column
-  // is deliberately plain text ("Done today" / "Not yet today" / "on
-  // break") rather than a red/green pass-fail — a task not done yet by
-  // 4pm is routine, not a failure (CLAUDE.md rule 9, no punitive tone).
-  // Play button mirrors the to-do list's own pause/resume/"playing
-  // elsewhere" states exactly (see taskRow) so starting a daily task from
-  // here behaves identically to starting it from its own list.
-  function dailyJamRowHtml(entry, index) {
-    const { task, listItem, working, doneToday } = entry;
-    const run = state.S.run;
-    const active = run.activeTaskId === task.id && run.phase;
-    const onBreak = active && (run.phase === "break" || run.phase === "awaiting_break" || run.phase === "awaiting_work");
-    const elsewhere = active && run.deviceId && state.S.deviceId && run.deviceId !== state.S.deviceId;
-    const payout = jewelPayout(task);
-    const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
-    const areaColor = listItem && listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
-    const jewelHtml = payout
-      ? `<span class="jewel-group${payout.amount < 0 ? " neg" : ""}" title="${esc(payoutTitle)} for today's session">${payout.amount < 0 ? `<span class="jewel-sign">−</span>` : ""}${Array.from({ length: Math.abs(payout.amount) }, () =>
-          `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
-        ).join("")}</span>`
-      : "";
-    const playTitle = elsewhere
-      ? `Playing on ${run.deviceName || "another device"} — click to play here`
-      : `Click to ${active ? "stop" : "start"}${payoutTitle ? " — earns " + payoutTitle + " for today's session" : ""}`;
-    const statusLabel = onBreak ? "on break" : doneToday ? "Done today" : "Not yet today";
-    return `<tr class="${doneToday ? "done" : ""}" data-action="searchGoTask" data-id="${task.id}" title="Open ${esc(task.name)}">
-      <td class="idx">
-        <span class="num">${doneToday ? "✓" : working ? "♪" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="${esc(playTitle)}">${active && !elsewhere ? "⏸" : "▶"}</button>
-      </td>
-      <td class="tname">${esc(task.name)}${jewelHtml}</td>
-      <td class="r daily-jam-status">
-        <span class="daily-jam-tag">${statusLabel}</span>
-        ${listItem ? `<span class="daily-jam-list">${esc(listItem.name)}</span>` : ""}
-      </td>
-    </tr>`;
-  }
-
   function renderHomePage() {
     if (!state.S) return;
     const radarScores = lifeBalanceScores();
     const hasLifeTags = state.S.lists.some((listItem) => listItem.lifeArea);
     const hasAgainst = radarScores.some((s) => s.negPct > 0);
     const againstOn = state.lifeBalanceAgainst;
-    const nowTasks = nowCandidates(NOW_ITEMS_SIZE);
-    const nowHtml = nowTasks.length
-      ? `<table class="albrows now-table"><tbody>${nowTasks.map((task, i) => nowRowHtml(task, i)).join("")}</tbody></table>`
-      : `<div class="home-empty">Nothing needs attention right now.</div>`;
-
     const dailyEntries = dailyJamTasks();
     const dailyDoneCount = dailyEntries.filter((entry) => entry.doneToday).length;
     const dailyPct = dailyEntries.length ? Math.round((dailyDoneCount / dailyEntries.length) * 100) : 0;
-    const dailyJamHtml = dailyEntries.length
-      ? `<div class="daily-jam-bar"><div class="daily-jam-bar-fill" style="width:${dailyPct}%"></div></div>
-         <table class="albrows now-table daily-jam-table"><tbody>${dailyEntries.map((entry, i) => dailyJamRowHtml(entry, i)).join("")}</tbody></table>`
-      : `<div class="home-empty">Tag a task "Daily" (open the task, set its cadence) to build your daily set.</div>`;
     const jump = recentTasks(RECENT_TASKS_SIZE);
     const jumpHtml = jump.length
       ? jump.map((entry) => {
@@ -2747,23 +2500,7 @@ export function createRenderer({ state, helpers, actions }) {
         }).join("")
       : `<div class="home-empty">Nothing played yet — press play on any task to start tracking.</div>`;
 
-    const recentListItems = recentLists(3);
-    const listsHtml = recentListItems.length
-      ? recentListItems.map((listItem) => {
-          const openCount = tasksForList(listItem.id).filter((task) => !task.completedAt).length;
-          return `<div class="hl-card" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}">
-            <span class="hl-tile" style="background:${listItem.color}22;color:${listItem.color}">${listItem.emoji}</span>
-            <div class="hl-name">${esc(listItem.name)}</div>
-            <div class="hl-meta">${openCount} open · ${fmtHM(listTotal(listItem.id))}</div>
-          </div>`;
-        }).join("")
-      : `<div class="home-empty">Create a list to get started.</div>`;
-
     const todayMs = todayTotalMs();
-    const allMs = state.S.lists.reduce((sum, listItem) => sum + listTotal(listItem.id), 0);
-    const doneCount = state.S.tasks.filter((task) => task.completedAt).length;
-    const todayJewelCount = todayJewels();
-    const allTimeJewelCount = lifetimeJewelsNet();
 
     // Rank badge: a quiet fact in the greeting line, not a stat tile of its
     // own — see buildRankInfo above for why it's capped/balanced rather than
@@ -2782,25 +2519,13 @@ export function createRenderer({ state, helpers, actions }) {
         <div class="info"><small>${esc(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}</small><h1>${greeting()}</h1><div class="sub">${fmtHM(todayMs)} tracked today · ${rankBadgeHtml}</div></div>
       </div>
       <div class="home-body">
-        <div class="home-stats">
-          <div class="hs-stat"><div class="hs-num">${fmtHM(todayMs)}</div><div class="hs-label">Today</div></div>
-          <div class="hs-stat"><div class="hs-num">${fmtHM(allMs)}</div><div class="hs-label">All time</div></div>
-          <div class="hs-stat"><div class="hs-num">${doneCount}</div><div class="hs-label">Completed</div></div>
-          <div class="hs-stat"><div class="hs-num">${state.S.lists.length}</div><div class="hs-label">Lists</div></div>
-          <div class="hs-stat"><div class="hs-num">${todayJewelCount > 0 ? "+" : ""}${todayJewelCount}</div><div class="hs-label">Jewels today</div></div>
-          <div class="hs-stat"><div class="hs-num">${allTimeJewelCount > 0 ? "+" : ""}${allTimeJewelCount}</div><div class="hs-label">Jewels all-time</div></div>
-        </div>
         <section class="home-section">
           <h4>Jump back in</h4>
           <div class="jb-grid">${jumpHtml}</div>
         </section>
         <section class="home-section">
           <h4>Daily Jam${dailyEntries.length ? `<span class="home-sub-note">· ${dailyDoneCount} of ${dailyEntries.length} today</span>` : ""}</h4>
-          ${dailyJamHtml}
-        </section>
-        <section class="home-section">
-          <h4>Needs attention</h4>
-          ${nowHtml}
+          <div id="dailyJamRoot"></div>
         </section>
         <section class="home-section">
           <h4>Life balance <span class="home-sub-note">· last 7 days</span>${hasLifeTags && hasAgainst ? `<button class="home-toggle" data-action="toggleLifeAgainst">${againstOn ? "Hide what's pulling against" : "Show what's pulling against"}</button>` : ""}</h4>
@@ -2808,11 +2533,16 @@ export function createRenderer({ state, helpers, actions }) {
             ? `<div class="home-radar">${buildLifeRadar(radarScores, { against: againstOn, selectedAgainst: againstOn ? selectedAgainstArea : null })}</div>${againstOn && hasAgainst ? `<div class="radar-legend"><span class="rl-swatch"></span>Time pulling against your areas · last 7 days · tap a grey dot for detail</div>` : ""}${againstOn && selectedAgainstArea ? `<div class="against-detail-wrap">${buildAgainstDetail(selectedAgainstArea)}</div>` : ""}${buildLifeBalanceGrid()}`
             : `<div class="home-empty">Tag a list with a life area (Edit list, or when creating a new one) to see your balance here.</div>`}
         </section>
-        <section class="home-section">
-          <h4>Recent lists</h4>
-          <div class="hl-grid">${listsHtml}</div>
-        </section>
       </div>`;
+    litRender(dailyJam({
+      state,
+      entries: dailyEntries,
+      doneCount: dailyDoneCount,
+      percent: dailyPct,
+      taskSessions,
+      taskTotal,
+      attentionTaskIds: new Set(attentionTasks().map((task) => task.id)),
+    }), document.getElementById("dailyJamRoot"));
     initStickyHeader();
   }
 
@@ -2957,9 +2687,7 @@ export function createRenderer({ state, helpers, actions }) {
     // meant to accompany *this* device actually working, not ambient noise
     // that starts playing here just because someone else, elsewhere, is
     // deep-working. Treat a mirrored session as idle for music purposes
-    // only — the real phase/taskId (below) still drives the rail-auto-open
-    // and lastPhase/lastTaskId bookkeeping regardless of ownership, since
-    // "something's playing, worth surfacing" is still true either way.
+    // only. The real phase/taskId still drive transition bookkeeping.
     const isMine = !state.S.run.deviceId || state.S.run.deviceId === state.S.deviceId;
     const musicPhase = isMine ? phase : null;
     const musicTaskId = isMine ? taskId : null;
@@ -2978,24 +2706,12 @@ export function createRenderer({ state, helpers, actions }) {
     state.lastMusicPhase = musicPhase;
     state.lastMusicTaskId = musicTaskId;
 
-    // Work just started (from idle, paused, break, or a cross-device
-    // takeover — anything that wasn't already "work") — reveal the Now
-    // Playing rail automatically, Spotify-style, instead of leaving it
-    // closed until the user remembers to toggle it open themselves. Uses
-    // the real (unfiltered) phase — awareness that something's playing is
-    // still useful even when it's mirroring another device. Doesn't force
-    // it shut again on stop/break — only the user's own toggle does that.
-    if (phase === "work" && state.lastPhase !== "work" && !state.railOpen) {
-      state.railOpen = true;
-      localStorage.setItem("tp.rail", "1");
-    }
     state.lastPhase = phase;
     state.lastTaskId = taskId;
   }
 
   return Object.assign(api, {
     render,
-    toggleRail,
     navigate,
     goBack,
     goForward,
@@ -3006,8 +2722,8 @@ export function createRenderer({ state, helpers, actions }) {
     clearSearch,
     openSettingsPage,
     openInsightsPage,
+    openNowPlaying,
     toggleCompleted,
-    playFirst,
     openRowMenu,
     rowMenu,
     closeRowMenu,
@@ -3018,7 +2734,6 @@ export function createRenderer({ state, helpers, actions }) {
     openLyrics,
     closeLyrics,
     renderLyrics,
-    renderNowPlaying,
     renderSettingsPage,
     renderInsightsPage,
     toggleSessionGroup,

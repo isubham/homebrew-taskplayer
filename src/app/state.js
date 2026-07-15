@@ -4,9 +4,8 @@ export function createAppState() {
     activeListId: null,
     view: "tasks",
     completedOpen: false,
-    railOpen: (localStorage.getItem("tp.rail") ?? "1") === "1",
     // Which sidebar life-area sections are collapsed, keyed by area key (or
-    // "__unsorted__"). Purely local UI state, persisted like `railOpen` above
+    // "__unsorted__"). Purely local UI state, persisted locally
     // so folding away an area you're not working in survives a restart.
     sidebarCollapsed: (() => {
       try { return JSON.parse(localStorage.getItem("tp.sidebarCollapsed") || "{}"); }

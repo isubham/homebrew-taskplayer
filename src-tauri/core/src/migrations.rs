@@ -270,6 +270,30 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "015_merge_growth_into_health",
+        // Personal Growth is retired as a separate filing decision and folded
+        // into Health & Wellbeing. Preserve every list and its direction while
+        // moving the tag to a value supported by old and new clients. Bumping
+        // updated_at makes the normalization sync outward instead of letting a
+        // stale remote `growth` value immediately win it back. The priority row
+        // has no meaning once the category is gone, so it is retired locally;
+        // the remote table/value remain accepted during the support window.
+        run: |conn| {
+            let now = crate::models::now_ms();
+            conn.execute(
+                "UPDATE lists
+                 SET life_area='health', color='#2f9e8f', updated_at=?1
+                 WHERE life_area='growth'",
+                params![now],
+            )?;
+            conn.execute(
+                "DELETE FROM life_area_priorities WHERE area_key='growth'",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -343,21 +367,16 @@ mod compatibility_tests {
 
         assert_eq!(user_version(&conn), MIGRATIONS.len() as i64);
         assert_eq!(
-            conn.query_row(
-                "SELECT name FROM lists WHERE id='list-old'",
-                [],
-                |row| row.get::<_, String>(0)
-            )
+            conn.query_row("SELECT name FROM lists WHERE id='list-old'", [], |row| {
+                row.get::<_, String>(0)
+            })
             .unwrap(),
             "Old list"
         );
         assert_eq!(
-            conn.query_row(
-                "SELECT descr FROM tasks WHERE id='task-old'",
-                [],
-                |row| row.get::<_, String>(0)
-            )
-            .unwrap(),
+            conn.query_row("SELECT descr FROM tasks WHERE id='task-old'", [], |row| row
+                .get::<_, String>(0))
+                .unwrap(),
             "Keep me"
         );
         assert_eq!(
@@ -392,5 +411,46 @@ mod compatibility_tests {
 
         assert_eq!(version, MIGRATIONS.len() as i64);
         assert_eq!(user_version(&conn), version);
+    }
+
+    #[test]
+    fn folds_personal_growth_lists_into_health_without_losing_the_list() {
+        let conn = Connection::open_in_memory().unwrap();
+        run(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO lists(id,name,emoji,color,ord,updated_at,life_area,life_direction)
+             VALUES('growth-list','Read','📚','#8d67ab',0,1,'growth','increase')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO life_area_priorities(area_key,priority_rank,updated_at)
+             VALUES('growth',4,1)",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch("PRAGMA user_version = 14;").unwrap();
+
+        run(&conn).unwrap();
+
+        let (area, color, direction): (String, String, String) = conn
+            .query_row(
+                "SELECT life_area,color,life_direction FROM lists WHERE id='growth-list'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(area, "health");
+        assert_eq!(color, "#2f9e8f");
+        assert_eq!(direction, "increase");
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM life_area_priorities WHERE area_key='growth'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+            0
+        );
     }
 }

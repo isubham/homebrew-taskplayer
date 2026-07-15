@@ -20,6 +20,17 @@ pub fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+/// Current clients fold legacy Personal Growth and Mental Wellbeing tags into
+/// Health & Wellbeing. Keeping this normalization at the model boundary lets
+/// supported older clients continue sending the old enum-like strings without
+/// making those lists disappear into Unsorted on a newer client.
+pub fn canonical_life_area(area: Option<&str>) -> Option<String> {
+    area.map(|value| match value {
+        "growth" | "wellbeing" => "health".to_string(),
+        current => current.to_string(),
+    })
+}
+
 /// A recurring local-time window within a week. `weekday` follows ISO-8601
 /// numbering (Monday = 1, Sunday = 7); start/end are minutes after local
 /// midnight and describe a half-open interval `[start_minute, end_minute)`.
@@ -62,11 +73,10 @@ pub struct TaskList {
     pub updated_at: i64,
     /// Life-balance area this list's tracked time counts toward (see the
     /// Home page's radar chart) — one of "career" | "health" |
-    /// "relationships" | "growth" | "finance" | "recreation" (the retired
-    /// "wellbeing" is folded into "health" as "Health & Wellbeing", see
-    /// migration 010), or None for an untagged list that just doesn't factor
-    /// into the chart. `#[serde(default)]` keeps lists saved before this field
-    /// existed deserializable.
+    /// "relationships" | "finance" | "recreation". The retired "wellbeing"
+    /// and "growth" values are accepted from older clients and folded into
+    /// "health" (see migrations 010 and 015), or None leaves a list out of the
+    /// chart. `#[serde(default)]` keeps older lists deserializable.
     #[serde(default)]
     pub life_area: Option<String>,
     /// "increase" | "decrease" — whether time spent in this list should

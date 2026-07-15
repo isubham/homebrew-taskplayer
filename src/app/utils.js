@@ -1,4 +1,4 @@
-// The 7 axes of the Home page's life-balance radar chart (see
+// The 5 axes of the Home page's life-balance radar chart (see
 // lifeBalanceScores()/buildLifeRadar() in render.js). A list can be tagged
 // with one of these `key`s (plus a direction, see commands.js's editList/
 // addList) so its tracked time counts toward that axis — shared here so
@@ -27,7 +27,6 @@ export const LIFE_AREAS = [
   // calm teal accent (see styles.css's --green), same hue family.
   { key: "health", label: "Health & Wellbeing", color: "#2f9e8f" },
   { key: "relationships", label: "Relationships", color: "#e8115b" },
-  { key: "growth", label: "Personal Growth", color: "#8d67ab" },
   { key: "finance", label: "Finances", color: "#e8b923" },
   { key: "recreation", label: "Recreation", color: "#ba5d07" },
 ];
@@ -283,10 +282,10 @@ export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {})
   // the way an actual error would be (see docs/adhd-design-principles.md,
   // rule 8: no shame, no permanent record of "against" the user). The bar
   // simply keeps going in a second, calmer tone.
-  let chips;
+  let segments;
   if (!over) {
     const scale = estimateMs ? trackPx / estimateMs : 0;
-    chips = durations.map((d) => `<i class="seg in" style="width:${Math.max(1.5, d * scale).toFixed(1)}px"></i>`).join("");
+    segments = durations.map((d) => ({ cls: "in", widthPx: Math.max(1.5, d * scale) }));
   } else {
     // Compress every session to fit the fixed track: split whichever one
     // straddles the estimate boundary into an in-estimate (before) part and
@@ -306,8 +305,10 @@ export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {})
       cum = segEnd;
     }
     const scale = trackPx / total;
-    chips = parts.map((p) => `<i class="seg ${p.cls}" style="width:${Math.max(1.5, p.d * scale).toFixed(1)}px"></i>`).join("");
+    segments = parts.map((p) => ({ cls: p.cls, widthPx: Math.max(1.5, p.d * scale) }));
   }
+
+  const chips = segments.map((segment) => `<i class="seg ${segment.cls}" style="width:${segment.widthPx.toFixed(1)}px"></i>`).join("");
 
   const title = over
     ? `${sessionLabel} · ${fmtHM(total)} of ${fmtEst(estimateMin)} · ${fmtHM(total - estimateMs)} over`
@@ -322,6 +323,10 @@ export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {})
     title,
     sessionCount,
     sessionLabel,
+    segments,
+    totalText: fmtHM(total),
+    estimateText: fmtEst(estimateMin),
+    overText: fmtHM(total - estimateMs),
     html: `<span class="capbar" title="${title}"><span class="chips">${chips}</span><span class="readout">${readout}</span></span>`,
   };
 }

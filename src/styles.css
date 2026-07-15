@@ -5,7 +5,7 @@
      borrowed. Variable names (--green/--green-hi) are kept as-is rather than
      renamed to avoid a repo-wide rename touching every consumer for a
      purely cosmetic reason. */
-  --green:#2f9e8f; --green-hi:#3dbfac; --blue:#509bf5; --amber:#e8b923;
+  --green:#2f9e8f; --green-hi:#3dbfac; --blue:#509bf5; --amber:#e8b923; --attention:#7fa9c9;
   --text:#fff; --muted:#b3b3b3; --line:#2e2e2e;
 }
 *{box-sizing:border-box}
@@ -20,17 +20,15 @@ html,body{height:100%;margin:0}
    the drag region small avoids that conflict entirely. */
 #titlebar{position:fixed;top:0;left:0;right:0;height:38px;z-index:9999;pointer-events:auto;-webkit-app-region:drag}
 #titlebar *{-webkit-app-region:drag}
-button,input,select,textarea,a,.list-edit,.menu-btn,.rail-toggle,.play-all,.pill,.donebtn,.ccheck,.pbtn,.mode-btn,.badge,.m-genre select,.list-item,.crow,tbody tr{-webkit-app-region:no-drag}
+button,input,select,textarea,a,.menu-btn,.pill,.donebtn,.ccheck,.pbtn,.mode-btn,.badge,.m-genre select,.list-item,.crow,tbody tr{-webkit-app-region:no-drag}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   background:#000;color:var(--text);overflow:hidden;
 }
 /* Spotify-style: separate rounded panels floating on a black canvas with gaps */
-#app{display:grid;grid-template-columns:258px 1fr 0;grid-template-rows:52px 1fr 80px;
-  grid-template-areas:"topbar topbar topbar" "side main np" "player player player";height:100vh;
-  background:#000;gap:10px;padding:10px;
-  transition:grid-template-columns .3s cubic-bezier(.22,.61,.36,1)}
-#app.rail{grid-template-columns:258px 1fr 384px}
+#app{display:grid;grid-template-columns:258px minmax(0,1fr);grid-template-rows:52px 1fr 80px;
+  grid-template-areas:"topbar topbar" "side main" "player player";height:100vh;
+  background:#000;gap:10px;padding:10px}
 /* Topbar — 3-column grid (1fr auto 1fr) so the center cluster (home +
    search) sits dead-center in the full bar width regardless of how wide
    the left (back/forward) and right (icons) clusters are, Spotify-style —
@@ -86,33 +84,7 @@ body{
 .topbar-icons button{background:none;border:none;color:#5a5a5a;cursor:pointer;display:flex;padding:4px;border-radius:6px}
 .topbar-icons button:hover{color:#fff;background:rgba(255,255,255,.08)}
 .topbar-icons button.active{color:var(--green)}
-/* Now Playing rail (3rd column) — slides + fades in */
-.np-rail{grid-area:np;background:var(--bg);border-radius:10px;overflow:hidden;padding:18px 18px 22px;
-  opacity:0;transform:translateX(14px);transition:opacity .3s ease,transform .3s cubic-bezier(.22,.61,.36,1)}
-#app.rail .np-rail{opacity:1;transform:none;overflow-y:auto}
-@media (prefers-reduced-motion:reduce){#app,.np-rail,.list-item{transition:none}}
-.np-rail .lab{color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:10px}
-.np-art{width:100%;aspect-ratio:1/1;border-radius:10px;display:grid;place-items:center;font-size:64px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.np-art.idle{background:#333;color:var(--muted);font-size:34px;box-shadow:none}
-.np-rail h2{margin:12px 0 2px;font-size:17px}
-.np-rail .m{color:var(--muted);font-size:12px;margin-bottom:12px}
-.np-rail .acts{margin:14px 0 2px}
-.np-rail .acts .donebtn{width:100%;justify-content:center;padding:8px}
-/* each block is its own card with spacing between */
-.np-rail .np-card{background:#1c1c1c;border-radius:12px;padding:16px;margin-bottom:12px}
-.np-rail .np-card h4{color:var(--muted);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 10px;display:flex;align-items:center;gap:6px}
-.np-rail .np-card h4 .linkbtn{margin-left:auto;text-transform:none;letter-spacing:0}
-.np-rail .ses{display:flex;justify-content:space-between;font-size:12px;padding:8px 2px;border-bottom:1px solid var(--line)}
-.np-rail .ses:last-child{border-bottom:none;padding-bottom:0}
-.np-rail .ses .w{color:var(--muted)}
-.np-rail .ses .d{font-variant-numeric:tabular-nums;font-weight:600}
-.np-empty{text-align:center;color:var(--muted);padding:24px 0}
-.np-empty .np-art{margin-bottom:14px}
-.np-empty p{font-size:13px;line-height:1.6}
-.rail-toggle{background:none;border:none;color:var(--muted);cursor:pointer;padding:5px;flex:none;display:grid;place-items:center;border-radius:6px}
-.rail-toggle svg{width:18px;height:18px}
-.rail-toggle:hover{color:#fff;background:rgba(255,255,255,.08)}
-.rail-toggle.on{color:var(--green)}
+@media (prefers-reduced-motion:reduce){.list-item{transition:none}}
 /* Sidebar — brand/Recent/Insights/"Your Lists" label stay fixed (.side-fixed,
    never scrolls); only the list rows themselves scroll (.side-scroll), so a
    long list of lists never pushes nav out of reach. "+ New list" stays
@@ -154,14 +126,16 @@ body{
 .list-item .li-icon{width:16px;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;color:var(--muted)}
 .list-item:hover .li-icon,.list-item.active .li-icon{color:inherit}
 .sidebar-track.playing-list .li-label{color:#fff;font-weight:600}
+.sidebar-attention-dot{width:8px;height:8px;border-radius:50%;background:var(--attention);flex:none}
 .sidebar-equalizer{display:flex;align-items:center;justify-content:center;flex:none;color:var(--green-hi)}
 .sidebar-equalizer svg{display:block}
+.playing-equalizer rect{transform-box:fill-box;transform-origin:center bottom;animation:sidebar-playing-bar 1.05s ease-in-out infinite}
+.playing-equalizer rect:nth-child(2){animation-delay:-.72s}
+.playing-equalizer rect:nth-child(3){animation-delay:-.38s}
+@keyframes sidebar-playing-bar{0%,100%{transform:scaleY(.48)}50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){.playing-equalizer rect{animation:none}}
 .list-item .li-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .list-item .count{flex:none;color:var(--muted);font-weight:500;font-size:11px}
-.list-edit{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:3px 6px;border-radius:5px;opacity:0;flex:none}
-.list-item:hover .list-edit{opacity:1}
-.list-edit:hover{color:#fff;background:var(--elev)}
-
 /* Drag handle for reordering lists — absolutely positioned (not a flex
    item) so it overlays the row's left padding on hover instead of
    reserving layout space at rest. A reserved-space grip would push every
@@ -271,6 +245,7 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .acct-info small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Insights page (all sessions grouped by day) */
 .insights-page{padding:16px 32px 48px;max-width:700px}
+.insights-summary{display:flex;flex-wrap:wrap;gap:24px 40px;padding:20px 32px 24px;border-bottom:1px solid var(--line)}
 .sess-group{margin-bottom:22px}
 .sess-head{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);padding:0 4px 8px;margin-bottom:4px}
 .sess-head h4{margin:0;color:#fff;font-size:13px;font-weight:700}
@@ -346,16 +321,40 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
    .topbar-left (normal document flow, up in .topbar), not a floating
    fixed-position element over .main, so there's nothing left to dodge. */
 .stickybar{position:sticky;top:0;z-index:5;height:44px;margin-bottom:-44px;display:flex;align-items:center;gap:12px;padding:0 32px;background:var(--bg2);border-bottom:1px solid var(--line);opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .18s ease,transform .18s ease;-webkit-app-region:drag}
+.lit-page-root{display:contents}
 .stickybar.show{opacity:1;transform:translateY(0);pointer-events:auto}
 .stickybar .sb-icon{flex:none;width:20px;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1}
 .stickybar .sb-icon svg{display:block}
 .stickybar .sb-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:15px}
-.stickybar .sb-play{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent,var(--green));color:var(--accent-ink,#000);border:none;font-size:12px;cursor:pointer;-webkit-app-region:no-drag}
-.stickybar .sb-play:hover{transform:scale(1.06)}
 .hdr .cover{width:160px;height:160px;border-radius:8px;display:grid;place-items:center;font-size:62px;box-shadow:0 14px 38px rgba(0,0,0,.55);flex:none}
 .hdr .info small{font-size:12px;letter-spacing:.06em;font-weight:700}
 .hdr .info h1{margin:14px 0 16px;font-size:64px;font-weight:800;letter-spacing:-.04em;line-height:1}
 .hdr .info .sub{color:var(--muted);font-size:13px;font-weight:600}
+/* List detail keeps the app's music-player identity without creating a
+   second playback surface: playlist/track language, cover art, a quiet
+   equalizer motif, and a physical time track carry the metaphor while the
+   persistent bottom player remains the only list-level playback control. */
+.list-hero{position:relative;align-items:center;min-height:230px;padding-top:28px;padding-bottom:30px;flex-wrap:wrap}
+.list-hero .list-cover{position:relative;width:170px;height:170px;overflow:hidden}
+.list-cover>span:first-child{position:relative;z-index:1}
+.cover-equalizer{position:absolute;left:16px;right:16px;bottom:14px;height:20px;display:flex;align-items:flex-end;justify-content:center;gap:5px;opacity:.55}
+.cover-equalizer i{display:block;width:4px;border-radius:3px;background:currentColor}
+.cover-equalizer i:nth-child(1){height:8px}.cover-equalizer i:nth-child(2){height:17px}.cover-equalizer i:nth-child(3){height:12px}.cover-equalizer i:nth-child(4){height:6px}
+.list-hero-info{flex:1;min-width:0}
+.list-hero .info small{text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.72)}
+.list-hero .info h1{margin:10px 0 12px;font-size:clamp(42px,5.2vw,68px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-liner{display:flex;align-items:center;gap:12px;min-width:0;margin-top:19px;color:var(--muted);font-size:11px}
+.list-area{font-weight:700;white-space:nowrap}
+.list-availability{min-width:0;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-progress-track{position:relative;width:180px;height:7px;flex:none;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.14)}
+.list-progress-track>span{display:block;height:100%;border-radius:inherit;background-image:repeating-linear-gradient(90deg,transparent 0,transparent 26px,rgba(12,12,12,.55) 26px,rgba(12,12,12,.55) 29px)}
+.list-progress-time{white-space:nowrap;font-variant-numeric:tabular-nums}
+.list-action-row{display:flex;align-items:center;padding:16px 32px 4px}
+.list-action-row .list-add-task{background:#fff;color:#111;border-color:#fff}
+.list-action-row .list-add-task:hover{background:#e9e9e9;border-color:#e9e9e9}
+.list-edit-action{position:absolute;top:20px;right:24px;width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(0,0,0,.2);color:rgba(255,255,255,.72);cursor:pointer;padding:0}
+.list-edit-action:hover{color:#fff;background:rgba(255,255,255,.12)}
+.list-edit-action:focus-visible{outline:2px solid #fff;outline-offset:2px}
 /* Rank badge (see buildRankInfo in render.js) — a plain inline label in the
    greeting line, not its own card or page. No color escalation by tier on
    purpose: a louder color scheme climbing toward the top tier would start
@@ -364,10 +363,10 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
    even in a single-player app. */
 .rank-badge{display:inline-block;background:var(--bg3);color:var(--text);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.02em;cursor:default}
 /* Home dashboard (renderHomePage in render.js) — reuses .hdr/.cover/.info
-   above for its greeting header, then its own stat row + two card grids
-   below. 32px left/right to match .hdr's own content inset. */
+   above for its greeting header and card grids below. 32px left/right to
+   match .hdr's own content inset. */
 .home-body{padding:8px 32px 48px}
-.home-stats{display:flex;flex-wrap:wrap;gap:24px 40px;padding:4px 0 28px;margin-bottom:28px;border-bottom:1px solid var(--line)}
+/* Shared metric typography; the bounded six-number strip lives on Insights. */
 .hs-stat{display:flex;flex-direction:column;gap:4px}
 .hs-num{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .hs-label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
@@ -438,53 +437,40 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .jb-meta{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jb-play{flex:none;width:30px;height:30px;border-radius:50%;background:var(--green);color:#000;border:none;font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s}
 .jb-card:hover .jb-play{opacity:1}
-/* Home page "Now" section (see nowCandidates()/nowRowHtml/renderHomePage in
-   render.js, docs/homepage-now-spec.md) — rendered with the same row
-   vocabulary as the to-do list (table.albrows + .idx/.tname/.jewel-group) so
-   a Now item reads as the same kind of thing as a task in a list. These
-   overrides only drop the list-only affordances the Now table doesn't use
-   (the drag-grip gutter / album indentation baked into .idx's padding) and
-   tighten the row padding for a compact glance. */
-.now-table{margin-top:0}
-.now-table td{padding:10px 14px}
-.now-table .idx{width:auto;padding-left:14px}
-/* Deadline cell: filling bar (physical time cue, ADHD rule 3) + an exact
-   "due <date>", right-aligned so the bars line up down the column. */
-.due-cell{vertical-align:middle;white-space:nowrap;text-align:right}
-.due-cell .now-bar{display:inline-block;vertical-align:middle;margin-right:8px}
-/* Fill only ever grows toward amber and caps at 100% — never red, never an
-   unbounded/pulsing state. See the ADHD x gamification hard constraints in
-   CLAUDE.md against urgency/loss framing. */
-.now-bar{width:70px;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden}
-.now-bar-fill{display:block;height:100%;background:var(--amber)}
-.now-due{font-size:11px;color:var(--muted);white-space:nowrap}
-/* "Daily Jam" (see dailyJamTasks()/dailyJamRowHtml in render.js) — today's
-   whole cadence:"daily" set in one place. Fill is green (Development &
-   Accomplishment, same hue as jewel-dot) rather than the Now table's amber
-   urgency bar — this bar tracks real completed work, not a closing
-   deadline, so it shouldn't borrow urgency's color language. Grows only
-   toward 100% today; nothing here persists past midnight (no streak, no
-   history — CLAUDE.md rule 7). */
-.daily-jam-bar{position:relative;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden;margin:0 14px 10px}
+/* "Daily Jam" (see dailyJamTasks()/dailyJamCardTemplate in render.js) — a
+   stable, priority-ordered life-area map. Both the overall and per-card
+   bars make today's progress physical without streaks, urgency, or a
+   permanent negative record. */
+.daily-jam-bar{position:relative;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden;margin:0 0 14px}
 .daily-jam-bar-fill{display:block;height:100%;background:var(--green-hi)}
-/* Status cell: plain text, no red/green pass-fail — "not yet today" is a
-   routine state, not a failure (rule 9, no punitive tone). */
-.daily-jam-status{vertical-align:middle;white-space:nowrap;text-align:right}
-.daily-jam-tag{display:block;font-size:11px;color:var(--muted)}
-.daily-jam-list{display:block;font-size:10px;color:var(--muted);opacity:.75;margin-top:1px}
-.daily-jam-table tr.done{opacity:.55}
-/* Fixed 3-column, capped width — recentLists() (render.js) always hands
-   back exactly 3 cards now, so this shouldn't stretch to fill a wide
-   window the way an auto-fill grid of "every list" used to. */
-.hl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,200px));gap:14px}
-.hl-card{padding:14px;border-radius:8px;background:var(--bg2);cursor:pointer}
-.hl-card:hover{background:var(--bg3)}
-.hl-tile{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:8px;font-size:20px;margin-bottom:10px}
-.hl-name{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-meta{font-size:11px;color:var(--muted);margin-top:3px}
-.toolbar{padding:20px 32px 12px;display:flex;align-items:center;gap:20px}
-.play-all{width:52px;height:52px;border-radius:50%;background:var(--green);border:none;color:#000;font-size:20px;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.4)}
-.play-all:hover{background:var(--green-hi);transform:scale(1.05)}
+.daily-jam-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.daily-jam-card{min-height:244px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--bg2);border-radius:8px;overflow:hidden}
+.daily-jam-card-head{display:flex;align-items:center;gap:7px;min-height:38px;padding:8px 12px 5px;color:var(--muted)}
+.daily-jam-card-head h5{min-width:0;margin:0;flex:1;color:inherit;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.daily-jam-area-icon{display:flex;align-items:center;color:var(--daily-area);flex:none}
+.daily-jam-count{font-size:10px;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.daily-jam-area-bar{height:3px;margin:0 12px 5px;background:#2c2c2c;border-radius:2px;overflow:hidden}
+.daily-jam-area-bar span{display:block;height:100%;background:var(--daily-area);transition:width .25s ease}
+.daily-jam-task-list{padding:0 0 7px;overflow:hidden}
+table.daily-jam-rows{width:100%;max-width:none;margin:0;table-layout:fixed}
+.daily-jam-rows thead th{padding:6px 9px;font-size:9px}
+.daily-jam-rows tbody td{padding:9px;font-size:12px}
+.daily-jam-rows .idx{width:34px;padding-left:12px}
+.daily-jam-rows .sess-cell{width:48px}
+.daily-jam-rows .bar-cell{width:112px}
+.daily-jam-rows .menu-cell{width:26px;padding-left:3px;padding-right:7px}
+.daily-jam-rows .task-name-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.daily-jam-rows .rbar-status{font-size:10px}
+.daily-jam-rows tr.daily-done{opacity:.55}
+.daily-jam-rows tr.daily-done:hover,.daily-jam-rows tr.playing{opacity:1}
+.task-row-list-name{margin-top:2px;color:var(--muted);font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.daily-jam-card-empty{padding:14px 12px;color:#666;font-size:12px}
+.daily-jam-more{border-top:1px solid var(--line);margin:4px 12px 0}
+.daily-jam-more summary{padding:8px 0 3px;color:var(--blue);font-size:11px;cursor:pointer;list-style:none}
+.daily-jam-more summary::-webkit-details-marker{display:none}
+.daily-jam-more .more-open{display:none}
+.daily-jam-more[open] .more-closed{display:none}
+.daily-jam-more[open] .more-open{display:inline}
 .pill{background:none;border:1px solid #555;color:#fff;padding:8px 15px;border-radius:20px;font-weight:600;cursor:pointer}
 .pill:hover{border-color:#fff}
 .pill.muted{color:var(--muted)}
@@ -506,6 +492,8 @@ tbody td{padding:14px 24px;font-size:14px}
 .idx{color:var(--muted);width:44px;position:relative;padding-left:40px}
 /* number and play/pause glyph share one fixed-width box so hover doesn't reflow the row */
 .idx .num,.idx .go{display:inline-block;width:18px;text-align:center;line-height:1}
+.task-playing-equalizer{display:inline-flex;width:18px;align-items:center;justify-content:center;color:var(--green-hi)}
+.task-playing-equalizer svg{display:block}
 tbody tr:hover .idx .num{display:none}
 tbody tr:hover .idx .go{display:inline-block}
 .idx .go{display:none;background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:0}
@@ -540,6 +528,10 @@ tr.playing:hover{background:rgba(29,185,84,.16)}
 tr.playing td,tr.playing .total{color:var(--green)}
 tr.playing .idx .num{font-weight:700}
 .tname{font-weight:600}
+.task-name-line{display:flex;align-items:center;min-width:0}
+.task-attention-cue{display:flex;align-items:center;gap:8px;margin-top:5px;color:var(--muted);font-size:11px;font-weight:400;white-space:nowrap}
+.task-deadline-track{display:inline-block;width:70px;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden;flex:none}
+.task-deadline-track>span{display:block;height:100%;background:var(--attention)}
 /* Album sections — related tasks within one list can share an album, the
    way songs by an artist group into albums. Each section gets a small
    header (tile color hashed from the album name, see utils.js albumColor)
@@ -559,7 +551,7 @@ tr.playing .idx .num{font-weight:700}
 .alb-play:hover{color:#fff;background:rgba(255,255,255,.08)}
 table.albrows{margin-top:4px}
 .task-kind-label{color:var(--blue);font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:18px 32px 7px;max-width:1120px}
-.toolbar+.task-kind-label{padding-top:4px}
+.list-action-row+.task-kind-label{padding-top:18px}
 .task-kind-label.one-time{margin-top:12px;border-top:1px solid var(--line);padding-top:22px}
 .task-kind-label span{font-weight:600;letter-spacing:0}
 .task-kind-empty{margin:3px 32px 0;max-width:1120px;padding:10px 14px;color:#666;font-size:12px}
@@ -656,12 +648,55 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .crow:hover .menu-btn{opacity:1}
 .empty{padding:48px 32px;color:var(--muted)}
 .note{padding:16px 32px 34px;color:#6a6a6a;font-size:11px}
+/* Dedicated Now Playing focus page. Context owns the flexible column; the
+   progress card stays narrow and glanceable. Playback remains in the global
+   player, so this page never duplicates transport controls. */
+.now-playing-page{height:100%;min-height:0;padding:28px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,34%);gap:18px;background:linear-gradient(150deg,var(--accent-soft),transparent 38%)}
+.focus-context-card,.focus-progress-card{background:#1b1b1b;border:1px solid rgba(255,255,255,.045);border-radius:16px}
+.focus-context-card{min-width:0;min-height:0;padding:24px;display:flex;flex-direction:column}
+.focus-identity{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:17px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.focus-cover{width:76px;height:76px;border-radius:12px;display:grid;place-items:center;font-size:34px;background:linear-gradient(135deg,var(--cover),var(--cover-soft));box-shadow:0 10px 24px rgba(0,0,0,.28)}
+.focus-identity-copy{min-width:0}
+.focus-list{color:var(--muted);font-size:12px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.focus-identity h1{font-size:30px;font-weight:560;line-height:1.1;margin:0 0 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.focus-status{display:flex;align-items:center;gap:7px;color:#9d9d9d;font-size:12px}
+.focus-status-dot{width:7px;height:7px;border-radius:50%;background:#666}
+.focus-status-dot.work{background:var(--green);box-shadow:0 0 0 3px rgba(47,158,143,.18)}
+.focus-status-dot.break{background:var(--blue);box-shadow:0 0 0 3px rgba(80,155,245,.16)}
+.focus-notes-head{display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding:22px 2px 10px}
+.focus-notes-head label{color:#d5d5d5;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}
+.focus-notes-head span{color:#686868;font-size:10px}
+.focus-notes{width:100%;flex:1;min-height:210px;resize:none;border:1px solid #333;border-radius:12px;background:#151515;color:#e9e9e9;padding:17px 18px;font:inherit;font-size:14px;line-height:1.65;outline:none}
+.focus-notes::placeholder{color:#626262}
+.focus-notes:hover{border-color:#414141}
+.focus-notes:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(47,158,143,.1)}
+.focus-progress-card{align-self:stretch;padding:24px;display:flex;flex-direction:column;justify-content:space-between;gap:28px}
+.focus-progress-section{min-height:0}
+.focus-progress-section+.focus-progress-section{padding-top:28px;border-top:1px solid var(--line)}
+.focus-section-label{color:#929292;font-size:10px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;margin-bottom:13px}
+.focus-time{font-size:30px;font-weight:720;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.025em}
+.focus-time span{color:#777;font-size:13px;font-weight:550;letter-spacing:0}
+.focus-meter{height:10px;margin-top:17px;border-radius:999px;background:#303030;overflow:hidden}
+.focus-meter span{display:block;height:100%;border-radius:inherit;background:var(--green);transition:width .3s linear}
+.focus-meter.break span{background:var(--blue)}
+.focus-meter.task span{background:var(--accent,var(--green))}
+.focus-meter.reached span{background:var(--green-hi)}
+.focus-progress-note{margin-top:9px;color:#777;font-size:11px;line-height:1.45;font-variant-numeric:tabular-nums}
+.focus-open-ruler{height:11px;margin-top:17px;border-bottom:2px solid #363636;display:flex;justify-content:space-between;align-items:flex-end}
+.focus-open-ruler span{width:1px;height:6px;background:#5a5a5a}
+.focus-open-ruler span:last-child{height:9px}
+.focus-empty{height:100%;display:grid;place-content:center;text-align:center;color:var(--muted)}
+.focus-empty-icon{font-size:42px;color:#666}.focus-empty h1{color:#fff;margin:14px 0 5px}.focus-empty p{margin:0;font-size:13px}
 /* Player bar */
 .player{grid-area:player;background:var(--bg2);border-radius:10px;display:flex;align-items:center;padding:0 16px;gap:14px}
 .np{display:flex;align-items:center;gap:12px;width:30%;min-width:170px}
 .np .art{width:40px;height:40px;border-radius:6px;display:grid;place-items:center;font-size:17px;flex:none}
 .np .t{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .np .l{color:var(--muted);font-size:11px}
+.player-task-link{min-width:0;max-width:100%;display:flex;align-items:center;gap:12px;padding:4px;border:0;border-radius:8px;background:none;color:inherit;text-align:left;font:inherit;cursor:pointer}
+.player-task-link:hover{background:rgba(255,255,255,.06)}
+.player-task-copy{min-width:0;display:flex;flex-direction:column;gap:2px}
+.player-task-copy .t,.player-task-copy .l{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .center{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
 .controls{display:flex;align-items:center;gap:8px}
 .pbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px}
@@ -799,6 +834,9 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .depth-seg button{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg3);color:var(--muted);font-size:11px;font-weight:700;padding:9px 10px;border-radius:7px;cursor:pointer;border:1.5px solid transparent}
 .depth-seg button:hover{color:#fff}
 .depth-seg button.sel{background:rgba(29,185,84,.16);color:var(--green-hi);border-color:var(--green)}
+.cadence-seg{display:inline-flex}
+.cadence-seg button{flex:none;min-width:76px;flex-direction:row;justify-content:center;gap:4px;padding:4px 7px;font-size:9px;border-radius:6px}
+.cadence-seg button svg{width:11px;height:11px}
 .depth-hint{font-size:11px;color:var(--muted);margin-top:8px}
 /* Sessions' own total — replaces the old standalone timer hero, sized to
    still read as the "big number" on this panel (the timer hero it replaced
@@ -823,9 +861,8 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .est-inline:focus{border-color:var(--blue);outline:none}
 /* Notes, inline — replaces "click to open a Lyrics dialog" with a plain
    textarea that commits on blur, same immediate-commit contract as every
-   other field in this panel. The standalone Lyrics overlay and Now Playing
-   rail keep the dialog-based editLyrics, since they're separate surfaces
-   this panel doesn't own. */
+   other field in this panel. The Now Playing page uses its own focused
+   textarea; only the standalone Lyrics overlay keeps the dialog. */
 .lyrics-inline{width:100%;background:var(--bg3);border:1px solid transparent;border-radius:10px;padding:13px 15px;font-size:14px;line-height:1.6;color:#e6e6e6;font-family:inherit;resize:vertical;margin-bottom:6px}
 .lyrics-inline::placeholder{color:#7a7a7a}
 .lyrics-inline:hover{border-color:#3a3a3a}
@@ -983,6 +1020,12 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .task-detail-sessions .sh{margin-top:18px}
 
 @media (max-width: 840px){
+  .daily-jam-grid{grid-template-columns:minmax(0,1fr)}
+  .list-hero{gap:18px;padding:24px}
+  .list-hero .list-cover{width:126px;height:126px;font-size:48px}
+  .list-hero .info h1{font-size:40px}
+  .list-liner{flex-wrap:wrap;margin-top:14px}
+  .list-availability{max-width:100%}
   .task-detail-grid{grid-template-columns:minmax(0,1fr);gap:22px}
   .task-detail-sessions{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:20px}
   .modal.task-detail-two-column{width:min(620px,94vw)}

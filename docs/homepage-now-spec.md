@@ -8,6 +8,10 @@ authoritative current behavior is in [`features.md`](features.md). Scoped agains
 question 1, "what should I be doing now" — only. Daily recurring tasks (question 2) are explicitly
 out of scope; see §7.
 
+Current placement no longer uses a Home section: the same bounded derived ranking now produces a
+calm dot on qualifying lists and a factual deadline cue on the corresponding task rows. The
+original Home-card design below is retained as historical context only.
+
 Decisions locked in during scoping:
 - **A new, minimal `deadline_at` field on `Task`** — no separate "reschedule count" or "snooze"
   field. Avoidance is *derived* at read time from data the app already has (sessions + deadline),

@@ -12,6 +12,8 @@ repo `CLAUDE.md` (auto-loaded each session); this file is the fuller record.
 ## Response preferences
 
 - Concise and direct. Limit unnecessary explanation and verbosity.
+- Keep responses short enough to scan quickly; lead with the recommendation and omit extended
+  background unless explicitly requested.
 - Minimal formatting — prose over bullets/headers unless the content needs them.
 - A good test: if a word can be removed without losing meaning, remove it.
 

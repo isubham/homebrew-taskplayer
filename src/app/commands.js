@@ -600,7 +600,8 @@ export function createCommands({ state, ui, renderer, invoke }) {
       ["j / k", "Move down / up in region"], ["Enter", "Open list / play task"],
       ["n", "New list / task / session (by region)"],
       ["Space", "Play / pause current"], ["i", "Insights"], ["s", "Settings"],
-      ["/", "Search"], ["⌘[ / ⌘]", "Back / forward"], ["?", "This help"], ["Esc", "Clear focus"],
+      ["/", "Search"], ["⌘+ / ⌘− / ⌘0", "Zoom in / out / reset"], ["⌘[ / ⌘]", "Back / forward"],
+      ["?", "This help"], ["Esc", "Clear focus"],
     ];
     const body = `<div style="display:grid;grid-template-columns:auto 1fr;gap:9px 16px;align-items:center">`
       + rows.map(([k, d]) => `<kbd style="justify-self:start;background:var(--bg3);border-radius:4px;padding:2px 8px;font-family:monospace;font-size:12px;color:#fff">${k}</kbd><span style="color:var(--muted);font-size:13px">${d}</span>`).join("")
@@ -644,12 +645,10 @@ export function createCommands({ state, ui, renderer, invoke }) {
     if (state.lyricsId === id) renderer.renderLyrics();
   }
 
-  // The task panel's own Notes field (see render.js's renderDetail) commits
-  // straight from its <textarea> on blur — same immediate-commit contract
-  // as every other field there — rather than opening the dialog above.
-  // editLyrics itself is left in place: the standalone Lyrics overlay and
-  // the Now Playing rail's Lyrics card still open that dialog, since they
-  // aren't part of the field-editing panel this one is scoped to.
+  // Inline Notes fields in task detail and the Now Playing page commit from
+  // their <textarea> on blur — same immediate-commit contract as every other
+  // inline field — rather than opening the dialog above. editLyrics stays for
+  // the standalone Lyrics overlay.
   async function setLyricsInline(id, text) {
     const snap = await invoke("set_description", { id, text: (text ?? "").trim() || null });
     apply(snap);
@@ -905,7 +904,6 @@ export function createCommands({ state, ui, renderer, invoke }) {
 
   async function setMode(mode) {
     apply(await invoke("set_mode", { mode }));
-    renderer.renderSettingsPage();
   }
 
   async function setConfigField(key, value) {

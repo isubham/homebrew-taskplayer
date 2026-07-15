@@ -122,6 +122,7 @@ impl Db {
         area: Option<&str>,
         direction: Option<&str>,
     ) -> rusqlite::Result<()> {
+        let area = canonical_life_area(area);
         self.conn.execute(
             "UPDATE lists SET life_area=?1, life_direction=?2, updated_at=?3 WHERE id=?4",
             params![area, direction, now_ms(), id],
@@ -160,7 +161,8 @@ impl Db {
     // ---- Life-area planning priority ----
     pub fn life_area_priorities(&self) -> rusqlite::Result<Vec<LifeAreaPriority>> {
         let mut stmt = self.conn.prepare(
-            "SELECT area_key,priority_rank,updated_at FROM life_area_priorities ORDER BY priority_rank,area_key",
+            "SELECT area_key,priority_rank,updated_at FROM life_area_priorities
+             WHERE area_key!='growth' ORDER BY priority_rank,area_key",
         )?;
         let priorities = stmt
             .query_map([], |r| {
@@ -196,7 +198,8 @@ impl Db {
         ts: i64,
     ) -> rusqlite::Result<Vec<LifeAreaPriority>> {
         let mut stmt = self.conn.prepare(
-            "SELECT area_key,priority_rank,updated_at FROM life_area_priorities WHERE updated_at > ?1 ORDER BY priority_rank,area_key",
+            "SELECT area_key,priority_rank,updated_at FROM life_area_priorities
+             WHERE updated_at > ?1 AND area_key!='growth' ORDER BY priority_rank,area_key",
         )?;
         let priorities = stmt
             .query_map(params![ts], |r| {
@@ -217,6 +220,12 @@ impl Db {
     ) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         for priority in priorities {
+            // Supported older clients may still sync the retired category.
+            // Keep the remote value compatible, but do not recreate a local
+            // planning choice this client no longer presents.
+            if priority.area_key == "growth" {
+                continue;
+            }
             let sql = if force {
                 "INSERT INTO life_area_priorities(area_key,priority_rank,updated_at) VALUES(?1,?2,?3)
                  ON CONFLICT(area_key) DO UPDATE SET priority_rank=excluded.priority_rank,updated_at=excluded.updated_at"
@@ -298,14 +307,7 @@ impl Db {
 
         if !priorities.is_empty() {
             let current = self.life_area_priorities()?;
-            let default_order = [
-                "career",
-                "health",
-                "relationships",
-                "growth",
-                "finance",
-                "recreation",
-            ];
+            let default_order = ["career", "health", "relationships", "finance", "recreation"];
             let local_is_default = current.len() == default_order.len()
                 && current
                     .iter()
@@ -749,6 +751,13 @@ impl Db {
     ) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         for l in lists {
+            let was_retired_growth = l.life_area.as_deref() == Some("growth");
+            let life_area = canonical_life_area(l.life_area.as_deref());
+            let color = if was_retired_growth {
+                "#2f9e8f"
+            } else {
+                &l.color
+            };
             let sql = if force {
                 "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction,availability_windows) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
                  ON CONFLICT(id) DO UPDATE SET name=excluded.name, emoji=excluded.emoji, color=excluded.color,
@@ -769,11 +778,11 @@ impl Db {
                     l.id,
                     l.name,
                     l.emoji,
-                    l.color,
+                    color,
                     l.order,
                     l.updated_at,
                     l.deleted_at,
-                    l.life_area,
+                    life_area,
                     l.life_direction,
                     windows_json(&l.availability_windows)?
                 ],
@@ -863,9 +872,16 @@ impl Db {
         tx.execute("DELETE FROM tasks", [])?;
         tx.execute("DELETE FROM lists", [])?;
         for l in lists {
+            let was_retired_growth = l.life_area.as_deref() == Some("growth");
+            let life_area = canonical_life_area(l.life_area.as_deref());
+            let color = if was_retired_growth {
+                "#2f9e8f"
+            } else {
+                &l.color
+            };
             tx.execute(
                 "INSERT INTO lists(id,name,emoji,color,ord,updated_at,life_area,life_direction,availability_windows) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
-                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.life_area, l.life_direction, windows_json(&l.availability_windows)?],
+                params![l.id, l.name, l.emoji, color, l.order, l.updated_at, life_area, l.life_direction, windows_json(&l.availability_windows)?],
             )?;
         }
         for t in tasks {
@@ -1362,14 +1378,7 @@ mod tests {
         remote_task.min_session_min = Some(20);
         remote_task.max_session_min = Some(45);
 
-        let remote_order = [
-            "relationships",
-            "health",
-            "career",
-            "growth",
-            "finance",
-            "recreation",
-        ];
+        let remote_order = ["relationships", "health", "career", "finance", "recreation"];
         let priorities = remote_order
             .iter()
             .enumerate()
@@ -1381,11 +1390,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(db
-            .backfill_planner_fields_from_remote(
-                &[remote_list],
-                &[remote_task],
-                &priorities
-            )
+            .backfill_planner_fields_from_remote(&[remote_list], &[remote_task], &priorities)
             .unwrap());
 
         let merged_list = db
@@ -1424,18 +1429,11 @@ mod tests {
     fn life_area_priority_defaults_reorder_and_sync_guard() {
         let db = Db::open_in_memory().unwrap();
         let defaults = db.life_area_priorities().unwrap();
-        assert_eq!(defaults.len(), 6);
+        assert_eq!(defaults.len(), 5);
         assert_eq!(defaults[0].area_key, "career");
 
-        let order = [
-            "relationships",
-            "health",
-            "career",
-            "growth",
-            "finance",
-            "recreation",
-        ]
-        .map(String::from);
+        let order =
+            ["relationships", "health", "career", "finance", "recreation"].map(String::from);
         db.reorder_life_areas(&order).unwrap();
 
         let reordered = db.life_area_priorities().unwrap();
@@ -1452,5 +1450,33 @@ mod tests {
             db.life_area_priorities().unwrap()[0].area_key,
             "relationships"
         );
+
+        let legacy = LifeAreaPriority {
+            area_key: "growth".to_string(),
+            priority_rank: 1,
+            updated_at: now_ms() + 10,
+        };
+        db.upsert_life_area_priorities_from_remote(&[legacy], false)
+            .unwrap();
+        assert_eq!(db.life_area_priorities().unwrap().len(), 5);
+    }
+
+    #[test]
+    fn remote_legacy_growth_tag_is_normalized_to_health() {
+        let db = Db::open_in_memory().unwrap();
+        let mut remote = db.add_list("Legacy growth list").unwrap();
+        remote.life_area = Some("growth".to_string());
+        remote.updated_at += 1;
+
+        db.upsert_from_remote(&[remote.clone()], &[], &[]).unwrap();
+
+        let stored = db
+            .lists()
+            .unwrap()
+            .into_iter()
+            .find(|list| list.id == remote.id)
+            .unwrap();
+        assert_eq!(stored.life_area.as_deref(), Some("health"));
+        assert_eq!(stored.color, "#2f9e8f");
     }
 }

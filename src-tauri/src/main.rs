@@ -1441,6 +1441,16 @@ fn set_mode(app: AppHandle, state: State<AppState>, mode: String) -> Snapshot {
     build_snapshot(state.inner())
 }
 
+/// Device-local interface zoom. The frontend keeps the selected step in
+/// localStorage; this clamp is the final boundary so no caller can push the
+/// app below 80% or above 130%.
+#[tauri::command]
+fn set_app_zoom(window: tauri::WebviewWindow, scale: f64) -> Result<(), String> {
+    let requested = if scale.is_finite() { scale } else { 1.0 };
+    let clamped = ((requested * 10.0).round() / 10.0).clamp(0.8, 1.3);
+    window.set_zoom(clamped).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn set_config_field(app: AppHandle, state: State<AppState>, key: String, value: i64) -> Snapshot {
     {
@@ -2567,6 +2577,7 @@ fn main() {
             start_break,
             resume_work,
             set_mode,
+            set_app_zoom,
             set_config_field,
             set_config_sound,
             sound_options,

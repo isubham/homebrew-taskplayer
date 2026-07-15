@@ -15,8 +15,8 @@ use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, OnceLock};
 use taskplayer_core::{
-    now_ms, Db, LifeAreaPriority, RunState, Session, SessionConfig, Task, TaskList,
-    WeeklyTimeWindow,
+    canonical_life_area, now_ms, Db, LifeAreaPriority, RunState, Session, SessionConfig, Task,
+    TaskList, WeeklyTimeWindow,
 };
 
 fn client() -> reqwest::blocking::Client {
@@ -218,7 +218,7 @@ impl RemoteList {
             color: self.color,
             order: self.ord,
             updated_at: self.updated_at,
-            life_area: self.life_area,
+            life_area: canonical_life_area(self.life_area.as_deref()),
             life_direction: self.life_direction,
             availability_windows: self.availability_windows,
             deleted_at: self.deleted_at,

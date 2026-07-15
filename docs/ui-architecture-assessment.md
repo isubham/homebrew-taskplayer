@@ -3,6 +3,12 @@
 _Written 2026-07-12. Scope: `src/app/render.js`, `bootstrap.js`, and the manual-DOM
 surface across the frontend. Question: should TaskPlayer move to React (or similar)?_
 
+> **Implementation update — 2026-07-15:** ADR
+> [0004](decisions/0004-lit-html-component-model.md) accepted the one-module-per-component model.
+> Topbar, pinned navigation, grouped sidebar, task-list page, task rows, sticky task header, and
+> Daily Jam now live in `src/app/components/` and render through `lit-html`. Home, Insights,
+> Settings, dialogs, and secondary surfaces remain on the documented incremental migration path.
+
 ## TL;DR
 
 **Not React. But the render layer does have a real, structural problem worth fixing —
@@ -24,7 +30,7 @@ shows that's only ~30% true, and the gap is the whole story:
 So the actual architecture is: **on every `render()`, rebuild the topbar, sidebar,
 main panel, and modals as HTML strings and slam them into `innerHTML`.** `lit-html`
 was brought in later, only for the ~10 spots where nuke-and-repave visibly breaks
-(the live clock/progress bar that updates every tick, the now-playing rail). It's a
+(the live clock/progress bar that updates every tick; at the time, the now-playing rail). It's a
 patch over the pattern, not the pattern itself.
 
 ## Why that pattern generates the pain you're feeling

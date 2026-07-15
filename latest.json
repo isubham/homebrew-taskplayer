@@ -1,11 +1,11 @@
 {
-  "version": "0.8.1",
-  "notes": "https://github.com/isubham/homebrew-taskplayer/releases/tag/v0.8.1",
-  "pub_date": "2026-07-15T07:33:04Z",
+  "version": "0.9.0",
+  "notes": "https://github.com/isubham/homebrew-taskplayer/releases/tag/v0.9.0",
+  "pub_date": "2026-07-15T14:44:33Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRC9NY2JleXJWS1BVYS9qSnhNVHpGNmc1MTlpSGxpYWpuK0ZsQmNBaGhTM3hhbjQ0azE2eXExMERhbHhUZHpEMWM4eWpJRHhuMkhrbm9IbUpjQXZUMEwzQ1Nqa0dzeVE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MTAwNzg0CWZpbGU6VGFza1BsYXllci5hcHAudGFyLmd6CjgveVZZRDdwL09ReHN4THhaMy9wVElraGZ5MEl5R0V5U0ovQ0MycHdxaS84WTg3UlBoUHhYU0RabWJmRGNDVHNDTEZRNFRSMzlXalA3VUdUVzNmM0FRPT0K",
-      "url": "https://github.com/isubham/homebrew-taskplayer/releases/download/v0.8.1/TaskPlayer.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRC9NY2JleXJWS0ZUS1crcVp4T3VEUmN4SDQ2L1RBT2JDVVppVXovUFc4cG5BVHFjRG05dVp3VUdDWXF6eXZMOEQwSlhycGh4V1V4TVlTVWtVYkNMUHVHWFVuL25EMUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MTI2NjczCWZpbGU6VGFza1BsYXllci5hcHAudGFyLmd6CjVjdDJWZXdtSjd6TTJGK0RtNklSMS9UQlYyQmVndTZWcDNlWDl0OEIrbEtLbUtidHZMSGJTQUhGQmNHNW9DWkdLZnFvRjNzamlPZk5MeWF0Vyswb0FRPT0K",
+      "url": "https://github.com/isubham/homebrew-taskplayer/releases/download/v0.9.0/TaskPlayer.app.tar.gz"
     }
   }
 }

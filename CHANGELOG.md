@@ -14,6 +14,19 @@ move those entries into a dated version section.
 
 ### Fixed
 
+## 0.8.1 - 2026-07-15
+
+### Changed
+
+- GitHub release pages now publish structured Added, Changed, and Fixed notes directly from the
+  matching `CHANGELOG.md` version section.
+
+### Fixed
+
+- Upgrading from a client that ignored newer planner columns now performs a one-time remote-first
+  field backfill before pushing, restoring list availability, task type, daily windows, session
+  limits, and life-area priority without replacing unrelated local edits.
+
 ## 0.8.0 - 2026-07-15
 
 ### Added

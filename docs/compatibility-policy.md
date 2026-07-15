@@ -53,6 +53,9 @@ Current capabilities:
 - Existing serialized names and types are stable during the support window.
 - New enum-like values require an unknown/fallback behavior before they are written remotely.
 - Whole-object replacement is not used when an older client could erase fields it does not know.
+- A migration that adds synced fields must schedule a durable, field-level remote backfill before
+  the next push. The marker is cleared only after success so old pull cursors cannot hide the new
+  remote values permanently.
 
 ## Local SQLite rules
 

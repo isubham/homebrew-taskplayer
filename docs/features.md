@@ -1,7 +1,7 @@
 # TaskPlayer feature catalog
 
 Last reviewed: 2026-07-15  
-Applies to: TaskPlayer 0.8.0  
+Applies to: TaskPlayer 0.8.1
 Primary platform: macOS desktop
 
 This is the authoritative record of what TaskPlayer does now. It describes shipped
@@ -338,6 +338,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   backend pauses sync without disabling local task management or playback.
 - Supabase changes follow an additive compatibility window covering the current and previous two
   minor clients.
+- After synced planner columns are added locally, a durable one-time remote-first backfill runs
+  before any push. It restores fields an older client may have skipped without replacing unrelated
+  local row edits, and retries automatically after transient failures.
 
 ### Live session ownership — Shipped
 
@@ -379,6 +382,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Signed updater artifacts and confirmation before install/restart.
 - Release script bumps versions, builds Tauri bundles, creates updater metadata, updates the
   Homebrew cask, commits/tags, and can publish a GitHub release.
+- GitHub release pages use the matching changelog section, preserving structured Added, Changed,
+  and Fixed notes instead of showing only generated commit titles.
 - GitHub Actions can run the release workflow.
 - Pull requests and `main` run compatibility gates for historical SQLite upgrades, old sync
   payloads, fresh Supabase migrations, old-client field preservation, and destructive SQL.

@@ -110,6 +110,7 @@ require_cmd cargo
 require_cmd shasum
 require_cmd git
 require_cmd awk
+require_cmd node
 
 CURRENT_VERSION="$(node -pe "require('./package.json').version")"
 [ "$CURRENT_VERSION" != "$VERSION" ] || die "package.json is already at $VERSION — nothing to bump."
@@ -137,6 +138,13 @@ if [ "$SKIP_BUILD" != 1 ] && [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
 fi
 
 info "Releasing $APP_NAME $CURRENT_VERSION -> $VERSION"
+
+# The release page is a user-facing summary, so source it from the curated
+# Added/Changed/Fixed section instead of GitHub's commit-title generator.
+# Fail before changing versions or building if the changelog was not prepared.
+RELEASE_NOTES="$(mktemp)"
+trap 'rm -f "$RELEASE_NOTES"' EXIT
+node scripts/extract-release-notes.mjs "$VERSION" > "$RELEASE_NOTES"
 
 # ---------- 1. bump version everywhere it's recorded ----------
 
@@ -251,7 +259,7 @@ if [ "$PUBLISH" != 1 ]; then
   info "Not pushing (pass --publish to push + create the GitHub release automatically)."
   echo "  Manual steps from here:"
   echo "    git push origin $PUSH_REFSPEC --follow-tags"
-  echo "    gh release create $TAG \"$TARBALL\" \"$LATEST_JSON\"${DMG_PATH:+ \"$DMG_PATH\"} --title \"$TAG\" --generate-notes"
+  echo "    gh release create $TAG \"$TARBALL\" \"$LATEST_JSON\"${DMG_PATH:+ \"$DMG_PATH\"} --title \"$TAG\" --notes-file <(node scripts/extract-release-notes.mjs \"$VERSION\")"
   echo "  (or upload $TARBALL, $LATEST_JSON,${DMG_PATH:+ and $DMG_PATH} by hand at https://github.com/$REPO/releases/new?tag=$TAG)"
   echo "  Every existing install checks .../releases/latest/download/latest.json, so until latest.json is"
   echo "  attached to a release, nobody's app will see this update."
@@ -275,7 +283,7 @@ info "Creating GitHub release $TAG"
 gh release create "$TAG" "$TARBALL" "$LATEST_JSON" ${DMG_PATH:+"$DMG_PATH"} \
   --repo "$REPO" \
   --title "$TAG" \
-  --generate-notes
+  --notes-file "$RELEASE_NOTES"
 
 info "Done. brew users get this the moment $CASK_FILE lands on main (this tap IS the cask);"
 info "everyone already running TaskPlayer gets it next time their in-app check fires."

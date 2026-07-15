@@ -48,4 +48,6 @@ deployment problem while trying to work. Error copy is factual and non-punitive.
 - Obsolete columns remain for at least the support window.
 - Sync performs one cached backend-contract check per app process.
 - A missing migration pauses sync but does not stop local task management or playback.
+- Synced-field migrations trigger a one-time field-level remote backfill before normal pushing,
+  preserving unrelated local edits while recovering values skipped by an older client cursor.
 - Destructive cleanup requires a deliberate reviewed override.

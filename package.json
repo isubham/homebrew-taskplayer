@@ -11,7 +11,8 @@
     "db:link": "supabase link --project-ref lxlpmodrzcsdshqearfb",
     "db:push": "supabase db push",
     "check:compatibility": "node scripts/check-supabase-compatibility.mjs",
-    "test:compatibility": "npm run check:compatibility && cargo test --manifest-path src-tauri/core/Cargo.toml && cargo test --manifest-path src-tauri/Cargo.toml"
+    "check:release-notes": "node scripts/extract-release-notes.mjs > /dev/null",
+    "test:compatibility": "npm run check:compatibility && npm run check:release-notes && cargo test --manifest-path src-tauri/core/Cargo.toml && cargo test --manifest-path src-tauri/Cargo.toml"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

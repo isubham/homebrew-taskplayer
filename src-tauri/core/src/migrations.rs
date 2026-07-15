@@ -254,6 +254,22 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "014_planner_sync_backfill",
+        // Clients predating planner fields may already have advanced their
+        // pull cursor after reading the same remote rows while ignoring
+        // columns they did not understand. Mark one remote-first field
+        // backfill so the upgraded client does not rely on those rows
+        // becoming newer again. The sync layer clears this only on success.
+        run: |conn| {
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES('sync_schema_backfill','planner_v1')
+                 ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -355,6 +371,15 @@ mod compatibility_tests {
         );
         assert!(has_column(&conn, "tasks", "daily_windows").unwrap());
         assert!(has_column(&conn, "lists", "availability_windows").unwrap());
+        assert_eq!(
+            conn.query_row(
+                "SELECT value FROM meta WHERE key='sync_schema_backfill'",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            "planner_v1"
+        );
     }
 
     #[test]

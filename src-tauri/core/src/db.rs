@@ -237,6 +237,87 @@ impl Db {
         tx.commit()
     }
 
+    /// One-time field-level recovery after planner columns are introduced on
+    /// a client whose pull cursor may already be newer than the remote rows.
+    /// Normal LWW first handles remote-newer/missing rows; the second pass
+    /// fills only planner values absent locally, without changing local row
+    /// timestamps or unrelated fields.
+    pub fn backfill_planner_fields_from_remote(
+        &self,
+        lists: &[TaskList],
+        tasks: &[Task],
+        priorities: &[LifeAreaPriority],
+    ) -> rusqlite::Result<bool> {
+        self.upsert_from_remote(lists, tasks, &[])?;
+
+        let mut changed = !lists.is_empty() || !tasks.is_empty();
+        let tx = self.conn.unchecked_transaction()?;
+        for list in lists {
+            if list.availability_windows.is_empty() {
+                continue;
+            }
+            changed |= tx.execute(
+                "UPDATE lists SET availability_windows=?1
+                 WHERE id=?2 AND deleted_at IS NULL
+                   AND COALESCE(availability_windows,'[]')='[]'",
+                params![windows_json(&list.availability_windows)?, list.id],
+            )? > 0;
+        }
+        for task in tasks {
+            if let Some(cadence) = task.cadence.as_deref() {
+                changed |= tx.execute(
+                    "UPDATE tasks SET cadence=?1
+                     WHERE id=?2 AND deleted_at IS NULL AND cadence IS NULL",
+                    params![cadence, task.id],
+                )? > 0;
+            }
+            if !task.daily_windows.is_empty() {
+                changed |= tx.execute(
+                    "UPDATE tasks SET daily_windows=?1
+                     WHERE id=?2 AND deleted_at IS NULL
+                       AND COALESCE(daily_windows,'[]')='[]'",
+                    params![windows_json(&task.daily_windows)?, task.id],
+                )? > 0;
+            }
+            if let Some(minimum) = task.min_session_min {
+                changed |= tx.execute(
+                    "UPDATE tasks SET min_session_min=?1
+                     WHERE id=?2 AND deleted_at IS NULL AND min_session_min IS NULL",
+                    params![minimum, task.id],
+                )? > 0;
+            }
+            if let Some(maximum) = task.max_session_min {
+                changed |= tx.execute(
+                    "UPDATE tasks SET max_session_min=?1
+                     WHERE id=?2 AND deleted_at IS NULL AND max_session_min IS NULL",
+                    params![maximum, task.id],
+                )? > 0;
+            }
+        }
+        tx.commit()?;
+
+        if !priorities.is_empty() {
+            let current = self.life_area_priorities()?;
+            let default_order = [
+                "career",
+                "health",
+                "relationships",
+                "growth",
+                "finance",
+                "recreation",
+            ];
+            let local_is_default = current.len() == default_order.len()
+                && current
+                    .iter()
+                    .zip(default_order)
+                    .all(|(priority, expected)| priority.area_key == expected);
+            self.upsert_life_area_priorities_from_remote(priorities, local_is_default)?;
+            changed = true;
+        }
+
+        Ok(changed)
+    }
+
     pub fn delete_list(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
         self.conn.execute(
@@ -933,6 +1014,14 @@ impl Db {
         self.set_meta("sync_pull_cursor", &ts.to_string())
     }
 
+    pub fn sync_schema_backfill(&self) -> Option<String> {
+        self.get_meta("sync_schema_backfill")
+    }
+
+    pub fn clear_sync_schema_backfill(&self) -> rusqlite::Result<()> {
+        self.delete_meta("sync_schema_backfill")
+    }
+
     // ---- Snapshot ----
     pub fn snapshot(&self) -> rusqlite::Result<Snapshot> {
         Ok(Snapshot {
@@ -1242,6 +1331,93 @@ mod tests {
         assert_eq!(reloaded_task.daily_windows, daily_windows);
         assert_eq!(reloaded_task.min_session_min, Some(30));
         assert_eq!(reloaded_task.max_session_min, Some(90));
+    }
+
+    #[test]
+    fn planner_backfill_fills_new_fields_without_replacing_local_row_edits() {
+        let db = Db::open_in_memory().unwrap();
+        let local_list = db.add_list("Local list name").unwrap();
+        let local_task = db
+            .add_task(&local_list.id, "Local task name", Some(45))
+            .unwrap();
+
+        let mut remote_list = local_list.clone();
+        remote_list.name = "Older remote list name".to_string();
+        remote_list.updated_at = local_list.updated_at - 1;
+        remote_list.availability_windows = vec![WeeklyTimeWindow {
+            weekday: 1,
+            start_minute: 9 * 60,
+            end_minute: 17 * 60,
+        }];
+
+        let mut remote_task = local_task.clone();
+        remote_task.name = "Older remote task name".to_string();
+        remote_task.updated_at = local_task.updated_at - 1;
+        remote_task.cadence = Some("daily".to_string());
+        remote_task.daily_windows = vec![WeeklyTimeWindow {
+            weekday: 1,
+            start_minute: 10 * 60,
+            end_minute: 11 * 60,
+        }];
+        remote_task.min_session_min = Some(20);
+        remote_task.max_session_min = Some(45);
+
+        let remote_order = [
+            "relationships",
+            "health",
+            "career",
+            "growth",
+            "finance",
+            "recreation",
+        ];
+        let priorities = remote_order
+            .iter()
+            .enumerate()
+            .map(|(index, area)| LifeAreaPriority {
+                area_key: area.to_string(),
+                priority_rank: index as i64 + 1,
+                updated_at: 1,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(db
+            .backfill_planner_fields_from_remote(
+                &[remote_list],
+                &[remote_task],
+                &priorities
+            )
+            .unwrap());
+
+        let merged_list = db
+            .lists()
+            .unwrap()
+            .into_iter()
+            .find(|list| list.id == local_list.id)
+            .unwrap();
+        assert_eq!(merged_list.name, "Local list name");
+        assert_eq!(merged_list.updated_at, local_list.updated_at);
+        assert_eq!(merged_list.availability_windows.len(), 1);
+
+        let merged_task = db
+            .tasks()
+            .unwrap()
+            .into_iter()
+            .find(|task| task.id == local_task.id)
+            .unwrap();
+        assert_eq!(merged_task.name, "Local task name");
+        assert_eq!(merged_task.updated_at, local_task.updated_at);
+        assert_eq!(merged_task.cadence.as_deref(), Some("daily"));
+        assert_eq!(merged_task.daily_windows.len(), 1);
+        assert_eq!(merged_task.min_session_min, Some(20));
+        assert_eq!(merged_task.max_session_min, Some(45));
+        assert_eq!(
+            db.life_area_priorities().unwrap()[0].area_key,
+            "relationships"
+        );
+
+        assert_eq!(db.sync_schema_backfill().as_deref(), Some("planner_v1"));
+        db.clear_sync_schema_backfill().unwrap();
+        assert_eq!(db.sync_schema_backfill(), None);
     }
 
     #[test]

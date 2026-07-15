@@ -718,6 +718,34 @@ fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
     Ok(changed)
 }
 
+/// Recover fields introduced after an older client may already have advanced
+/// its incremental pull cursor. This deliberately runs before any push and
+/// merges only the new planner fields, rather than force-replacing complete
+/// local rows. The durable marker is cleared only after every fetch and local
+/// write succeeds, so a transient failure retries on the next sync.
+fn backfill_planner_schema(db: &Db, access_token: &str) -> Result<bool, String> {
+    let lists = fetch_since::<RemoteList>(access_token, "lists", 0)?
+        .into_iter()
+        .map(RemoteList::into_local)
+        .collect::<Vec<_>>();
+    let tasks = fetch_since::<RemoteTask>(access_token, "tasks", 0)?
+        .into_iter()
+        .map(RemoteTask::into_local)
+        .collect::<Vec<_>>();
+    let priorities =
+        fetch_since::<RemoteLifeAreaPriority>(access_token, "life_area_priorities", 0)?
+            .into_iter()
+            .map(RemoteLifeAreaPriority::into_local)
+            .collect::<Vec<_>>();
+
+    let changed = db
+        .backfill_planner_fields_from_remote(&lists, &tasks, &priorities)
+        .map_err(|error| error.to_string())?;
+    db.clear_sync_schema_backfill()
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
+}
+
 /// Push local changes, then pull remote ones (plain last-write-wins on both
 /// sides). Returns `true` if the pull side changed any local data (so the
 /// caller knows whether a full `Snapshot` re-render is warranted). This is
@@ -725,6 +753,14 @@ fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
 /// for every sync *except* the one right after signing in.
 pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, String> {
     ensure_backend_compatible(access_token)?;
+    if let Some(backfill) = db.sync_schema_backfill() {
+        return match backfill.as_str() {
+            "planner_v1" => backfill_planner_schema(db, access_token),
+            unknown => Err(format!(
+                "Sync paused: this client does not understand schema backfill {unknown}."
+            )),
+        };
+    }
     push(db, access_token, user_id)?;
     pull(db, access_token, false)
 }
@@ -748,7 +784,10 @@ pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, Str
 /// normally on the next regular cycle.
 pub fn sync_login(db: &Db, access_token: &str) -> Result<bool, String> {
     ensure_backend_compatible(access_token)?;
-    pull(db, access_token, true)
+    let changed = pull(db, access_token, true)?;
+    db.clear_sync_schema_backfill()
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
 }
 
 #[cfg(test)]

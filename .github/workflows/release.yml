@@ -28,9 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # scripts/release.sh's `--generate-notes` wants real commit
-          # history to summarize, and a shallow clone can't fast-forward
-          # push reliably either.
+          # The release script pushes its version commit/tag, so it needs real
+          # history for a reliable fast-forward rather than a shallow clone.
           fetch-depth: 0
 
       # actions/checkout leaves the runner on a detached HEAD even for a

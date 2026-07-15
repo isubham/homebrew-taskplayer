@@ -31,6 +31,8 @@ jobs:
       - run: npm ci
       - name: Reject destructive backend migrations
         run: npm run check:compatibility
+      - name: Verify release notes for the current version
+        run: npm run check:release-notes
       - name: Check Rust formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Test local database upgrades

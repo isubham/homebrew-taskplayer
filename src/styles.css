@@ -132,7 +132,15 @@ body{
    The bottom margin below is what actually separates the pinned rows from
    "Your Lists" — .list-item itself has no bottom margin of its own. */
 #pinnedNav{margin-bottom:18px}
-.side h3{color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin:0 10px 10px}
+.side h3{color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin:0}
+.side-lists-heading{display:flex;align-items:center;margin:0 10px 10px}
+.side-lists-heading h3{flex:1}
+.priority-info{width:16px;height:16px;display:grid;place-items:center;padding:0;margin-right:4px;border:1px solid #555;border-radius:50%;background:none;color:var(--muted);font:inherit;font-size:9px;cursor:pointer}
+.priority-info:hover{color:#fff;border-color:#888}
+.side-toggle-all{display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;border-radius:6px;
+  background:none;color:var(--muted);line-height:1;cursor:pointer}
+.side-toggle-all svg{display:block}
+.side-toggle-all:hover{color:#fff;background:var(--bg3)}
 /* Single-line, native-sidebar rows (Finder/Music.app style): a fixed-width
    icon column, a truncating label, and — for lists — a trailing count pill.
    No boxed/tinted tile behind the icon; the icon (or emoji) carries its own
@@ -145,6 +153,9 @@ body{
 @media (prefers-reduced-motion:reduce){.list-item:active{transform:none}}
 .list-item .li-icon{width:16px;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;color:var(--muted)}
 .list-item:hover .li-icon,.list-item.active .li-icon{color:inherit}
+.sidebar-track.playing-list .li-label{color:#fff;font-weight:600}
+.sidebar-equalizer{display:flex;align-items:center;justify-content:center;flex:none;color:var(--green-hi)}
+.sidebar-equalizer svg{display:block}
 .list-item .li-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .list-item .count{flex:none;color:var(--muted);font-weight:500;font-size:11px}
 .list-edit{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:3px 6px;border-radius:5px;opacity:0;flex:none}
@@ -156,7 +167,7 @@ body{
    reserving layout space at rest. A reserved-space grip would push every
    list row's `.li-icon` a few px right of Recent/Insights above (which
    have no grip), breaking the shared icon column this layout depends on. */
-.list-grip{position:absolute;left:1px;top:50%;transform:translateY(-50%);display:flex;align-items:center;color:var(--muted);opacity:0;cursor:grab}
+.list-grip{position:absolute;left:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;color:var(--muted);opacity:0;cursor:grab}
 .list-item:hover .list-grip{opacity:.55}
 .list-grip:hover{opacity:1}
 .list-item:active .list-grip,.list-item.dragging .list-grip{cursor:grabbing}
@@ -183,24 +194,46 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .switch-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
 .switch.on .switch-knob{left:20px}
 /* Sidebar life-area sections (see renderSidebar in render.js) — lists grouped
-   under a collapsible area header, Slack-style. Colour lives on the folder
+   under a collapsible playlist-folder header. Colour lives on the folder
    glyph itself (tinted per area, set inline), not a separate bar or wash: the
    category's own mark carries its identity, while the header text and counts
-   stay quiet. Deliberately calm — no uppercase, no pills, no always-on
-   chevron (see the "sense of calm" redesign, direction B). */
-.list-section{margin-bottom:16px}
-.ls-header{display:flex;align-items:center;gap:6px;padding:4px 8px 6px 10px;cursor:pointer;
-  color:var(--muted);font-weight:500;font-size:11px;user-select:none}
+   stay quiet. The disclosure stays faintly visible so folded state never has
+   to be remembered; expanded list rows indent like tracks in a music library. */
+.list-section{margin-bottom:8px}
+.ls-header{position:relative;display:flex;align-items:center;gap:7px;min-height:30px;padding:5px 8px 5px 10px;cursor:pointer;
+  color:var(--muted);font-weight:600;font-size:12px;user-select:none;transition:transform .14s ease,opacity .14s ease,background .14s ease,box-shadow .14s ease}
 .ls-header:hover{color:#fff}
+.ls-priority-grip{width:12px;flex:none;display:flex;align-items:center;cursor:grab;opacity:0}
+.ls-priority-grip:active{cursor:grabbing}
+.ls-header:hover .ls-priority-grip{opacity:.55}
+.ls-priority-grip:hover{opacity:1!important}
 .ls-folder{flex:none;display:flex;align-items:center}
 .ls-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Chevron is a trailing, hover-only affordance so it isn't standing chrome —
-   it also stays visible while collapsed, as the one hint there's more below. */
-.ls-chevron{flex:none;width:12px;text-align:center;font-size:9px;opacity:0;transition:opacity .12s}
-.ls-header:hover .ls-chevron,.list-section.collapsed .ls-chevron{opacity:.55}
+/* Always faintly visible: section state is an external fact, not something
+   the user should have to remember after the pointer leaves the header. */
+.ls-chevron{flex:none;width:18px;text-align:center;font-size:19px;line-height:1;opacity:.45;transform:rotate(90deg);transition:opacity .12s}
+.list-section.collapsed .ls-chevron{transform:rotate(0deg)}
+.ls-header:hover .ls-chevron{opacity:.8}
+.ls-body{margin-left:18px}
+.ls-body .list-item{min-height:32px;padding:7px 8px 7px 19px}
 .list-section.collapsed .ls-body{display:none}
 /* Re-file drop target: dragging a list onto a section header highlights it. */
 .ls-header.drop-zone-over{outline:2px dashed var(--green);outline-offset:-2px;border-radius:6px;color:#fff}
+.ls-header.priority-drag-over-top::before,.ls-header.priority-drag-over-bottom::before{content:"";position:absolute;z-index:3;left:5px;right:5px;height:2px;border-radius:2px;background:var(--green);box-shadow:0 0 0 1px rgba(29,185,84,.15),0 0 8px rgba(29,185,84,.5);animation:priority-boundary-pulse .8s ease-in-out infinite alternate}
+.ls-header.priority-drag-over-top::before{top:-1px}
+.ls-header.priority-drag-over-bottom::before{bottom:-1px}
+.ls-header.priority-dragging{z-index:2;opacity:.75;transform:scale(1.025);background:var(--bg3);border-radius:6px;box-shadow:0 6px 16px rgba(0,0,0,.28)}
+@keyframes priority-boundary-pulse{to{box-shadow:0 0 0 2px rgba(29,185,84,.12),0 0 13px rgba(29,185,84,.75)}}
+@media (prefers-reduced-motion:reduce){.ls-header{transition:none}.ls-header.priority-drag-over-top::before,.ls-header.priority-drag-over-bottom::before{animation:none}}
+.app-toast-host{position:fixed;z-index:90;left:50%;bottom:96px;width:min(420px,calc(100vw - 32px));opacity:0;transform:translate(-50%,8px);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+.app-toast-host.show{opacity:1;transform:translate(-50%,0)}
+.app-toast-card{padding:11px 14px;border:1px solid #484848;border-radius:10px;background:#242424;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.app-toast-card.success{border-color:#3d5446;background:#202823}
+.app-toast-card.warning{border-color:#68562f;background:#2b271f}
+.app-toast-card.error{border-color:#683939;background:#2b2020}
+.app-toast-card strong,.app-toast-card span{display:block}
+.app-toast-card strong{color:#fff;font-size:12px;margin-bottom:3px}
+.app-toast-card span{color:var(--muted);font-size:11px;line-height:1.4}
 /* Empty-category invite row (see renderSidebar's `body` in render.js) — every
    life area always renders now, so an area with no lists yet needs something
    in its place. Deliberately NOT `.add-btn`'s dashed-border treatment (too
@@ -209,7 +242,7 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
    in the list, but styled like a disabled control: quiet muted text, no
    background fill even on hover, just a small brightening. It should read as
    a standing option to notice if you're looking, not a call-out. */
-.ls-invite{display:block;width:100%;text-align:left;background:none;border:none;padding:6px 8px 6px 11px;
+.ls-invite{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 8px 7px 11px;
   border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500;font-size:13px;opacity:.7}
 .ls-invite:hover{opacity:1;color:#fff}
 .add-btn{flex:none;margin:12px 8px 0;width:calc(100% - 16px);background:none;border:1px dashed #444;color:var(--muted);padding:9px;border-radius:6px;cursor:pointer;font-weight:600}
@@ -271,6 +304,20 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .monthruler{position:relative;height:26px;margin:0 0 4px}
 .monthruler .mweek{position:absolute;top:0;bottom:0;width:1px;background:var(--muted);opacity:.5}
 .monthruler .mday{position:absolute;bottom:0;border-radius:1px 1px 0 0}
+/* Day view's piano-roll: one lane per life area actually touched that day
+   (see buildDayLanes in render.js), note width = session duration, snapped
+   against a 1-hour grid. Only rendered for the Day period — Week/Month keep
+   the single flat .daybar track above. */
+.lanes-wrap{display:flex;gap:8px;align-items:flex-start;margin:2px 0}
+.lanes-labels{display:flex;flex-direction:column;flex:none}
+.lane-label{display:flex;align-items:center;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lanes-track{position:relative;flex:none;background:#1c1c1c;border-radius:6px;overflow:hidden}
+.lanes-track .grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.lane-note{position:absolute;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.4);cursor:default}
+.lane-note.live{animation:pulse 1.2s ease-in-out infinite}
+.lanes-ticks-row{display:flex;gap:8px;margin-bottom:10px}
+.lanes-ticks-row .ticks{margin-bottom:0}
+.lanes-labels-spacer{flex:none}
 .period-tabs{display:flex;gap:6px;margin-bottom:16px}
 .period-tabs button{background:none;border:1px solid #444;color:var(--muted);font-size:12px;font-weight:600;padding:6px 16px;border-radius:20px;cursor:pointer}
 .period-tabs button:hover{border-color:#666}
@@ -309,11 +356,18 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .hdr .info small{font-size:12px;letter-spacing:.06em;font-weight:700}
 .hdr .info h1{margin:14px 0 16px;font-size:64px;font-weight:800;letter-spacing:-.04em;line-height:1}
 .hdr .info .sub{color:var(--muted);font-size:13px;font-weight:600}
+/* Rank badge (see buildRankInfo in render.js) — a plain inline label in the
+   greeting line, not its own card or page. No color escalation by tier on
+   purpose: a louder color scheme climbing toward the top tier would start
+   to read as a status ladder to show off rather than a quiet personal
+   fact, and risks the same comparison pressure Core Drive 5 warns about
+   even in a single-player app. */
+.rank-badge{display:inline-block;background:var(--bg3);color:var(--text);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.02em;cursor:default}
 /* Home dashboard (renderHomePage in render.js) — reuses .hdr/.cover/.info
    above for its greeting header, then its own stat row + two card grids
    below. 32px left/right to match .hdr's own content inset. */
 .home-body{padding:8px 32px 48px}
-.home-stats{display:flex;gap:40px;padding:4px 0 28px;margin-bottom:28px;border-bottom:1px solid var(--line)}
+.home-stats{display:flex;flex-wrap:wrap;gap:24px 40px;padding:4px 0 28px;margin-bottom:28px;border-bottom:1px solid var(--line)}
 .hs-stat{display:flex;flex-direction:column;gap:4px}
 .hs-num{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .hs-label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
@@ -404,6 +458,21 @@ tr.kb-focus td:first-child{box-shadow:inset 2px 0 0 0 var(--green)}
 .now-bar{width:70px;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden}
 .now-bar-fill{display:block;height:100%;background:var(--amber)}
 .now-due{font-size:11px;color:var(--muted);white-space:nowrap}
+/* "Daily Jam" (see dailyJamTasks()/dailyJamRowHtml in render.js) — today's
+   whole cadence:"daily" set in one place. Fill is green (Development &
+   Accomplishment, same hue as jewel-dot) rather than the Now table's amber
+   urgency bar — this bar tracks real completed work, not a closing
+   deadline, so it shouldn't borrow urgency's color language. Grows only
+   toward 100% today; nothing here persists past midnight (no streak, no
+   history — CLAUDE.md rule 7). */
+.daily-jam-bar{position:relative;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden;margin:0 14px 10px}
+.daily-jam-bar-fill{display:block;height:100%;background:var(--green-hi)}
+/* Status cell: plain text, no red/green pass-fail — "not yet today" is a
+   routine state, not a failure (rule 9, no punitive tone). */
+.daily-jam-status{vertical-align:middle;white-space:nowrap;text-align:right}
+.daily-jam-tag{display:block;font-size:11px;color:var(--muted)}
+.daily-jam-list{display:block;font-size:10px;color:var(--muted);opacity:.75;margin-top:1px}
+.daily-jam-table tr.done{opacity:.55}
 /* Fixed 3-column, capped width — recentLists() (render.js) always hands
    back exactly 3 cards now, so this shouldn't stretch to fill a wide
    window the way an auto-fill grid of "every list" used to. */
@@ -489,6 +558,12 @@ tr.playing .idx .num{font-weight:700}
 .alb-play{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:50%;flex:none;display:grid;place-items:center}
 .alb-play:hover{color:#fff;background:rgba(255,255,255,.08)}
 table.albrows{margin-top:4px}
+.task-kind-label{color:var(--blue);font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:18px 32px 7px;max-width:1120px}
+.toolbar+.task-kind-label{padding-top:4px}
+.task-kind-label.one-time{margin-top:12px;border-top:1px solid var(--line);padding-top:22px}
+.task-kind-label span{font-weight:600;letter-spacing:0}
+.task-kind-empty{margin:3px 32px 0;max-width:1120px;padding:10px 14px;color:#666;font-size:12px}
+.task-kind-rows{margin-top:0}
 .singles-tag{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:22px 32px 0;max-width:1120px}
 /* Drop targets for moving a task into/out of an album by dragging it onto
    the section header itself (not just an existing row) — an album header,
@@ -529,6 +604,9 @@ tr.playing .rbar-status{color:var(--green)}
   font-size:12px;font-weight:600;color:var(--muted);background:var(--bg3);border-radius:999px;padding:2px 9px}
 tr.playing .sess-count{color:var(--green);background:rgba(29,185,84,.16)}
 .sess-count.sess-count-empty{background:none;color:#5a5a5a;font-weight:500}
+/* A daily row shows today's session count only. It resets tomorrow, so it
+   surfaces completed work without becoming a streak or permanent tally. */
+.sess-count.today-done{color:var(--green);background:rgba(47,158,143,.16)}
 /* Capacity bar: individual sessions as chips (the original segmented-bar
    idea) fill the track, sized to true scale under the estimate — the bar
    just ends early — and rescaled to keep fitting a fixed width once over,
@@ -593,11 +671,8 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .lyrbtn.on{color:var(--green)}
 .pmain{width:34px;height:34px;border-radius:50%;background:var(--green);color:#000;display:grid;place-items:center;font-size:13px;border:none;cursor:pointer}
 .pmain:hover{background:var(--green-hi);transform:scale(1.06)}
-/* "Start break" / "Start work" — the actual click-target once a pomodoro
-   phase is waiting on the user (see awaiting_break/awaiting_work in
-   render.js). Wide and pulsing on purpose: unlike the round .pmain glyph
-   button, this has to read as "click me now" from across the room, not just
-   look like the usual play/pause control. */
+/* Recovery control for a legacy synced Pomodoro waiting state. New cycles
+   transition automatically and do not render this control. */
 .bigaction{border:none;border-radius:22px;padding:10px 20px;font-size:14px;font-weight:700;color:#000;cursor:pointer;animation:pulse 1.8s ease-in-out infinite}
 .bigaction:hover{animation:none;transform:scale(1.03)}
 .badge{background:none;border:1px solid #555;color:var(--muted);padding:5px 10px;border-radius:16px;font-weight:600;font-size:12px;cursor:pointer}
@@ -670,6 +745,7 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
 .overlay.show{display:flex}
 .modal{background:var(--bg2);border:1px solid var(--line);border-radius:12px;width:min(560px,92vw);max-height:82vh;overflow:hidden;display:flex;flex-direction:column}
+.modal.task-detail-two-column{width:min(1080px,94vw);max-height:88vh}
 /* Track-details modal — same component as the task-detail dialog above, just
    narrower since there's a lot less to show (art, title, artist, one link). */
 .track-modal{width:min(360px,92vw)}
@@ -758,6 +834,21 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .modal .body{padding:18px 24px 22px;overflow-y:auto}
 .modal .body h4{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:16px 0 10px}
 .modal .body>h4:first-child{margin-top:0}
+.task-detail-grid{display:grid;grid-template-columns:minmax(300px,.82fr) minmax(430px,1.18fr);gap:30px;align-items:start}
+.task-detail-column{min-width:0}
+.task-detail-column>h4:first-child,.task-detail-column>.sh:first-child h4{margin-top:0}
+.task-detail-sessions{border-left:1px solid var(--line);padding-left:30px}
+.task-detail-sessions .simple-availability-row{flex-wrap:nowrap;gap:8px}
+.task-detail-sessions .weekday-pill-row{flex-wrap:nowrap;gap:4px}
+.task-detail-sessions .weekday-pill span{width:30px;height:30px;font-size:9px}
+.task-detail-sessions .availability-time-row{flex:none;margin-left:auto;gap:6px}
+.task-detail-sessions .availability-time-row input{width:88px;padding-left:7px;padding-right:7px}
+.detail-name-input{width:100%;background:var(--bg3);border:1.5px solid transparent;border-radius:10px;padding:12px 14px;color:#fff;font:inherit;font-size:16px;font-weight:700}
+.detail-name-input:hover{border-color:#3a3a3a}
+.detail-name-input:focus{border-color:var(--green);outline:none}
+.task-detail-error{margin-top:14px}
+.create-task-btn{background:var(--green);border:1px solid var(--green);color:#000;padding:8px 16px;border-radius:20px;cursor:pointer;font-weight:700}
+.create-task-btn:hover{background:var(--green-hi)}
 .entry{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px}
 .entry .when{color:var(--muted)}
 .entry .dur{font-variant-numeric:tabular-nums;font-weight:600}
@@ -781,6 +872,7 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 /* in-app dialog (WKWebView has no window.prompt) */
 #doverlay{z-index:70}
 .dlg{width:min(400px,90vw)}
+.dlg{overflow-y:auto}
 /* "Edit list"'s emoji picker needs real width to fit each category's 24
    emoji at a 12-column/2-row grid instead of scrolling — toggled on just
    that one #dmodal instance (see editList in commands.js) rather than
@@ -789,9 +881,14 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .dlg.dlg-emoji{width:min(620px,92vw)}
 .dlg .dtitle{padding:20px 22px 4px;font-size:17px;font-weight:700}
 .dlg .dbody{padding:2px 22px 4px;color:var(--muted);font-size:13px;line-height:1.5}
+.dlg .dbody p{margin:10px 0}
+.dlg .dbody p:first-child{margin-top:6px}
+.dlg .dbody p:last-child{margin-bottom:2px}
+.dlg .dbody strong{color:#fff}
 .dlg .dinput{margin:14px 22px 4px;width:calc(100% - 44px);background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:10px 12px;font-size:14px}
 .dlg .dinput:focus{outline:none;border-color:var(--green)}
 .dlg .dfoot{padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px}
+.dlg .dfoot-delete{margin-right:auto}
 .dlg .btn{border-radius:20px;padding:8px 16px;font-weight:600;cursor:pointer;border:1px solid #555;background:none;color:#fff}
 .dlg .btn:hover{border-color:#fff}
 .dlg .btn.primary{background:var(--green);border-color:var(--green);color:#000}
@@ -807,6 +904,46 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .dlg .ffield input:focus{outline:none;border-color:var(--green)}
 .dlg .ffield input[type=number]{width:80px}
 .dlg .ffield input[type=date],.dlg .ffield input[type=time]{flex:1}
+.hidden{display:none!important}
+
+/* Weekly availability/schedule editor shared by list forms and the task
+   panel. Rows deliberately use the same filled inputs and quiet blue add
+   link as the existing list/deadline/session controls. */
+.schedule-field{margin:16px 22px 4px;padding-top:14px;border-top:1px solid var(--line)}
+.schedule-field.compact{margin:14px 0 0}
+.schedule-field-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.schedule-field-head strong{display:block;color:#fff;font-size:13px}
+.schedule-field-head span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.weekly-editor{min-width:0}
+.simple-availability{display:block}
+.simple-availability-list{display:flex;flex-direction:column;gap:8px}
+.simple-availability-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid var(--line)}
+.simple-availability-row:only-child .weekly-window-remove{visibility:hidden}
+.weekday-pill-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.weekday-pill{position:relative;display:flex;align-items:center;cursor:pointer}
+.weekday-pill input{position:absolute;opacity:0;pointer-events:none}
+.weekday-pill span{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:var(--bg3);border:1.5px solid transparent;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase}
+.weekday-pill:hover span{color:#fff}
+.weekday-pill input:focus-visible+span{outline:2px solid var(--green);outline-offset:2px}
+.weekday-pill input:checked+span{background:rgba(29,185,84,.16);border-color:var(--green);color:var(--green-hi)}
+.availability-time-row{display:flex;align-items:center;gap:8px;color:var(--muted);margin-left:auto}
+.availability-time-row input{width:104px;color-scheme:dark;background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:8px 9px;font:inherit;font-size:12px}
+.availability-time-row input:focus{outline:none;border-color:var(--green)}
+.availability-end-field{position:relative;display:flex;flex-direction:column;align-items:flex-end}
+.overnight-indicator{margin-top:4px;border:1px solid rgba(70,150,255,.45);border-radius:999px;background:rgba(70,150,255,.12);color:var(--blue);padding:2px 7px;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;line-height:1.2}
+.overnight-indicator[hidden]{display:none}
+.weekly-window-remove{width:26px;height:26px;border:none;border-radius:6px;background:none;color:var(--muted);font-size:17px;cursor:pointer;display:grid;place-items:center;padding:0}
+.weekly-window-remove:hover{color:#ff6b6b;background:var(--bg3)}
+.weekly-window-add{display:inline-block;margin-top:9px}
+.schedule-error{min-height:16px;color:#ff8a8a;font-size:11px;margin-top:7px}
+
+.session-range-row{display:flex;align-items:flex-end;gap:9px}
+.session-range-row label{flex:1;min-width:0;color:var(--muted);font-size:12px}
+.session-range-row label span{display:block;margin-bottom:5px}
+.session-range-row input{width:86px;background:var(--bg3);border:1.5px solid transparent;border-radius:7px;color:#fff;font:inherit;font-size:13px;font-weight:600;padding:9px 10px;margin-right:5px}
+.session-range-row input:hover{border-color:#555}
+.session-range-row input:focus{border-color:var(--green);outline:none}
+.range-sep{color:var(--muted);padding-bottom:10px}
 
 /* Emoji picker ("Edit list") — a prev/next pager naming the active category
    above a grid, instead of one long unstyled list of buttons. Plain native
@@ -843,6 +980,13 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
 .dlg .ffield input[type=color]::-webkit-color-swatch{border:none;border-radius:4px}
 /* session-history add/remove */
 .modal .body .sh{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.task-detail-sessions .sh{margin-top:18px}
+
+@media (max-width: 840px){
+  .task-detail-grid{grid-template-columns:minmax(0,1fr);gap:22px}
+  .task-detail-sessions{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:20px}
+  .modal.task-detail-two-column{width:min(620px,94vw)}
+}
 .pill.sm{padding:5px 12px;font-size:12px}
 .entry .when{flex:1}
 .entry-del{background:none;border:none;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px;opacity:.45;width:22px;flex:none}
@@ -891,6 +1035,13 @@ tbody tr:hover .menu-btn,tr.playing .menu-btn{opacity:1}
    carry their own margin. */
 .jewel-group{display:inline-flex;align-items:center;gap:3px;vertical-align:middle}
 .tname .jewel-group{margin-left:8px}
+/* Explicit "−" ahead of a negative jewel group — color alone (red vs. an
+   area's own color, e.g. Relationships' #e8115b sitting close to the
+   negative red) isn't a reliable signal at 8px, so the sign is spelled out
+   rather than left to hue. Only negative gets this; positive is every
+   task's default sign, so marking it too would flag the common case
+   instead of the exception. */
+.jewel-sign{color:#e5484d;font-weight:700;font-size:11px;line-height:1;margin-right:1px}
 
 /* Impact tier dial (task edit panel) — 4 plain segmented buttons rather
    than a radio group, so the selected one gets a clear filled state without

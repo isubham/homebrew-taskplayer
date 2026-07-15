@@ -1,5 +1,10 @@
 # Pomodoro mode — user stories
 
+Status: historical research and planning notes. Shipped behavior has evolved; see
+[`features.md`](features.md) for the authoritative current Pomodoro behavior. In particular,
+Pomodoro phase boundaries now start the next break/work phase automatically, superseding older
+acceptance criteria below that refer to `awaiting_break`, `awaiting_work`, or manual start clicks.
+
 Source: gap analysis against Pomodoro Technique history, current research (Biwer et al.
 2023; Ogut 2025 meta-analysis; MDPI 2025 Flowtime comparison; ADHD-specific literature),
 and feature surveys of Tiimo, Forest, Focus Bear, Focusmate, Session, Flow, and Flocus.

@@ -5,10 +5,12 @@ mod auth;
 mod config;
 mod sync;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use chrono::{Days, Local, NaiveDate, TimeZone, Timelike};
 use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
@@ -18,6 +20,7 @@ use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::UpdaterExt;
 
 use taskplayer_core::models::now_ms;
+use taskplayer_core::schedule::{due_schedule_events, ScheduleEvent, ScheduleEventKind};
 use taskplayer_core::{
     task_total_ms, timer, AccountInfo, Db, RunState, Session, SessionConfig, Snapshot, Status,
     Task, TaskList,
@@ -58,6 +61,30 @@ struct AppState {
     last_notified_update_version: Mutex<Option<String>>,
     /// OS app-data directory — also where the SQLite file and session.json live.
     data_dir: PathBuf,
+    /// Dedupe state for the tick loop's non-pomodoro notifications (target
+    /// reached, open-mode hourly check-in). Keyed on `running_start`, so a
+    /// new work segment automatically re-arms both. Purely in-memory: after
+    /// an app restart the worst case is one repeated notification, not a
+    /// missed one, so it isn't worth persisting.
+    session_notify: Mutex<SessionNotify>,
+}
+
+/// See `AppState::session_notify`.
+#[derive(Default)]
+struct SessionNotify {
+    /// `running_start` of the work segment whose target-reached notification
+    /// already fired (target mode).
+    target_fired_for: Option<i64>,
+    /// `running_start` of the segment the hourly check-in last fired for,
+    /// plus how many full hours had elapsed when it did (open mode).
+    nudge_fired_for: Option<i64>,
+    nudge_hours: i64,
+    /// Schedule reminders are evaluated once per ten-second bucket and
+    /// deduped per concrete weekday occurrence. The ledger is intentionally
+    /// device-local and short-lived; it prevents notification spam without
+    /// becoming a user-visible history of missed routines.
+    schedule_checked_bucket: Option<i64>,
+    schedule_fired: HashMap<String, i64>,
 }
 
 #[derive(Clone, Default)]
@@ -86,19 +113,38 @@ const REFRESH_SKEW_MS: i64 = 5 * 60 * 1000;
 /// thing.
 const SESSION_EXPIRED_MSG: &str =
     "Not signed in (your session expired) — sign out and sign back in.";
+const SYNC_RETRY_MSG: &str = "Sync paused by a connection issue — retrying automatically.";
 
 // ---- snapshot / status builders ----
 fn build_snapshot(state: &AppState) -> Snapshot {
-    let db = state.db.lock().unwrap();
+    // Snapshot reads must never hold the database mutex while acquiring one
+    // of the smaller state mutexes. Timer/config mutations use the opposite
+    // order when they persist a change, so overlapping the guards here can
+    // deadlock two Tauri command threads (and freeze the main thread behind
+    // the resulting push). Copy the database-backed fields first, then drop
+    // that guard before reading the remaining state.
+    let (lists, life_area_priorities, tasks, sessions, account) = {
+        let db = state.db.lock().unwrap();
+        (
+            db.lists().unwrap_or_default(),
+            db.life_area_priorities().unwrap_or_default(),
+            db.tasks().unwrap_or_default(),
+            db.sessions().unwrap_or_default(),
+            db.get_account(),
+        )
+    };
     let sync_status = state.sync_status.lock().unwrap().clone();
+    let config = state.config.lock().unwrap().clone();
+    let run = state.run.lock().unwrap().clone();
     Snapshot {
-        lists: db.lists().unwrap_or_default(),
-        tasks: db.tasks().unwrap_or_default(),
-        sessions: db.sessions().unwrap_or_default(),
-        config: state.config.lock().unwrap().clone(),
-        run: state.run.lock().unwrap().clone(),
+        lists,
+        life_area_priorities,
+        tasks,
+        sessions,
+        config,
+        run,
         device_id: state.device_id.clone(),
-        account: db.get_account(),
+        account,
         syncing: sync_status.syncing,
         last_synced_at: sync_status.last_synced_at,
         last_sync_error: sync_status.last_sync_error,
@@ -168,7 +214,10 @@ fn format_hm(ms: i64) -> String {
 /// Trim a title to `n` characters (char-safe), adding an ellipsis if cut.
 fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() > n {
-        format!("{}…", s.chars().take(n.saturating_sub(1)).collect::<String>())
+        format!(
+            "{}…",
+            s.chars().take(n.saturating_sub(1)).collect::<String>()
+        )
     } else {
         s.to_string()
     }
@@ -200,7 +249,10 @@ fn task_name_for_notification(db: &Db, task_id: &str) -> String {
 // before a Tauri `App` even exists — a panic during `setup()` itself should
 // still end up in the log.
 fn log_dir() -> PathBuf {
-    let home = std::env::var("HOME").ok().map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+    let home = std::env::var("HOME")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
     home.join("Library/Logs/TaskPlayer")
 }
 
@@ -217,7 +269,11 @@ fn log_line(msg: impl AsRef<str>) {
     let msg = msg.as_ref();
     eprintln!("{msg}");
     let _ = std::fs::create_dir_all(log_dir());
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(log_file_path()) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_file_path())
+    {
         use std::io::Write;
         let _ = writeln!(f, "[{}] {msg}", now_ms());
     }
@@ -278,7 +334,7 @@ fn refresh(app: &AppHandle) {
         if let Some(tray) = app2.tray_by_id("tray") {
             // Icon color is the point-of-performance signal for run state —
             // green while a focus session is actually running, yellow for
-            // break/awaiting states (paused, but not stopped), grey once
+            // break/awaiting states (paused, but not stopped), white once
             // fully idle. Kept as three flat colors rather than more states:
             // anything finer-grained would ask the user to interpret a color
             // instead of glancing at it.
@@ -289,13 +345,15 @@ fn refresh(app: &AppHandle) {
             };
             let _ = tray.set_icon(Some(icon));
 
-            // The template icon already shows the play glyph, so the title is just
-            // the time (a coffee cup marks break so the constant icon isn't misread).
+            // The icon already carries run state, so the title is just
+            // the time (a coffee cup keeps the break state explicit in text too).
             // show the task being worked on next to the icon (truncated), then time
             let title = if status.active {
                 let name = truncate(status.task_name.as_deref().unwrap_or("Focus"), 26);
                 match status.phase.as_deref() {
-                    Some("break") => Some(format!(" {} · ☕ {}", name, format_hm(status.elapsed_ms))),
+                    Some("break") => {
+                        Some(format!(" {} · ☕ {}", name, format_hm(status.elapsed_ms)))
+                    }
                     _ => Some(format!(" {} · {}", name, format_hm(status.elapsed_ms))),
                 }
             } else {
@@ -349,7 +407,10 @@ fn device_name() -> String {
 /// `import_data`) — treated as "ours", never as a foreign session, per
 /// `RunState::device_id`'s doc comment in models.rs.
 fn is_own(run: &RunState, device_id: &str) -> bool {
-    run.device_id.as_deref().map(|d| d == device_id).unwrap_or(true)
+    run.device_id
+        .as_deref()
+        .map(|d| d == device_id)
+        .unwrap_or(true)
 }
 
 /// Marks `run` as this device's own live session — stamps `device_id`/
@@ -422,10 +483,18 @@ fn reconcile_run_after_sync(state: &AppState) {
         && db_run.running_start == run.running_start
         && db_run.break_start == run.break_start;
 
-    if we_owned_locally && !still_ours_remotely && !same_segment_continues && run.phase.as_deref() == Some("work") {
+    if we_owned_locally
+        && !still_ours_remotely
+        && !same_segment_continues
+        && run.phase.as_deref() == Some("work")
+    {
         if let (Some(task_id), Some(start)) = (run.active_task_id.clone(), run.running_start) {
             let db = state.db.lock().unwrap();
-            let _ = db.add_session(&taskplayer_core::SessionLog { task_id, start, end: now_ms() });
+            let _ = db.add_session(&taskplayer_core::SessionLog {
+                task_id,
+                start,
+                end: now_ms(),
+            });
         }
     }
 
@@ -515,8 +584,10 @@ fn store_session(app: &AppHandle, session: auth::Session) {
         log_line(format!("failed to save the refresh token: {e}"));
     }
     let expires_at_ms = now_ms() + session.expires_in.max(0) * 1000;
-    *state.access_token.lock().unwrap() =
-        Some(AccessToken { token: session.access_token, expires_at_ms });
+    *state.access_token.lock().unwrap() = Some(AccessToken {
+        token: session.access_token,
+        expires_at_ms,
+    });
     let db = state.db.lock().unwrap();
     let _ = db.set_account(Some(&session.account));
 }
@@ -557,35 +628,61 @@ fn apply_session_login(app: &AppHandle, session: auth::Session) {
 /// storing the result. Used both proactively (token nearing expiry) and
 /// reactively (a request already came back 401). Returns the fresh access
 /// token so the caller doesn't have to re-lock state to read it back.
-fn do_refresh(app: &AppHandle) -> Result<String, String> {
+fn do_refresh(app: &AppHandle) -> Result<String, auth::TokenRequestError> {
     let state = app.state::<AppState>();
-    let refresh_token =
-        auth::load_refresh_token(&state.data_dir).ok_or_else(|| "no stored refresh token".to_string())?;
+    let refresh_token = auth::load_refresh_token(&state.data_dir)
+        .ok_or_else(auth::TokenRequestError::missing_refresh_token)?;
     let session = auth::refresh_session(&refresh_token)?;
     let token = session.access_token.clone();
     store_session(app, session);
     Ok(token)
 }
 
-/// Returns a definitely-usable access token, refreshing first if the current
-/// one is missing or within `REFRESH_SKEW_MS` of expiring. `None` covers two
-/// distinct cases the caller treats the same way (don't attempt a sync):
-/// already signed out (no error, matches the old silent no-op), or a refresh
-/// that just failed (session cleared + `last_sync_error` set + UI notified).
+fn record_refresh_failure(app: &AppHandle, context: &str, error: &auth::TokenRequestError) {
+    let state = app.state::<AppState>();
+    if error.invalid_session() {
+        log_line(format!("{context} failed; session is invalid: {error}"));
+        auth::clear_refresh_token(&state.data_dir);
+        *state.access_token.lock().unwrap() = None;
+        state.sync_status.lock().unwrap().last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
+    } else {
+        log_line(format!(
+            "{context} failed; will retry automatically: {error}"
+        ));
+        state.sync_status.lock().unwrap().last_sync_error = Some(SYNC_RETRY_MSG.to_string());
+    }
+    push(app);
+}
+
+/// Returns a usable access token, refreshing first if the current one is
+/// missing or nearing expiry. A missing in-memory token is recoverable when
+/// session.json still contains a refresh token (startup/network failures),
+/// so every later sync tick retries instead of becoming a permanent no-op.
 fn ensure_fresh_token(app: &AppHandle) -> Option<String> {
     let state = app.state::<AppState>();
-    let current = state.access_token.lock().unwrap().clone()?;
-    if now_ms() < current.expires_at_ms - REFRESH_SKEW_MS {
-        return Some(current.token);
+    let current = state.access_token.lock().unwrap().clone();
+    let now = now_ms();
+    if let Some(current) = &current {
+        if now < current.expires_at_ms - REFRESH_SKEW_MS {
+            return Some(current.token.clone());
+        }
+    } else if auth::load_refresh_token(&state.data_dir).is_none() {
+        if state.db.lock().unwrap().get_account().is_some() {
+            state.sync_status.lock().unwrap().last_sync_error =
+                Some(SESSION_EXPIRED_MSG.to_string());
+            push(app);
+        }
+        return None;
     }
     match do_refresh(app) {
         Ok(token) => Some(token),
         Err(e) => {
-            log_line(format!("proactive token refresh failed, signing out: {e}"));
-            *state.access_token.lock().unwrap() = None;
-            state.sync_status.lock().unwrap().last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
-            push(app);
-            None
+            let can_use_current = !e.invalid_session()
+                && current
+                    .as_ref()
+                    .is_some_and(|token| now < token.expires_at_ms);
+            record_refresh_failure(app, "proactive token refresh", &e);
+            can_use_current.then(|| current.unwrap().token)
         }
     }
 }
@@ -595,8 +692,12 @@ fn ensure_fresh_token(app: &AppHandle) -> Option<String> {
 /// here already runs on one, never the main/event thread.
 fn run_sync(app: &AppHandle) {
     let state = app.state::<AppState>();
-    let Some(mut access_token) = ensure_fresh_token(app) else { return };
-    let Some(user_id) = state.db.lock().unwrap().get_account().map(|a| a.id) else { return };
+    let Some(mut access_token) = ensure_fresh_token(app) else {
+        return;
+    };
+    let Some(user_id) = state.db.lock().unwrap().get_account().map(|a| a.id) else {
+        return;
+    };
 
     state.sync_status.lock().unwrap().syncing = true;
     push(app);
@@ -617,8 +718,20 @@ fn run_sync(app: &AppHandle) {
                 result = sync::sync_once(&db, &access_token, &user_id);
             }
             Err(e) => {
-                log_line(format!("token refresh after 401 failed, signing out: {e}"));
-                *state.access_token.lock().unwrap() = None;
+                // The server already rejected this access token. On a
+                // transient refresh failure, drop only the access token;
+                // the saved refresh token remains and the next sync retries.
+                let invalid_session = e.invalid_session();
+                if !invalid_session {
+                    *state.access_token.lock().unwrap() = None;
+                }
+                record_refresh_failure(app, "token refresh after 401", &e);
+                result = Err(if invalid_session {
+                    SESSION_EXPIRED_MSG
+                } else {
+                    SYNC_RETRY_MSG
+                }
+                .to_string());
             }
         }
     }
@@ -663,7 +776,9 @@ fn run_sync(app: &AppHandle) {
 /// comment for the full rationale.
 fn run_login_sync(app: &AppHandle) {
     let state = app.state::<AppState>();
-    let Some(mut access_token) = ensure_fresh_token(app) else { return };
+    let Some(mut access_token) = ensure_fresh_token(app) else {
+        return;
+    };
     // `sync_login` doesn't push, so it has no need for `user_id` — but a
     // missing local account here would still mean "not really signed in
     // yet," so keep the same guard `run_sync` uses before doing any network
@@ -689,8 +804,17 @@ fn run_login_sync(app: &AppHandle) {
                 result = sync::sync_login(&db, &access_token);
             }
             Err(e) => {
-                log_line(format!("token refresh after 401 failed, signing out: {e}"));
-                *state.access_token.lock().unwrap() = None;
+                let invalid_session = e.invalid_session();
+                if !invalid_session {
+                    *state.access_token.lock().unwrap() = None;
+                }
+                record_refresh_failure(app, "token refresh after 401", &e);
+                result = Err(if invalid_session {
+                    SESSION_EXPIRED_MSG
+                } else {
+                    SYNC_RETRY_MSG
+                }
+                .to_string());
             }
         }
     }
@@ -744,7 +868,13 @@ fn rename_list(app: AppHandle, state: State<AppState>, id: String, name: String)
 }
 
 #[tauri::command]
-fn set_list_style(app: AppHandle, state: State<AppState>, id: String, emoji: String, color: String) -> Snapshot {
+fn set_list_style(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    emoji: String,
+    color: String,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_list_style(&id, &emoji, &color);
@@ -754,10 +884,31 @@ fn set_list_style(app: AppHandle, state: State<AppState>, id: String, emoji: Str
 }
 
 #[tauri::command]
-fn set_list_life_tag(app: AppHandle, state: State<AppState>, id: String, area: Option<String>, direction: Option<String>) -> Snapshot {
+fn set_list_life_tag(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    area: Option<String>,
+    direction: Option<String>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_list_life_tag(&id, area.as_deref(), direction.as_deref());
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn set_list_availability(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    windows: Vec<taskplayer_core::WeeklyTimeWindow>,
+) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_list_availability(&id, &windows);
     }
     push(&app);
     build_snapshot(state.inner())
@@ -775,7 +926,13 @@ fn delete_list(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
 }
 
 #[tauri::command]
-fn add_task(app: AppHandle, state: State<AppState>, list_id: String, name: String, estimate_min: Option<i64>) -> Snapshot {
+fn add_task(
+    app: AppHandle,
+    state: State<AppState>,
+    list_id: String,
+    name: String,
+    estimate_min: Option<i64>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.add_task(&list_id, &name, estimate_min.filter(|m| *m > 0));
@@ -795,7 +952,12 @@ fn rename_task(app: AppHandle, state: State<AppState>, id: String, name: String)
 }
 
 #[tauri::command]
-fn set_depth(app: AppHandle, state: State<AppState>, id: String, depth: Option<String>) -> Snapshot {
+fn set_depth(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    depth: Option<String>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_depth(&id, depth.as_deref());
@@ -805,7 +967,62 @@ fn set_depth(app: AppHandle, state: State<AppState>, id: String, depth: Option<S
 }
 
 #[tauri::command]
-fn set_description(app: AppHandle, state: State<AppState>, id: String, text: Option<String>) -> Snapshot {
+fn set_cadence(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    cadence: Option<String>,
+) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_cadence(&id, cadence.as_deref());
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn set_daily_windows(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    windows: Vec<taskplayer_core::WeeklyTimeWindow>,
+) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_daily_windows(&id, &windows);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn set_session_range(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    min_minutes: Option<i64>,
+    max_minutes: Option<i64>,
+) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.set_session_range(
+            &id,
+            min_minutes.filter(|minutes| *minutes > 0),
+            max_minutes.filter(|minutes| *minutes > 0),
+        );
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn set_description(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    text: Option<String>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let trimmed = text.as_deref().map(str::trim).filter(|s| !s.is_empty());
@@ -816,7 +1033,12 @@ fn set_description(app: AppHandle, state: State<AppState>, id: String, text: Opt
 }
 
 #[tauri::command]
-fn set_album(app: AppHandle, state: State<AppState>, id: String, album: Option<String>) -> Snapshot {
+fn set_album(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    album: Option<String>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_album(&id, album.as_deref());
@@ -836,7 +1058,12 @@ fn move_task(app: AppHandle, state: State<AppState>, id: String, list_id: String
 }
 
 #[tauri::command]
-fn reorder_tasks(app: AppHandle, state: State<AppState>, list_id: String, ordered_ids: Vec<String>) -> Snapshot {
+fn reorder_tasks(
+    app: AppHandle,
+    state: State<AppState>,
+    list_id: String,
+    ordered_ids: Vec<String>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.reorder_tasks(&list_id, &ordered_ids);
@@ -850,6 +1077,20 @@ fn reorder_lists(app: AppHandle, state: State<AppState>, ordered_ids: Vec<String
     {
         let db = state.db.lock().unwrap();
         let _ = db.reorder_lists(&ordered_ids);
+    }
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[tauri::command]
+fn reorder_life_areas(
+    app: AppHandle,
+    state: State<AppState>,
+    ordered_area_keys: Vec<String>,
+) -> Snapshot {
+    {
+        let db = state.db.lock().unwrap();
+        let _ = db.reorder_life_areas(&ordered_area_keys);
     }
     push(&app);
     build_snapshot(state.inner())
@@ -895,7 +1136,12 @@ fn set_done(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
 }
 
 #[tauri::command]
-fn set_estimate(app: AppHandle, state: State<AppState>, id: String, minutes: Option<i64>) -> Snapshot {
+fn set_estimate(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    minutes: Option<i64>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_estimate(&id, minutes.filter(|m| *m > 0));
@@ -905,7 +1151,12 @@ fn set_estimate(app: AppHandle, state: State<AppState>, id: String, minutes: Opt
 }
 
 #[tauri::command]
-fn set_deadline(app: AppHandle, state: State<AppState>, id: String, deadline_at: Option<i64>) -> Snapshot {
+fn set_deadline(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    deadline_at: Option<i64>,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_deadline(&id, deadline_at);
@@ -915,7 +1166,13 @@ fn set_deadline(app: AppHandle, state: State<AppState>, id: String, deadline_at:
 }
 
 #[tauri::command]
-fn set_task_impact(app: AppHandle, state: State<AppState>, id: String, tier: Option<String>, sign: i64) -> Snapshot {
+fn set_task_impact(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    tier: Option<String>,
+    sign: i64,
+) -> Snapshot {
     {
         let db = state.db.lock().unwrap();
         // Sign only ever comes from the frontend's own 2-button toggle
@@ -931,10 +1188,20 @@ fn set_task_impact(app: AppHandle, state: State<AppState>, id: String, tier: Opt
 }
 
 #[tauri::command]
-fn add_session(app: AppHandle, state: State<AppState>, task_id: String, start: i64, end: i64) -> Snapshot {
+fn add_session(
+    app: AppHandle,
+    state: State<AppState>,
+    task_id: String,
+    start: i64,
+    end: i64,
+) -> Snapshot {
     if end > start {
         let db = state.db.lock().unwrap();
-        let _ = db.add_session(&taskplayer_core::SessionLog { task_id, start, end });
+        let _ = db.add_session(&taskplayer_core::SessionLog {
+            task_id,
+            start,
+            end,
+        });
     }
     push(&app);
     build_snapshot(state.inner())
@@ -951,7 +1218,13 @@ fn delete_session(app: AppHandle, state: State<AppState>, id: String) -> Snapsho
 }
 
 #[tauri::command]
-fn update_session(app: AppHandle, state: State<AppState>, id: String, start: i64, end: i64) -> Snapshot {
+fn update_session(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    start: i64,
+    end: i64,
+) -> Snapshot {
     if end > start {
         let db = state.db.lock().unwrap();
         let _ = db.update_session(&id, start, end);
@@ -1008,7 +1281,10 @@ fn export_data(state: State<AppState>) -> Result<String, String> {
         .unwrap_or_else(std::env::temp_dir);
     let path = dir.join(format!("TaskPlayer-backup-{}.json", now_ms()));
     std::fs::write(&path, json).map_err(|e| e.to_string())?;
-    let _ = std::process::Command::new("open").arg("-R").arg(&path).status();
+    let _ = std::process::Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .status();
     Ok(path.to_string_lossy().into_owned())
 }
 
@@ -1024,20 +1300,32 @@ fn reveal_logs() -> Result<String, String> {
     if !path.exists() {
         std::fs::write(&path, "").map_err(|e| e.to_string())?;
     }
-    let _ = std::process::Command::new("open").arg("-R").arg(&path).status();
+    let _ = std::process::Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .status();
     Ok(path.to_string_lossy().into_owned())
 }
 
 /// Replace all data from a backup JSON string. Clears the run state so nothing
 /// is left "playing" against tasks that may no longer exist.
 #[tauri::command]
-fn import_data(app: AppHandle, state: State<AppState>, payload: String) -> Result<Snapshot, String> {
-    let data: RestorePayload =
-        serde_json::from_str(&payload).map_err(|_| "That doesn't look like a TaskPlayer backup file.".to_string())?;
+fn import_data(
+    app: AppHandle,
+    state: State<AppState>,
+    payload: String,
+) -> Result<Snapshot, String> {
+    let data: RestorePayload = serde_json::from_str(&payload)
+        .map_err(|_| "That doesn't look like a TaskPlayer backup file.".to_string())?;
     {
         let db = state.db.lock().unwrap();
-        db.import_replace(&data.lists, &data.tasks, &data.sessions, data.config.as_ref())
-            .map_err(|e| e.to_string())?;
+        db.import_replace(
+            &data.lists,
+            &data.tasks,
+            &data.sessions,
+            data.config.as_ref(),
+        )
+        .map_err(|e| e.to_string())?;
     }
     {
         let mut run = state.run.lock().unwrap();
@@ -1046,8 +1334,10 @@ fn import_data(app: AppHandle, state: State<AppState>, payload: String) -> Resul
         let _ = db.set_run(&run);
     }
     {
-        let db = state.db.lock().unwrap();
-        *state.config.lock().unwrap() = db.get_config();
+        // As in `build_snapshot`, do not hold `db` while taking `config`:
+        // settings commands persist in config -> db order.
+        let imported_config = state.db.lock().unwrap().get_config();
+        *state.config.lock().unwrap() = imported_config;
     }
     push(&app);
     Ok(build_snapshot(state.inner()))
@@ -1100,9 +1390,9 @@ fn skip_break(app: AppHandle, state: State<AppState>) -> Snapshot {
     build_snapshot(state.inner())
 }
 
-/// The "Start break" button shown while `run.phase == "awaiting_break"` — the
-/// work block already ended and was logged (see the tick loop), but the break
-/// clock only starts once the user explicitly asks for it.
+/// Backward-compatible recovery for an `awaiting_break` state written by app
+/// versions that paused at Pomodoro boundaries. New cycles start breaks in
+/// `timer::tick` and never need this command.
 #[tauri::command]
 fn start_break(app: AppHandle, state: State<AppState>) -> Snapshot {
     {
@@ -1119,10 +1409,9 @@ fn start_break(app: AppHandle, state: State<AppState>) -> Snapshot {
     build_snapshot(state.inner())
 }
 
-/// The "Start work" button shown while `run.phase == "awaiting_work"` — reuses
-/// `timer::skip_break` (same shared primitive as the "Skip break" button
-/// during an actual countdown), since resuming work now is the same state
-/// transition regardless of which phase asked for it.
+/// Backward-compatible recovery for an `awaiting_work` state written by app
+/// versions that paused at Pomodoro boundaries. New cycles resume work in
+/// `timer::tick`; `skip_break` remains the normal early-break action.
 #[tauri::command]
 fn resume_work(app: AppHandle, state: State<AppState>) -> Snapshot {
     {
@@ -1162,6 +1451,10 @@ fn set_config_field(app: AppHandle, state: State<AppState>, key: String, value: 
             "breakMin" => c.break_min = value.clamp(1, 60),
             "cyclesBeforeLongBreak" => c.cycles_before_long_break = value.clamp(1, 12),
             "longBreakMin" => c.long_break_min = value.clamp(1, 60),
+            // Checkbox-valued: the frontend sends 1/0. Device-local (never
+            // pushed to the remote config row — see models.rs), but stored
+            // in the same config blob; the updated_at bump below is harmless.
+            "hourlyNudge" => c.hourly_nudge = value != 0,
             _ => {}
         }
         // Cross-device settings sync (see docs/session-sync-design.md's
@@ -1184,7 +1477,12 @@ fn set_config_field(app: AppHandle, state: State<AppState>, key: String, value: 
 /// value for anything not in `SOUND_OPTIONS` — the picker only ever sends one
 /// of those, so this only guards against a stale/tampered frontend value.
 #[tauri::command]
-fn set_config_sound(app: AppHandle, state: State<AppState>, key: String, value: String) -> Snapshot {
+fn set_config_sound(
+    app: AppHandle,
+    state: State<AppState>,
+    key: String,
+    value: String,
+) -> Snapshot {
     {
         let mut c = state.config.lock().unwrap();
         if SOUND_OPTIONS.contains(&value.as_str()) {
@@ -1210,7 +1508,9 @@ fn sign_in_google(app: AppHandle, state: State<AppState>) -> Result<(), String> 
     let pkce = auth::generate_pkce();
     let url = auth::authorize_url(&pkce);
     *state.pending_pkce.lock().unwrap() = Some(pkce);
-    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1230,24 +1530,9 @@ fn sign_out(app: AppHandle, state: State<AppState>) -> Snapshot {
 /// inside `run_sync` notifies the frontend once the sync finishes.
 #[tauri::command]
 fn sync_now(app: AppHandle) {
-    // `state.S.account` (what the Settings page uses to decide whether to
-    // show "Sync now" at all) comes from the local DB's cached AccountInfo —
-    // it says nothing about whether the in-memory access token is actually
-    // valid right now. If the startup silent refresh failed (expired/
-    // revoked refresh token, no network at launch, etc.), the app still
-    // looks signed in here while `run_sync`'s own `access_token` guard
-    // returns immediately, before `syncing` is ever set — so the button
-    // used to do literally nothing: no spinner, no error, no feedback.
-    // Surface that case explicitly instead of silently no-op'ing.
-    let state = app.state::<AppState>();
-    if state.access_token.lock().unwrap().is_none() {
-        {
-            let mut status = state.sync_status.lock().unwrap();
-            status.last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
-        }
-        push(&app);
-        return;
-    }
+    // Always enter run_sync: an absent in-memory access token may only mean
+    // startup refresh happened while offline. `ensure_fresh_token` retries
+    // the saved refresh token and distinguishes that from an expired login.
     std::thread::spawn(move || run_sync(&app));
 }
 
@@ -1269,14 +1554,6 @@ fn reset_sync_cursors(state: &AppState) {
 #[tauri::command]
 fn full_sync(app: AppHandle) {
     let state = app.state::<AppState>();
-    if state.access_token.lock().unwrap().is_none() {
-        {
-            let mut status = state.sync_status.lock().unwrap();
-            status.last_sync_error = Some(SESSION_EXPIRED_MSG.to_string());
-        }
-        push(&app);
-        return;
-    }
     reset_sync_cursors(state.inner());
     std::thread::spawn(move || run_sync(&app));
 }
@@ -1295,8 +1572,20 @@ fn open_main(app: AppHandle) {
 /// `sound_options()` so the Settings picker can never drift out of sync with
 /// what the backend actually accepts.
 const SOUND_OPTIONS: &[&str] = &[
-    "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse", "Ping", "Pop", "Purr",
-    "Sosumi", "Submarine", "Tink",
+    "Basso",
+    "Blow",
+    "Bottle",
+    "Frog",
+    "Funk",
+    "Glass",
+    "Hero",
+    "Morse",
+    "Ping",
+    "Pop",
+    "Purr",
+    "Sosumi",
+    "Submarine",
+    "Tink",
 ];
 
 #[tauri::command]
@@ -1304,20 +1593,172 @@ fn sound_options() -> Vec<&'static str> {
     SOUND_OPTIONS.to_vec()
 }
 
-/// Brings the main window to the front. Called only on the break→work
-/// pomodoro transition (see the tick loop in `main()`), not work→break —
-/// deliberately asymmetric, see the comments at both call sites. Notification
-/// click-through isn't reliably available on macOS (see the plugin's own
-/// limitations), so this is the actual mechanism behind "click to start
-/// work": the window surfaces itself with a Start Work button already
-/// showing, and the notification (with its own sound) is the passive
-/// heads-up alongside it. Must run on the main thread, same as the
-/// notification calls beside it in the tick loop.
-fn surface_main_window(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.show();
-        let _ = w.set_focus();
+#[derive(Debug)]
+struct ScheduleNotice {
+    key: String,
+    title: String,
+    body: String,
+}
+
+fn local_time_ms(date: NaiveDate, minute: i64) -> Option<i64> {
+    let hour = u32::try_from(minute.div_euclid(60)).ok()?;
+    let minute = u32::try_from(minute.rem_euclid(60)).ok()?;
+    let local = date.and_hms_opt(hour, minute, 0)?;
+    Local
+        .from_local_datetime(&local)
+        .earliest()
+        .map(|value| value.timestamp_millis())
+}
+
+fn daily_occurrence_is_done(task: &Task, sessions: &[Session], event: &ScheduleEvent) -> bool {
+    // `completed_at` is still what the current checkbox command writes. A
+    // daily session is the newer per-day completion signal. Accepting either
+    // keeps reminders consistent with both existing UI paths.
+    if task.completed_at.is_some() {
+        return true;
     }
+    let Some(day_start) = local_time_ms(event.occurrence_date, 0) else {
+        return false;
+    };
+    let end_date = if event.end_minute < event.start_minute {
+        event.occurrence_date.checked_add_days(Days::new(1))
+    } else {
+        Some(event.occurrence_date)
+    };
+    let Some(end) = end_date.and_then(|date| local_time_ms(date, event.end_minute)) else {
+        return false;
+    };
+    sessions.iter().any(|session| {
+        session.task_id == task.id && session.start >= day_start && session.start <= end
+    })
+}
+
+fn collect_schedule_notices(state: &AppState, now: i64) -> Vec<ScheduleNotice> {
+    // The one-second timer does not need to read SQLite every second for
+    // minute-granularity reminders. Ten seconds still gives six chances to
+    // observe each boundary (including shortly after a sync completes).
+    {
+        let mut notify = state.session_notify.lock().unwrap();
+        let bucket = now.div_euclid(10_000);
+        if notify.schedule_checked_bucket == Some(bucket) {
+            return Vec::new();
+        }
+        notify.schedule_checked_bucket = Some(bucket);
+        notify
+            .schedule_fired
+            .retain(|_, fired_at| now - *fired_at < 8 * 24 * 60 * 60 * 1000);
+    }
+
+    let run = state.run.lock().unwrap().clone();
+    let (lists, tasks, sessions, signed_in) = {
+        let db = state.db.lock().unwrap();
+        (
+            db.lists().unwrap_or_default(),
+            db.tasks().unwrap_or_default(),
+            db.sessions().unwrap_or_default(),
+            db.get_account().is_some(),
+        )
+    };
+
+    // For signed-in accounts, the most recent session-owning device is the
+    // notification leader. This reuses the already-synced run ownership and
+    // avoids the same reminder appearing on every signed-in Mac.
+    if signed_in && run.device_id.as_deref() != Some(state.device_id.as_str()) {
+        return Vec::new();
+    }
+
+    let Some(local_now) = Local.timestamp_millis_opt(now).single() else {
+        return Vec::new();
+    };
+    let minute = i64::from(local_now.hour()) * 60 + i64::from(local_now.minute());
+    let events = due_schedule_events(local_now.date_naive(), minute, &lists, &tasks);
+    let mut notices = Vec::new();
+
+    for event in events {
+        match event.kind {
+            ScheduleEventKind::DailyStarting | ScheduleEventKind::DailyEnding => {
+                let Some(task) = tasks.iter().find(|task| task.id == event.entity_id) else {
+                    continue;
+                };
+                if daily_occurrence_is_done(task, &sessions, &event) {
+                    continue;
+                }
+                let (title, body) = match event.kind {
+                    ScheduleEventKind::DailyStarting => (
+                        format!("{} starts in 5 minutes", task.name),
+                        "Open TaskPlayer when you're ready.".to_string(),
+                    ),
+                    ScheduleEventKind::DailyEnding => (
+                        format!("{} time has ended", task.name),
+                        "Open TaskPlayer to mark it complete.".to_string(),
+                    ),
+                    _ => unreachable!(),
+                };
+                notices.push(ScheduleNotice {
+                    key: event.key,
+                    title,
+                    body,
+                });
+            }
+            ScheduleEventKind::ListStarting => {
+                let Some(list) = lists.iter().find(|list| list.id == event.entity_id) else {
+                    continue;
+                };
+                let Some(task) = tasks
+                    .iter()
+                    .filter(|task| {
+                        task.list_id == list.id
+                            && task.cadence.as_deref() != Some("daily")
+                            && task.completed_at.is_none()
+                    })
+                    .min_by_key(|task| task.order)
+                else {
+                    continue;
+                };
+                notices.push(ScheduleNotice {
+                    key: event.key,
+                    title: format!("{} time starts in 5 minutes", list.name),
+                    body: format!("{} is ready.", task.name),
+                });
+            }
+            ScheduleEventKind::ListEnding => {
+                if run.phase.as_deref() != Some("work") {
+                    continue;
+                }
+                let Some(task) = run
+                    .active_task_id
+                    .as_deref()
+                    .and_then(|id| tasks.iter().find(|task| task.id == id))
+                else {
+                    continue;
+                };
+                if task.list_id != event.entity_id {
+                    continue;
+                }
+                let list_name = lists
+                    .iter()
+                    .find(|list| list.id == event.entity_id)
+                    .map(|list| list.name.as_str())
+                    .unwrap_or("This list");
+                notices.push(ScheduleNotice {
+                    key: event.key,
+                    title: format!("{list_name} time ends in 5 minutes"),
+                    body: format!("Wrap up {}.", task.name),
+                });
+            }
+        }
+    }
+
+    let mut notify = state.session_notify.lock().unwrap();
+    notices.retain(|notice| {
+        if notify.schedule_fired.contains_key(&notice.key) {
+            false
+        } else {
+            notify.schedule_fired.insert(notice.key.clone(), now);
+            true
+        }
+    });
+    notices
 }
 
 /// Mirrors the focus-music widget's play/pause state into Rust purely so the
@@ -1336,7 +1777,9 @@ fn set_music_playing(app: AppHandle, state: State<AppState>, playing: bool) -> S
 /// webview away instead).
 #[tauri::command]
 fn open_url(app: AppHandle, url: String) -> Result<(), String> {
-    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(serde::Serialize)]
@@ -1352,11 +1795,17 @@ struct UpdateInfo {
 /// so `install_update` doesn't have to re-check; the frontend only ever
 /// sees the plain version/notes, never the handle itself.
 #[tauri::command]
-async fn check_for_update(app: AppHandle, state: State<'_, AppState>) -> Result<Option<UpdateInfo>, String> {
+async fn check_for_update(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Option<UpdateInfo>, String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
     match updater.check().await.map_err(|e| e.to_string())? {
         Some(update) => {
-            let info = UpdateInfo { version: update.version.clone(), notes: update.body.clone() };
+            let info = UpdateInfo {
+                version: update.version.clone(),
+                notes: update.body.clone(),
+            };
             *state.pending_update.lock().unwrap() = Some(update);
             Ok(Some(info))
         }
@@ -1395,7 +1844,12 @@ async fn check_for_update_background(app: &AppHandle) {
         return;
     };
     let version = update.version.clone();
-    let already_notified = state.last_notified_update_version.lock().unwrap().as_deref() == Some(version.as_str());
+    let already_notified = state
+        .last_notified_update_version
+        .lock()
+        .unwrap()
+        .as_deref()
+        == Some(version.as_str());
     *state.pending_update.lock().unwrap() = Some(update.clone());
     if already_notified {
         return;
@@ -1407,11 +1861,15 @@ async fn check_for_update_background(app: &AppHandle) {
             .notification()
             .builder()
             .title("TaskPlayer update available")
-            .body(format!("Version {version} is ready — open Settings to install."))
+            .body(format!(
+                "Version {version} is ready — open Settings to install."
+            ))
             .show()
         {
             Ok(()) => {}
-            Err(e) => log_line(format!("notification show() failed (update available): {e}")),
+            Err(e) => log_line(format!(
+                "notification show() failed (update available): {e}"
+            )),
         }
     });
 }
@@ -1487,11 +1945,21 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     if let Some(id) = &active {
         if let Some(t) = tasks.iter().find(|x| &x.id == id) {
-            owned.push(Box::new(MenuItem::with_id(app, "current", format!("♪  {}", t.name), false, None::<&str>)?));
+            owned.push(Box::new(MenuItem::with_id(
+                app,
+                "current",
+                format!("♪  {}", t.name),
+                false,
+                None::<&str>,
+            )?));
         }
     }
     owned.push(Box::new(MenuItem::with_id(
-        app, "toggle", if active.is_some() { "Pause" } else { "Play" }, true, None::<&str>,
+        app,
+        "toggle",
+        if active.is_some() { "Pause" } else { "Play" },
+        true,
+        None::<&str>,
     )?));
 
     // Focus-music controls — separate from the task Play/Pause above, since
@@ -1500,11 +1968,25 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     owned.push(Box::new(PredefinedMenuItem::separator(app)?));
     let music_on = *state.music_playing.lock().unwrap();
     owned.push(Box::new(MenuItem::with_id(
-        app, "music_toggle", if music_on { "⏸  Pause music" } else { "▶  Play music" }, true, None::<&str>,
+        app,
+        "music_toggle",
+        if music_on {
+            "⏸  Pause music"
+        } else {
+            "▶  Play music"
+        },
+        true,
+        None::<&str>,
     )?));
-    owned.push(Box::new(MenuItem::with_id(app, "music_next", "⏭  Next track", true, None::<&str>)?));
+    owned.push(Box::new(MenuItem::with_id(
+        app,
+        "music_next",
+        "⏭  Next track",
+        true,
+        None::<&str>,
+    )?));
 
-    // up to 3 recently played, skipping the current and completed tasks
+    // up to 5 recently played, skipping the current and completed tasks
     let mut recents: Vec<&Task> = Vec::new();
     for id in &recent {
         if Some(id) == active.as_ref() {
@@ -1515,25 +1997,48 @@ fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                 recents.push(t);
             }
         }
-        if recents.len() >= 3 {
+        if recents.len() >= 5 {
             break;
         }
     }
     if !recents.is_empty() {
         owned.push(Box::new(PredefinedMenuItem::separator(app)?));
-        owned.push(Box::new(MenuItem::with_id(app, "rec_hd", "Recently played", false, None::<&str>)?));
+        owned.push(Box::new(MenuItem::with_id(
+            app,
+            "rec_hd",
+            "Recently played",
+            false,
+            None::<&str>,
+        )?));
         for t in &recents {
-            let emoji = lists.iter().find(|l| l.id == t.list_id).map(|l| l.emoji.as_str()).unwrap_or("");
+            let emoji = lists
+                .iter()
+                .find(|l| l.id == t.list_id)
+                .map(|l| l.emoji.as_str())
+                .unwrap_or("");
             owned.push(Box::new(MenuItem::with_id(
-                app, format!("recent:{}", t.id), format!("{}  {}", emoji, t.name), true, None::<&str>,
+                app,
+                format!("recent:{}", t.id),
+                format!("{}  {}", emoji, t.name),
+                true,
+                None::<&str>,
             )?));
         }
     }
 
     owned.push(Box::new(PredefinedMenuItem::separator(app)?));
-    owned.push(Box::new(MenuItem::with_id(app, "open", "Open TaskPlayer", true, None::<&str>)?));
+    owned.push(Box::new(MenuItem::with_id(
+        app,
+        "open",
+        "Open TaskPlayer",
+        true,
+        None::<&str>,
+    )?));
     owned.push(Box::new(PredefinedMenuItem::separator(app)?));
-    owned.push(Box::new(PredefinedMenuItem::quit(app, Some("Quit TaskPlayer"))?));
+    owned.push(Box::new(PredefinedMenuItem::quit(
+        app,
+        Some("Quit TaskPlayer"),
+    )?));
 
     let refs: Vec<&dyn IsMenuItem<tauri::Wry>> = owned.iter().map(|b| b.as_ref()).collect();
     Menu::with_items(app, &refs)
@@ -1583,6 +2088,7 @@ fn main() {
                 pending_update: Mutex::new(None),
                 last_notified_update_version: Mutex::new(None),
                 data_dir: dir.clone(),
+                session_notify: Mutex::new(SessionNotify::default()),
             });
 
             // --- Google Sign-In: deep-link callback + silent refresh on startup ---
@@ -1615,17 +2121,10 @@ fn main() {
                     match auth::refresh_session(&refresh_token) {
                         Ok(session) => apply_session(&handle, session),
                         Err(e) => {
-                            // Fail closed: never crash/hang on a missing,
-                            // corrupt, or already-rotated-out session file —
-                            // just stay signed out. This used to only log to
-                            // stderr, so the very first `sync_now` afterward
-                            // was the only place the user ever found out —
-                            // surface it immediately instead.
-                            log_line(format!("silent session refresh failed, staying signed out: {e}"));
-                            let state = handle.state::<AppState>();
-                            state.sync_status.lock().unwrap().last_sync_error =
-                                Some(SESSION_EXPIRED_MSG.to_string());
-                            push(&handle);
+                            // Invalid sessions need a new sign-in; transport
+                            // failures keep the refresh token and recover on
+                            // the next 60s/focus/manual sync attempt.
+                            record_refresh_failure(&handle, "silent session refresh", &e);
                         }
                     }
                 });
@@ -1635,13 +2134,10 @@ fn main() {
             let menu = build_tray_menu(app.handle())?;
 
             // The icon is colored by run state (green = focus session running,
-            // yellow = on break/awaiting, grey = stopped — see refresh() below),
-            // so it can no longer be a macOS "template" image: template mode
-            // forces every non-transparent pixel to the system monochrome
-            // foreground color, which would silently erase the colors. The
-            // former dev/prod distinction (monochrome vs. full-color icon) is
-            // gone as a result; the "(Dev)" tooltip text is now the only way
-            // to tell a dev instance apart from a release build in the tray.
+            // yellow = on break/awaiting, white = stopped — see refresh() below),
+            // so it cannot be a macOS template image: template mode forces every
+            // non-transparent pixel to the system monochrome foreground color.
+            // The "(Dev)" tooltip remains the dev/release distinction.
             let tray = TrayIconBuilder::with_id("tray")
                 .icon(tauri::include_image!("icons/menubar-idle.png"))
                 .icon_as_template(false)
@@ -1771,16 +2267,11 @@ fn main() {
                         // only way to find out a pomodoro phase ended while you
                         // were away from the screen.
                         //
-                        // Deliberately NOT surfacing the main window here (unlike
-                        // ToWork below) — this is the work-just-ended moment, which
-                        // is exactly when the user may be mid-hyperfocus. Stealing
-                        // focus to force a "Start break" click fights the app's own
-                        // purpose: it punishes the good state this app exists to
-                        // protect. The notification banner + sound + updated tray
-                        // title (via push() below) are enough to be noticed without
-                        // yanking anyone out of what they're doing; clicking the
-                        // tray icon or notification still opens the window same as
-                        // ever. See "asymmetric" pomodoro surfacing in the README.
+                        // The break is already running in `run_clone`; the
+                        // notification is information, not a prompt requiring
+                        // another action. Never surface the main window here —
+                        // the user may still be finishing a thought in
+                        // hyperfocus even though break time has begun.
                         //
                         // Dispatched via run_on_main_thread — like the tray menu
                         // rebuild in push() below, macOS's notification center
@@ -1790,8 +2281,8 @@ fn main() {
                         let notif_handle = handle.clone();
                         // `run_clone.long_break` was set by `timer::tick` the moment
                         // the cycle threshold was hit — substitute the long-break
-                        // length/title here so the notification matches whatever
-                        // the "Start break" button is about to show.
+                        // length/title here so the notification matches the
+                        // break that just started.
                         let is_long = run_clone.long_break;
                         let break_min = if is_long { config.long_break_min } else { config.break_min };
                         let break_title = if is_long { "Long break ☕☕" } else { "Break time ☕" };
@@ -1802,7 +2293,7 @@ fn main() {
                                 .builder()
                                 .title(break_title)
                                 .body(format!(
-                                    "Nice work on \"{name}\" — open TaskPlayer to start your {break_min}-minute break."
+                                    "Nice work on \"{name}\" — your {break_min}-minute break has started."
                                 ))
                                 .sound(break_sound)
                                 .show()
@@ -1830,23 +2321,17 @@ fn main() {
                                 .map(|id| task_name_for_notification(&db, id))
                                 .unwrap_or_else(|| "your task".to_string())
                         };
-                        // Unlike ToBreak above, this one DOES surface the main
-                        // window. Break-to-work is the opposite failure mode from
-                        // work-to-break: nothing is being interrupted (the user is
-                        // already off-task, on a break), and "restart after a stop"
-                        // is the harder transition to self-initiate. A passive
-                        // notification is too easy to let slide into a much longer
-                        // break; forcing the window up front, with "Start work"
-                        // already showing, substitutes for the missing internal nudge.
+                        // Work is already running again in `run_clone`; notify
+                        // without forcing the app window forward or asking for
+                        // a second confirmation.
                         let notif_handle = handle.clone();
                         let work_sound = config.work_sound.clone();
                         let _ = handle.run_on_main_thread(move || {
-                            surface_main_window(&notif_handle);
                             match notif_handle
                                 .notification()
                                 .builder()
                                 .title("Back to work ▶")
-                                .body(format!("Break's over — open TaskPlayer to resume \"{name}\"."))
+                                .body(format!("Break's over — \"{name}\" is running again."))
                                 .sound(work_sound)
                                 .show()
                             {
@@ -1856,6 +2341,114 @@ fn main() {
                         });
                         transitioned = true;
                     }
+                }
+                // --- Non-pomodoro notifications: target reached + hourly check-in ---
+                // Unlike the pomodoro transitions above, neither of these
+                // changes the run state — target mode deliberately keeps
+                // counting past the target, and open mode has no boundary at
+                // all. They're pure notifications, deduped per work segment
+                // via `session_notify` (keyed on `running_start`, so a new
+                // session re-arms them). Both fire only while actually in
+                // the "work" phase, and both go through run_on_main_thread
+                // for the same macOS notification-center thread-safety
+                // reason as ToBreak/ToWork above.
+                if run.phase.as_deref() == Some("work") {
+                    if let (Some(start), Some(task_id)) = (run.running_start, run.active_task_id.clone()) {
+                        let elapsed = now - start;
+                        if config.mode == "target" {
+                            let already = state.session_notify.lock().unwrap().target_fired_for == Some(start);
+                            if !already && elapsed >= config.target_min * 60_000 {
+                                state.session_notify.lock().unwrap().target_fired_for = Some(start);
+                                let name = {
+                                    let db = state.db.lock().unwrap();
+                                    task_name_for_notification(&db, &task_id)
+                                };
+                                // The bar in the UI pulses at this same moment,
+                                // but only if you're looking at it — this is
+                                // the away-from-screen counterpart, same
+                                // rationale as the pomodoro ToBreak above.
+                                // Reuses `break_sound`: it's the same "a work
+                                // block just completed" moment.
+                                let notif_handle = handle.clone();
+                                let target_min = config.target_min;
+                                let sound = config.break_sound.clone();
+                                let _ = handle.run_on_main_thread(move || {
+                                    match notif_handle
+                                        .notification()
+                                        .builder()
+                                        .title("Target reached 🎯")
+                                        .body(format!(
+                                            "Session complete — {target_min} minutes on \"{name}\". Wrap up, or keep going: the clock's still counting."
+                                        ))
+                                        .sound(sound)
+                                        .show()
+                                    {
+                                        Ok(()) => {}
+                                        Err(e) => log_line(format!("notification show() failed (target reached): {e}")),
+                                    }
+                                });
+                            }
+                        } else if config.mode == "open" && config.hourly_nudge {
+                            let hours = elapsed / 3_600_000;
+                            let due = {
+                                let sn = state.session_notify.lock().unwrap();
+                                hours >= 1 && (sn.nudge_fired_for != Some(start) || sn.nudge_hours < hours)
+                            };
+                            if due {
+                                {
+                                    let mut sn = state.session_notify.lock().unwrap();
+                                    sn.nudge_fired_for = Some(start);
+                                    sn.nudge_hours = hours;
+                                }
+                                let name = {
+                                    let db = state.db.lock().unwrap();
+                                    task_name_for_notification(&db, &task_id)
+                                };
+                                // Encouragement, not an alarm: no sound, and
+                                // deliberately no "you should stop" framing —
+                                // just makes the elapsed time visible (open
+                                // mode otherwise never says how long it's
+                                // been) with a low-key care nudge.
+                                let notif_handle = handle.clone();
+                                let hrs = if hours == 1 { "1 hour".to_string() } else { format!("{hours} hours") };
+                                let _ = handle.run_on_main_thread(move || {
+                                    match notif_handle
+                                        .notification()
+                                        .builder()
+                                        .title("Still going 💪")
+                                        .body(format!(
+                                            "{hrs} on \"{name}\" — you're doing great. Good moment to stand up, stretch, or grab some water."
+                                        ))
+                                        .show()
+                                    {
+                                        Ok(()) => {}
+                                        Err(e) => log_line(format!("notification show() failed (hourly check-in): {e}")),
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+                // --- Fixed daily/list window reminders ---
+                // The pure schedule engine handles local weekday boundaries
+                // (including overnight windows); this shell adds mutable
+                // completion/session filters and displays the resulting cues.
+                for notice in collect_schedule_notices(state.inner(), now) {
+                    let notif_handle = handle.clone();
+                    let _ = handle.run_on_main_thread(move || {
+                        match notif_handle
+                            .notification()
+                            .builder()
+                            .title(notice.title)
+                            .body(notice.body)
+                            .show()
+                        {
+                            Ok(()) => {}
+                            Err(e) => log_line(format!(
+                                "notification show() failed (schedule reminder): {e}"
+                            )),
+                        }
+                    });
                 }
                 if transitioned {
                     push(&handle);
@@ -1893,7 +2486,9 @@ fn main() {
                 std::thread::sleep(Duration::from_secs(60 * 60));
                 guard("hourly full-resync loop", || {
                     let state = full_sync_handle.state::<AppState>();
-                    if state.access_token.lock().unwrap().is_some() {
+                    if state.access_token.lock().unwrap().is_some()
+                        || auth::load_refresh_token(&state.data_dir).is_some()
+                    {
                         reset_sync_cursors(state.inner());
                     }
                     run_sync(&full_sync_handle);
@@ -1941,11 +2536,16 @@ fn main() {
             rename_list,
             set_list_style,
             set_list_life_tag,
+            set_list_availability,
             reorder_lists,
+            reorder_life_areas,
             delete_list,
             add_task,
             rename_task,
             set_depth,
+            set_cadence,
+            set_daily_windows,
+            set_session_range,
             set_estimate,
             set_deadline,
             set_task_impact,

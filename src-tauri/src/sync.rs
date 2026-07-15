@@ -13,7 +13,11 @@
 
 use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use serde::{Deserialize, Serialize};
-use taskplayer_core::{now_ms, Db, RunState, Session, SessionConfig, Task, TaskList};
+use std::sync::{Mutex, OnceLock};
+use taskplayer_core::{
+    now_ms, Db, LifeAreaPriority, RunState, Session, SessionConfig, Task, TaskList,
+    WeeklyTimeWindow,
+};
 
 fn client() -> reqwest::blocking::Client {
     reqwest::blocking::Client::new()
@@ -40,6 +44,123 @@ fn rest_url(table: &str) -> String {
 /// is a no-op: `upsert_from_remote`'s `ON CONFLICT ... WHERE excluded.updated_at
 /// > x.updated_at` only writes if it's actually newer.
 const PULL_REWIND_MS: i64 = 5 * 60 * 1000;
+
+const MIN_BACKEND_SCHEMA_VERSION: i64 = 3;
+const REQUIRED_BACKEND_CAPABILITIES: &[&str] = &[
+    "planner_windows_v1",
+    "life_area_priorities_v1",
+    "run_state_v1",
+];
+
+#[derive(Clone, Debug, Deserialize)]
+struct BackendSchema {
+    schema_version: i64,
+    min_supported_client: String,
+    #[serde(default)]
+    capabilities: Vec<String>,
+}
+
+static BACKEND_SCHEMA: OnceLock<Mutex<Option<BackendSchema>>> = OnceLock::new();
+
+fn version_triplet(version: &str) -> Option<(u64, u64, u64)> {
+    let core = version.split(['-', '+']).next()?;
+    let mut parts = core.split('.');
+    Some((
+        parts.next()?.parse().ok()?,
+        parts.next().unwrap_or("0").parse().ok()?,
+        parts.next().unwrap_or("0").parse().ok()?,
+    ))
+}
+
+fn validate_backend_schema(schema: &BackendSchema) -> Result<(), String> {
+    let current_client = env!("CARGO_PKG_VERSION");
+    let current_version = version_triplet(current_client)
+        .ok_or_else(|| format!("invalid client version: {current_client}"))?;
+    let minimum_version = version_triplet(&schema.min_supported_client).ok_or_else(|| {
+        format!(
+            "invalid minimum client version in backend contract: {}",
+            schema.min_supported_client
+        )
+    })?;
+    if current_version < minimum_version {
+        return Err(format!(
+            "Sync paused: TaskPlayer {current_client} is older than the backend's supported minimum {}. Update TaskPlayer to resume sync.",
+            schema.min_supported_client
+        ));
+    }
+
+    if schema.schema_version < MIN_BACKEND_SCHEMA_VERSION {
+        return Err(format!(
+            "Sync paused: backend schema {} is older than required schema {}. Apply the Supabase migrations first.",
+            schema.schema_version, MIN_BACKEND_SCHEMA_VERSION
+        ));
+    }
+
+    let missing = REQUIRED_BACKEND_CAPABILITIES
+        .iter()
+        .filter(|required| {
+            !schema
+                .capabilities
+                .iter()
+                .any(|available| available.as_str() == **required)
+        })
+        .copied()
+        .collect::<Vec<_>>();
+
+    if !missing.is_empty() {
+        return Err(format!(
+            "Sync paused: backend is missing required capabilities: {}. Apply the Supabase migrations first.",
+            missing.join(", ")
+        ));
+    }
+
+    Ok(())
+}
+
+/// Verify the global Supabase contract once per app process. If the contract
+/// is absent or too old, only sync is paused; local SQLite and task playback
+/// continue to work normally.
+fn ensure_backend_compatible(access_token: &str) -> Result<(), String> {
+    let cache = BACKEND_SCHEMA.get_or_init(|| Mutex::new(None));
+    if let Some(schema) = cache
+        .lock()
+        .map_err(|_| "backend schema cache is unavailable".to_string())?
+        .clone()
+    {
+        return validate_backend_schema(&schema);
+    }
+
+    let url = format!(
+        "{}?id=eq.1&select=schema_version,min_supported_client,capabilities",
+        rest_url("app_schema")
+    );
+    let resp = client()
+        .get(url)
+        .header("apikey", SUPABASE_PUBLISHABLE_KEY)
+        .header("Authorization", format!("Bearer {access_token}"))
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        return Err(format!(
+            "Sync paused: the backend compatibility contract is unavailable (HTTP {status}). Apply the Supabase migrations first."
+        ));
+    }
+
+    let schema = resp
+        .json::<Vec<BackendSchema>>()
+        .map_err(|e| format!("invalid backend compatibility contract: {e}"))?
+        .into_iter()
+        .next()
+        .ok_or_else(|| "Sync paused: the backend compatibility contract is empty.".to_string())?;
+
+    validate_backend_schema(&schema)?;
+    *cache
+        .lock()
+        .map_err(|_| "backend schema cache is unavailable".to_string())? = Some(schema);
+    Ok(())
+}
 
 // ---- wire shapes ----
 //
@@ -69,6 +190,8 @@ struct RemoteList {
     // other never-set column.
     life_area: Option<String>,
     life_direction: Option<String>,
+    #[serde(default)]
+    availability_windows: Vec<WeeklyTimeWindow>,
 }
 
 impl RemoteList {
@@ -84,6 +207,7 @@ impl RemoteList {
             deleted_at: l.deleted_at,
             life_area: l.life_area.clone(),
             life_direction: l.life_direction.clone(),
+            availability_windows: l.availability_windows.clone(),
         }
     }
     fn into_local(self) -> TaskList {
@@ -96,7 +220,35 @@ impl RemoteList {
             updated_at: self.updated_at,
             life_area: self.life_area,
             life_direction: self.life_direction,
+            availability_windows: self.availability_windows,
             deleted_at: self.deleted_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RemoteLifeAreaPriority {
+    user_id: String,
+    area_key: String,
+    priority_rank: i64,
+    updated_at: i64,
+}
+
+impl RemoteLifeAreaPriority {
+    fn from_local(priority: &LifeAreaPriority, user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            area_key: priority.area_key.clone(),
+            priority_rank: priority.priority_rank,
+            updated_at: priority.updated_at,
+        }
+    }
+
+    fn into_local(self) -> LifeAreaPriority {
+        LifeAreaPriority {
+            area_key: self.area_key,
+            priority_rank: self.priority_rank,
+            updated_at: self.updated_at,
         }
     }
 }
@@ -119,11 +271,24 @@ struct RemoteTask {
     // an `alter table` on an older Supabase project" caveat as TaskList's
     // life_area/life_direction above.
     impact_tier: Option<String>,
+    #[serde(default = "default_impact_sign_remote")]
     impact_sign: i64,
     // Deadline (see models.rs's Task doc comments and
     // docs/homepage-now-spec.md) — same "requires an `alter table` on an
     // older Supabase project" caveat as impact_tier above.
     deadline_at: Option<i64>,
+    // Cadence ("daily" | None, see models.rs's Task doc comments) — same
+    // "requires an `alter table` on an older Supabase project" caveat as
+    // impact_tier/deadline_at above.
+    cadence: Option<String>,
+    #[serde(default)]
+    daily_windows: Vec<WeeklyTimeWindow>,
+    min_session_min: Option<i64>,
+    max_session_min: Option<i64>,
+}
+
+fn default_impact_sign_remote() -> i64 {
+    1
 }
 
 impl RemoteTask {
@@ -144,6 +309,10 @@ impl RemoteTask {
             impact_tier: t.impact_tier.clone(),
             impact_sign: t.impact_sign,
             deadline_at: t.deadline_at,
+            cadence: t.cadence.clone(),
+            daily_windows: t.daily_windows.clone(),
+            min_session_min: t.min_session_min,
+            max_session_min: t.max_session_min,
         }
     }
     fn into_local(self) -> Task {
@@ -162,6 +331,10 @@ impl RemoteTask {
             impact_tier: self.impact_tier,
             impact_sign: self.impact_sign,
             deadline_at: self.deadline_at,
+            cadence: self.cadence,
+            daily_windows: self.daily_windows,
+            min_session_min: self.min_session_min,
+            max_session_min: self.max_session_min,
         }
     }
 }
@@ -218,7 +391,9 @@ struct RemoteRunState {
     phase: Option<String>,
     break_start: Option<i64>,
     last_task_id: Option<String>,
+    #[serde(default)]
     cycles_completed: i64,
+    #[serde(default)]
     long_break: bool,
     updated_at: i64,
 }
@@ -276,9 +451,19 @@ struct RemoteConfig {
     break_min: i64,
     break_sound: String,
     work_sound: String,
+    #[serde(default = "default_remote_cycles_before_long_break")]
     cycles_before_long_break: i64,
+    #[serde(default = "default_remote_long_break_min")]
     long_break_min: i64,
     updated_at: i64,
+}
+
+fn default_remote_cycles_before_long_break() -> i64 {
+    SessionConfig::default().cycles_before_long_break
+}
+
+fn default_remote_long_break_min() -> i64 {
+    SessionConfig::default().long_break_min
 }
 
 impl RemoteConfig {
@@ -306,6 +491,12 @@ impl RemoteConfig {
             work_sound: self.work_sound,
             cycles_before_long_break: self.cycles_before_long_break,
             long_break_min: self.long_break_min,
+            // Device-local preference, not a remote column (see the field's
+            // doc in models.rs) — filled with the default here and then
+            // overwritten with the *local* value at the pull call site
+            // before `upsert_config_from_remote`, so a remote config change
+            // never flips this device's choice.
+            hourly_nudge: SessionConfig::default().hourly_nudge,
             updated_at: self.updated_at,
         }
     }
@@ -327,12 +518,19 @@ fn upsert<T: Serialize>(access_token: &str, table: &str, rows: &[T]) -> Result<(
         .map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         let status = resp.status();
-        return Err(format!("push to {table} failed: HTTP {status} — {}", resp.text().unwrap_or_default()));
+        return Err(format!(
+            "push to {table} failed: HTTP {status} — {}",
+            resp.text().unwrap_or_default()
+        ));
     }
     Ok(())
 }
 
-fn fetch_since<T: for<'de> Deserialize<'de>>(access_token: &str, table: &str, cursor: i64) -> Result<Vec<T>, String> {
+fn fetch_since<T: for<'de> Deserialize<'de>>(
+    access_token: &str,
+    table: &str,
+    cursor: i64,
+) -> Result<Vec<T>, String> {
     // `cursor` is a plain integer, so no percent-encoding is needed here —
     // hand-building this one simple query string avoids pulling in
     // reqwest's `query` feature for a single call site.
@@ -345,7 +543,10 @@ fn fetch_since<T: for<'de> Deserialize<'de>>(access_token: &str, table: &str, cu
         .map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         let status = resp.status();
-        return Err(format!("pull from {table} failed: HTTP {status} — {}", resp.text().unwrap_or_default()));
+        return Err(format!(
+            "pull from {table} failed: HTTP {status} — {}",
+            resp.text().unwrap_or_default()
+        ));
     }
     resp.json::<Vec<T>>().map_err(|e| e.to_string())
 }
@@ -353,11 +554,43 @@ fn fetch_since<T: for<'de> Deserialize<'de>>(access_token: &str, table: &str, cu
 fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), String> {
     let cursor = db.get_push_cursor();
     let (lists, tasks, sessions) = db.dirty_since(cursor).map_err(|e| e.to_string())?;
+    let priorities = db
+        .life_area_priorities_dirty_since(cursor)
+        .map_err(|e| e.to_string())?;
     let now = now_ms();
 
-    upsert(access_token, "lists", &lists.iter().map(|l| RemoteList::from_local(l, user_id)).collect::<Vec<_>>())?;
-    upsert(access_token, "tasks", &tasks.iter().map(|t| RemoteTask::from_local(t, user_id)).collect::<Vec<_>>())?;
-    upsert(access_token, "sessions", &sessions.iter().map(|s| RemoteSession::from_local(s, user_id)).collect::<Vec<_>>())?;
+    upsert(
+        access_token,
+        "lists",
+        &lists
+            .iter()
+            .map(|l| RemoteList::from_local(l, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "tasks",
+        &tasks
+            .iter()
+            .map(|t| RemoteTask::from_local(t, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "sessions",
+        &sessions
+            .iter()
+            .map(|s| RemoteSession::from_local(s, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "life_area_priorities",
+        &priorities
+            .iter()
+            .map(|p| RemoteLifeAreaPriority::from_local(p, user_id))
+            .collect::<Vec<_>>(),
+    )?;
 
     // `run_state` is a single JSON blob under `meta` (see `Db::get_run`/
     // `set_run`), not a real SQL table — it isn't covered by `dirty_since`,
@@ -379,7 +612,11 @@ fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), String> {
     // change actually bumped its own `updated_at` past the cursor.
     let config = db.get_config();
     if config.updated_at > cursor {
-        upsert(access_token, "config", &[RemoteConfig::from_local(&config, user_id)])?;
+        upsert(
+            access_token,
+            "config",
+            &[RemoteConfig::from_local(&config, user_id)],
+        )?;
     }
 
     db.set_push_cursor(now).map_err(|e| e.to_string())
@@ -411,26 +648,39 @@ fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
         .into_iter()
         .map(RemoteSession::into_local)
         .collect();
+    let priorities: Vec<LifeAreaPriority> =
+        fetch_since::<RemoteLifeAreaPriority>(access_token, "life_area_priorities", cursor)?
+            .into_iter()
+            .map(RemoteLifeAreaPriority::into_local)
+            .collect();
     // At most one row ever comes back — `run_state` is a singleton keyed by
     // `user_id` (see docs/session-sync-design.md) — but `fetch_since` still
     // returns a `Vec` since it's a generic PostgREST GET.
-    let run_states: Vec<RunState> = fetch_since::<RemoteRunState>(access_token, "run_state", cursor)?
-        .into_iter()
-        .map(RemoteRunState::into_local)
-        .collect();
+    let run_states: Vec<RunState> =
+        fetch_since::<RemoteRunState>(access_token, "run_state", cursor)?
+            .into_iter()
+            .map(RemoteRunState::into_local)
+            .collect();
     // Same singleton-row caveat as run_state.
     let configs: Vec<SessionConfig> = fetch_since::<RemoteConfig>(access_token, "config", cursor)?
         .into_iter()
         .map(RemoteConfig::into_local)
         .collect();
 
-    let mut changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
-    if changed {
+    let collection_rows_changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
+    let mut changed = collection_rows_changed || !priorities.is_empty();
+    if collection_rows_changed {
         if force {
-            db.upsert_from_remote_force(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
+            db.upsert_from_remote_force(&lists, &tasks, &sessions)
+                .map_err(|e| e.to_string())?;
         } else {
-            db.upsert_from_remote(&lists, &tasks, &sessions).map_err(|e| e.to_string())?;
+            db.upsert_from_remote(&lists, &tasks, &sessions)
+                .map_err(|e| e.to_string())?;
         }
+    }
+    if !priorities.is_empty() {
+        db.upsert_life_area_priorities_from_remote(&priorities, force)
+            .map_err(|e| e.to_string())?;
     }
     // Applied separately from the three above: `upsert_run_from_remote`
     // guards on `RunState::updated_at` itself (there's no local SQL row for
@@ -438,14 +688,24 @@ fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
     // and main.rs needs to react specifically to an *ownership* change here
     // (see `reconcile_run_after_sync`), not just "something changed."
     if let Some(remote_run) = run_states.into_iter().next() {
-        if db.upsert_run_from_remote(&remote_run).map_err(|e| e.to_string())? {
+        if db
+            .upsert_run_from_remote(&remote_run)
+            .map_err(|e| e.to_string())?
+        {
             changed = true;
         }
     }
     // Config, same idea — LWW-guarded on its own `updated_at` rather than a
     // `dirty_since` scan, since it's also just a `meta` blob, not a table.
-    if let Some(remote_config) = configs.into_iter().next() {
-        if db.upsert_config_from_remote(&remote_config).map_err(|e| e.to_string())? {
+    if let Some(mut remote_config) = configs.into_iter().next() {
+        // `hourly_nudge` is device-local (no remote column; `into_local`
+        // filled a default) — carry the current local value through so a
+        // remote win on the rest of the config can't flip it here.
+        remote_config.hourly_nudge = db.get_config().hourly_nudge;
+        if db
+            .upsert_config_from_remote(&remote_config)
+            .map_err(|e| e.to_string())?
+        {
             changed = true;
         }
     }
@@ -453,7 +713,8 @@ fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
     // `PULL_REWIND_MS` for why. `.max(cursor)` keeps this monotonic even if
     // the rewind window would otherwise put it behind where we already are
     // (e.g. right after a fresh sign-in, or an unusual backward clock jump).
-    db.set_pull_cursor((now - PULL_REWIND_MS).max(cursor)).map_err(|e| e.to_string())?;
+    db.set_pull_cursor((now - PULL_REWIND_MS).max(cursor))
+        .map_err(|e| e.to_string())?;
     Ok(changed)
 }
 
@@ -463,6 +724,7 @@ fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, String> {
 /// the normal cadence — the 60s background tick, "Sync now", "Full sync" —
 /// for every sync *except* the one right after signing in.
 pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, String> {
+    ensure_backend_compatible(access_token)?;
     push(db, access_token, user_id)?;
     pull(db, access_token, false)
 }
@@ -485,5 +747,104 @@ pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, Str
 /// server at all) is untouched by the forced pull and still syncs up
 /// normally on the next regular cycle.
 pub fn sync_login(db: &Db, access_token: &str) -> Result<bool, String> {
+    ensure_backend_compatible(access_token)?;
     pull(db, access_token, true)
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_old_run_state_without_new_pomodoro_fields() {
+        let state: RemoteRunState = serde_json::from_value(serde_json::json!({
+            "user_id": "user-1",
+            "device_id": "device-1",
+            "device_name": null,
+            "active_task_id": "task-1",
+            "running_start": 1000,
+            "phase": "work",
+            "break_start": null,
+            "last_task_id": "task-1",
+            "updated_at": 2000
+        }))
+        .unwrap();
+
+        assert_eq!(state.cycles_completed, 0);
+        assert!(!state.long_break);
+    }
+
+    #[test]
+    fn accepts_old_config_without_long_break_fields() {
+        let config: RemoteConfig = serde_json::from_value(serde_json::json!({
+            "user_id": "user-1",
+            "mode": "pomodoro",
+            "target_min": 45,
+            "work_min": 25,
+            "break_min": 5,
+            "break_sound": "Glass",
+            "work_sound": "Ping",
+            "updated_at": 2000
+        }))
+        .unwrap();
+
+        assert_eq!(config.cycles_before_long_break, 4);
+        assert_eq!(config.long_break_min, 20);
+    }
+
+    #[test]
+    fn accepts_old_task_without_planner_fields_and_ignores_future_fields() {
+        let task: RemoteTask = serde_json::from_value(serde_json::json!({
+            "id": "task-1",
+            "user_id": "user-1",
+            "list_id": "list-1",
+            "name": "Old task",
+            "depth": null,
+            "ord": 1,
+            "est": 30,
+            "done": null,
+            "descr": null,
+            "updated_at": 2000,
+            "deleted_at": null,
+            "album": null,
+            "impact_tier": null,
+            "impact_sign": 1,
+            "deadline_at": null,
+            "cadence": null,
+            "future_server_field": "ignored"
+        }))
+        .unwrap();
+
+        assert!(task.daily_windows.is_empty());
+        assert_eq!(task.min_session_min, None);
+        assert_eq!(task.max_session_min, None);
+    }
+
+    #[test]
+    fn rejects_backend_missing_a_required_capability() {
+        let schema = BackendSchema {
+            schema_version: MIN_BACKEND_SCHEMA_VERSION,
+            min_supported_client: "0.5.0".to_string(),
+            capabilities: vec!["planner_windows_v1".to_string()],
+        };
+
+        let error = validate_backend_schema(&schema).unwrap_err();
+        assert!(error.contains("life_area_priorities_v1"));
+        assert_eq!(schema.min_supported_client, "0.5.0");
+    }
+
+    #[test]
+    fn rejects_a_client_older_than_the_backend_support_window() {
+        let schema = BackendSchema {
+            schema_version: MIN_BACKEND_SCHEMA_VERSION,
+            min_supported_client: "99.0.0".to_string(),
+            capabilities: REQUIRED_BACKEND_CAPABILITIES
+                .iter()
+                .map(|capability| capability.to_string())
+                .collect(),
+        };
+
+        let error = validate_backend_schema(&schema).unwrap_err();
+        assert!(error.contains("Update TaskPlayer"));
+    }
 }

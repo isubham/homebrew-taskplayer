@@ -1,6 +1,7 @@
 # Homepage "Now" section — design doc
 
-Status: proposed, not yet implemented. Scoped against the actual current implementation
+Status: implemented, then evolved. This document preserves the original design scope; the
+authoritative current behavior is in [`features.md`](features.md). Scoped against the implementation
 (`src/app/render.js`'s `renderHomePage`/`renderDetail`, `src/app/commands.js`,
 `src-tauri/core/src/models.rs`, `src-tauri/core/src/db.rs`, `src-tauri/core/src/migrations.rs`,
 `src-tauri/src/main.rs`, `src-tauri/src/sync.rs`) — not a generic wishlist. Covers Home page

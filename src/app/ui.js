@@ -1,4 +1,5 @@
 import { esc } from "./utils.js";
+import { html, render as litRender } from "../vendor/lit-html.js";
 
 export function createUi() {
   // #doverlay/#dmodal is a single shared dialog surface — uiConfirm, uiPrompt,
@@ -11,6 +12,21 @@ export function createUi() {
   // elements that no longer exist. Tracking + auto-cancelling the previous
   // dialog before opening a new one makes that nesting safe everywhere.
   let cancelPending = null;
+  let toastTimer = null;
+
+  function showToast({ title, message, tone = "neutral", duration = 5000 }) {
+    const host = document.getElementById("toastHost");
+    if (!host) return;
+    litRender(html`
+      <div class="app-toast-card ${tone}">
+        ${title ? html`<strong>${title}</strong>` : null}
+        <span>${message}</span>
+      </div>
+    `, host);
+    host.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => host.classList.remove("show"), duration);
+  }
 
   function uiForm({ title, bodyHtml = "", confirmText = "OK", danger = false, focusSel = null, collect }) {
     if (cancelPending) cancelPending();
@@ -89,5 +105,5 @@ export function createUi() {
     collect: () => true,
   });
 
-  return { uiForm, uiPrompt, uiConfirm, uiNote };
+  return { uiForm, uiPrompt, uiConfirm, uiNote, showToast };
 }

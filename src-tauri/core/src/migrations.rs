@@ -39,7 +39,10 @@ fn has_column(conn: &Connection, table: &str, column: &str) -> rusqlite::Result<
 /// Adds `column` to `table` only if it isn't already there.
 fn add_column(conn: &Connection, table: &str, column: &str, decl: &str) -> rusqlite::Result<()> {
     if !has_column(conn, table, column)? {
-        conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"), [])?;
+        conn.execute(
+            &format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"),
+            [],
+        )?;
     }
     Ok(())
 }
@@ -73,9 +76,18 @@ pub const MIGRATIONS: &[Migration] = &[
             add_column(conn, "sessions", "updated_at", "INTEGER")?;
             add_column(conn, "sessions", "deleted_at", "INTEGER")?;
             let now = crate::models::now_ms();
-            conn.execute("UPDATE lists SET updated_at=?1 WHERE updated_at IS NULL", params![now])?;
-            conn.execute("UPDATE tasks SET updated_at=?1 WHERE updated_at IS NULL", params![now])?;
-            conn.execute("UPDATE sessions SET updated_at=?1 WHERE updated_at IS NULL", params![now])?;
+            conn.execute(
+                "UPDATE lists SET updated_at=?1 WHERE updated_at IS NULL",
+                params![now],
+            )?;
+            conn.execute(
+                "UPDATE tasks SET updated_at=?1 WHERE updated_at IS NULL",
+                params![now],
+            )?;
+            conn.execute(
+                "UPDATE sessions SET updated_at=?1 WHERE updated_at IS NULL",
+                params![now],
+            )?;
             Ok(())
         },
     },
@@ -113,7 +125,10 @@ pub const MIGRATIONS: &[Migration] = &[
             // task created before this migration reads as a plain positive
             // task rather than a null the frontend has to special-case.
             add_column(conn, "tasks", "impact_sign", "INTEGER")?;
-            conn.execute("UPDATE tasks SET impact_sign=1 WHERE impact_sign IS NULL", [])?;
+            conn.execute(
+                "UPDATE tasks SET impact_sign=1 WHERE impact_sign IS NULL",
+                [],
+            )?;
             conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS task_areas(
                    task_id TEXT NOT NULL,
@@ -147,7 +162,10 @@ pub const MIGRATIONS: &[Migration] = &[
         // this task completes — remapping keeps it counted as the (now)
         // top tier instead of quietly losing its weight.
         run: |conn| {
-            conn.execute("UPDATE tasks SET impact_tier='high' WHERE impact_tier='severe'", [])?;
+            conn.execute(
+                "UPDATE tasks SET impact_tier='high' WHERE impact_tier='severe'",
+                [],
+            )?;
             Ok(())
         },
     },
@@ -170,7 +188,69 @@ pub const MIGRATIONS: &[Migration] = &[
         // and out of the life-balance radar. Direction (for/against) is on the
         // list already and is unaffected.
         run: |conn| {
-            conn.execute("UPDATE lists SET life_area='health' WHERE life_area='wellbeing'", [])?;
+            conn.execute(
+                "UPDATE lists SET life_area='health' WHERE life_area='wellbeing'",
+                [],
+            )?;
+            Ok(())
+        },
+    },
+    Migration {
+        name: "011_task_cadence",
+        // None = one-time (existing behavior, untouched). "daily" = repeating
+        // — see the comment atop `Task::cadence` in models.rs for what that
+        // changes. Independent of impact_tier/deadline_at, same
+        // "weightless/inert until set" convention as every optional column
+        // added since impact_tier's own migration.
+        run: |conn| add_column(conn, "tasks", "cadence", "TEXT"),
+    },
+    Migration {
+        name: "012_planner_fields",
+        // Weekly schedules are stored as small JSON arrays on their owning
+        // rows: list availability and fixed daily occurrences are edited and
+        // synced as a unit. Session range is scalar task configuration.
+        run: |conn| {
+            add_column(
+                conn,
+                "lists",
+                "availability_windows",
+                "TEXT NOT NULL DEFAULT '[]'",
+            )?;
+            add_column(conn, "tasks", "daily_windows", "TEXT NOT NULL DEFAULT '[]'")?;
+            add_column(conn, "tasks", "min_session_min", "INTEGER")?;
+            add_column(conn, "tasks", "max_session_min", "INTEGER")
+        },
+    },
+    Migration {
+        name: "013_life_area_priorities",
+        // Fixed life-area definitions remain in the app. This table stores
+        // only the user's top-to-bottom planning precedence and its sync
+        // timestamp. Unsorted is intentionally not part of the order.
+        run: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS life_area_priorities(
+                   area_key TEXT PRIMARY KEY,
+                   priority_rank INTEGER NOT NULL,
+                   updated_at INTEGER NOT NULL
+                 );",
+            )?;
+            let now = crate::models::now_ms();
+            for (rank, key) in [
+                "career",
+                "health",
+                "relationships",
+                "growth",
+                "finance",
+                "recreation",
+            ]
+            .iter()
+            .enumerate()
+            {
+                conn.execute(
+                    "INSERT OR IGNORE INTO life_area_priorities(area_key,priority_rank,updated_at) VALUES(?1,?2,?3)",
+                    params![key, rank as i64 + 1, now],
+                )?;
+            }
             Ok(())
         },
     },
@@ -194,4 +274,98 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(&format!("PRAGMA user_version = {version};"))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::*;
+
+    fn user_version(conn: &Connection) -> i64 {
+        conn.query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn upgrades_a_version_one_database_without_losing_user_data() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE lists(
+               id TEXT PRIMARY KEY,
+               name TEXT NOT NULL,
+               emoji TEXT,
+               color TEXT,
+               ord INTEGER
+             );
+             CREATE TABLE tasks(
+               id TEXT PRIMARY KEY,
+               list_id TEXT NOT NULL,
+               name TEXT NOT NULL,
+               depth TEXT,
+               ord INTEGER,
+               est INTEGER,
+               done INTEGER,
+               descr TEXT
+             );
+             CREATE TABLE sessions(
+               id TEXT PRIMARY KEY,
+               task_id TEXT NOT NULL,
+               start INTEGER NOT NULL,
+               end INTEGER
+             );
+             CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT);
+             INSERT INTO lists(id,name,emoji,color,ord)
+               VALUES('list-old','Old list','📦','#123456',1);
+             INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr)
+               VALUES('task-old','list-old','Old task','deep',1,30,NULL,'Keep me');
+             INSERT INTO sessions(id,task_id,start,end)
+               VALUES('session-old','task-old',1000,2000);
+             PRAGMA user_version = 1;",
+        )
+        .unwrap();
+
+        run(&conn).unwrap();
+
+        assert_eq!(user_version(&conn), MIGRATIONS.len() as i64);
+        assert_eq!(
+            conn.query_row(
+                "SELECT name FROM lists WHERE id='list-old'",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            "Old list"
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT descr FROM tasks WHERE id='task-old'",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+            "Keep me"
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT end FROM sessions WHERE id='session-old'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2000
+        );
+        assert!(has_column(&conn, "tasks", "daily_windows").unwrap());
+        assert!(has_column(&conn, "lists", "availability_windows").unwrap());
+    }
+
+    #[test]
+    fn running_current_migrations_again_is_a_no_op() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        run(&conn).unwrap();
+        let version = user_version(&conn);
+        run(&conn).unwrap();
+
+        assert_eq!(version, MIGRATIONS.len() as i64);
+        assert_eq!(user_version(&conn), version);
+    }
 }

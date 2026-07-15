@@ -5,7 +5,8 @@ every play/stop logs a session to **SQLite**, and a **menu-bar status item** sho
 live minutes worked and toggles play/pause.
 
 Built with **Tauri v2** — a Rust core (data + timing engine) wrapping the reused
-dark, playlist-style web UI. No login, no server; all data is local.
+dark, playlist-style web UI. SQLite remains the local source of truth; optional Google
+sign-in syncs through Supabase across devices.
 
 ## Requirements (build on a Mac)
 
@@ -33,9 +34,8 @@ under a separate bundle identifier, `com.taskplayer.desktop.dev` instead of
 `app_data_dir()`, which is derived from the identifier, this gives the dev instance its
 own database (`~/Library/Application Support/com.taskplayer.desktop.dev/...`) instead of
 sharing — and potentially corrupting — the real one used by a `brew install`'d release.
-The dev window is also titled "TaskPlayer (Dev)", and the dev tray icon renders in full
-color with a "(Dev)" tooltip (vs. the release build's monochrome template icon), so the
-two menu-bar icons are easy to tell apart when both are running.
+The dev window is also titled "TaskPlayer (Dev)" and its tray tooltip includes “(Dev),”
+so it remains distinguishable from an installed release when both are running.
 
 The Supabase OAuth deep-link is also split: dev builds (`cfg!(debug_assertions)`, see
 `auth.rs`) use `taskplayer-dev://auth-callback` and register the `taskplayer-dev` scheme
@@ -75,22 +75,14 @@ To ship with zero warnings later, sign + notarize with an Apple Developer ID and
 
 ## Features
 
-- **Single active task** — starting one stops+logs the previous (like switching tracks on a playlist).
-- **Menu-bar status item** — shows `▶ 25m` (or `☕ 4m` on break); click for Open / Play-Pause / Quit.
-- **Task detail** — total time + full session history.
-- **Row ⋯ menu** — history, rename, start/stop, deep/shallow tag, delete. Lists rename via ✎ or double-click.
-- **Session modes** — Open, Target (progress bar to a goal), Pomodoro (work blocks
-  auto-log; the next phase always waits for a click rather than starting on its own).
-  Both phase transitions fire a notification + sound with a "Start break"/"Start work"
-  button, but window-surfacing is **asymmetric on purpose**: break→work forces the main
-  window to the front (restarting after a stop is the harder self-initiated transition,
-  and a missed passive notification just means a longer break); work→break does *not*
-  steal focus (you may be mid-hyperfocus, which is the state this app exists to protect
-  — the notification + updated tray title are enough to notice without yanking you out
-  of it). Alert sounds are configurable per-phase in Settings. Music pauses on breaks.
-- **Focus music** — piano/guitar/lo-fi/ambient/classical via the free Radio Browser API, tied to the timer.
-- **Self-updating** — checks for a newer signed build a few seconds after launch (silently — a no-op stays quiet), and any time via Settings → About → "Check for updates". Finding one always asks first; confirming downloads, installs, and restarts the app. No Homebrew re-install needed after the first `brew install --cask`.
-- Closing the main window keeps the app alive in the menu bar.
+TaskPlayer includes local-first task/session tracking, Daily and One-time tasks, Open/Target/
+Pomodoro modes, a state-aware menu-bar tray, Audius focus music, Home and Insights surfaces,
+life-area balance and deterministic rewards, weekly time windows and reminders, optional
+cross-device sync, backups, diagnostics, and signed self-updates.
+
+See the maintained [`docs/features.md`](docs/features.md) catalog for every current feature,
+behavioral limit, foundation, and known gap. See [`CHANGELOG.md`](CHANGELOG.md) for release
+history and [`docs/decisions/`](docs/decisions/) for durable product/architecture choices.
 
 ## Releasing a new version (maintainers)
 

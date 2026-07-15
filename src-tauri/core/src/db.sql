@@ -5,7 +5,8 @@ create table if not exists public.lists (
   updated_at bigint not null default 0,
   deleted_at bigint,
   life_area text,
-  life_direction text
+  life_direction text,
+  availability_windows jsonb not null default '[]'::jsonb
 );
 -- if this table already exists from before the "life areas" feature, run:
 -- alter table public.lists add column if not exists life_area text;
@@ -13,6 +14,8 @@ create table if not exists public.lists (
 -- "Mental Wellbeing" merged into "Health & Wellbeing" (see migration 010,
 -- migrations.rs) — remap any remotely-stored wellbeing tags to match:
 -- update public.lists set life_area='health' where life_area='wellbeing';
+-- if this table already exists from before the planner feature, run:
+-- alter table public.lists add column if not exists availability_windows jsonb not null default '[]'::jsonb;
 create table if not exists public.tasks (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -22,7 +25,11 @@ create table if not exists public.tasks (
   deleted_at bigint,
   impact_tier text,
   impact_sign bigint not null default 1,
-  deadline_at bigint
+  deadline_at bigint,
+  cadence text,
+  daily_windows jsonb not null default '[]'::jsonb,
+  min_session_min bigint,
+  max_session_min bigint
 );
 -- if this table already exists from before the "albums" feature, run:
 -- alter table public.tasks add column if not exists album text;
@@ -31,6 +38,12 @@ create table if not exists public.tasks (
 -- alter table public.tasks add column if not exists impact_sign bigint not null default 1;
 -- if this table already exists from before the "Now section" deadline feature, run:
 -- alter table public.tasks add column if not exists deadline_at bigint;
+-- if this table already exists from before the "cadence" (repeating tasks) feature, run:
+-- alter table public.tasks add column if not exists cadence text;
+-- if this table already exists from before the planner feature, run:
+-- alter table public.tasks add column if not exists daily_windows jsonb not null default '[]'::jsonb;
+-- alter table public.tasks add column if not exists min_session_min bigint;
+-- alter table public.tasks add column if not exists max_session_min bigint;
 create table if not exists public.sessions (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -114,5 +127,22 @@ create policy "own rows" on public.config for all using (auth.uid() = user_id) w
 
 drop trigger if exists config_lww on public.config;
 create trigger config_lww before update on public.config for each row execute function public.lww_guard();
+
+-- User-controlled planning precedence for the app's fixed life areas.
+create table if not exists public.life_area_priorities (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  area_key text not null,
+  priority_rank bigint not null check (priority_rank > 0),
+  updated_at bigint not null default 0,
+  primary key (user_id, area_key)
+);
+
+alter table public.life_area_priorities enable row level security;
+
+drop policy if exists "own rows" on public.life_area_priorities;
+create policy "own rows" on public.life_area_priorities for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop trigger if exists life_area_priorities_lww on public.life_area_priorities;
+create trigger life_area_priorities_lww before update on public.life_area_priorities for each row execute function public.lww_guard();
 
 notify pgrst, 'reload schema';

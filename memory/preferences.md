@@ -20,3 +20,5 @@ repo `CLAUDE.md` (auto-loaded each session); this file is the fuller record.
 - Ships features iteratively and reviews each change against the project's ADHD
   design rules and gamification (Octalysis) guidelines in `CLAUDE.md`.
 - Prefers verification after non-trivial changes (syntax checks, no dead refs).
+- Progress updates should state the exact user-visible or code-level change
+  being made in each action, rather than using generic status language.

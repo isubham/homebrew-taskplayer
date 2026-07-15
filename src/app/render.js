@@ -1,9 +1,12 @@
 import {
   esc, fmt, fmtLong, fmtEst, fmtHM, whenLabel, timeAgo, buildCapacityBar, albumColor, LIFE_AREAS,
-  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout, deadlineDate, toDateInputValue,
+  IMPACT_TIERS, IMPACT_TIER_KEYS, jewelPayout, deadlineDate, toDateInputValue, dailyPayoutOn, dailyPayoutDayCount,
+  RANKS, RANK_AREA_CAP_RATIO,
 } from "./utils.js";
 import { html, render as litRender } from "../vendor/lit-html.js";
+import { animate } from "../vendor/motion.js";
 import { NOW_ITEMS_SIZE, RECENT_TASKS_SIZE } from "./constants.js";
+import { simpleScheduleEditorHtml } from "./weekly-schedule.js";
 
 export function createRenderer({ state, helpers, actions }) {
   const { list, activeList, findTask, tasksForList, taskSessions, taskTotal, listTotal, listEstimateTotal, targetMs, modeLabel, modeGlyph } = helpers;
@@ -12,6 +15,32 @@ export function createRenderer({ state, helpers, actions }) {
   // just the plain time — shared by the artist header, sidebar row, and
   // album sub-line so "spent of estimate" reads the same everywhere.
   const withEst = (timeText, estimateMin) => (estimateMin ? `${timeText} of ${fmtEst(estimateMin)}` : timeText);
+
+  async function animateDisclosure(body, chevron, expanding) {
+    if (!body || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const height = body.scrollHeight;
+    body.style.overflow = "hidden";
+    const animations = [animate(
+      body,
+      {
+        height: expanding ? ["0px", `${height}px`] : [`${height}px`, "0px"],
+        opacity: expanding ? [0, 1] : [1, 0],
+      },
+      { duration: 0.5, ease: [0.2, 0.8, 0.2, 1] },
+    )];
+    if (chevron) {
+      animations.push(animate(
+        chevron,
+        { transform: expanding ? ["rotate(0deg)", "rotate(90deg)"] : ["rotate(90deg)", "rotate(0deg)"] },
+        { duration: 0.45, ease: "easeInOut" },
+      ));
+    }
+    await Promise.all(animations.map((animation) => animation.finished)).catch(() => {});
+    body.style.removeProperty("height");
+    body.style.removeProperty("opacity");
+    body.style.removeProperty("overflow");
+    chevron?.style.removeProperty("transform");
+  }
   // `api` is the exact object this function returns (built up via
   // Object.assign at the bottom, not a fresh object literal), so that
   // bootstrap.js's later `renderer.actions = dispatchAction` — done after
@@ -59,7 +88,13 @@ export function createRenderer({ state, helpers, actions }) {
   // lists inside stay grouped. Tinted the area's color inline (this icon is
   // the one place the area color lives now — the old body spine is gone), so
   // color belongs to the category's own mark rather than a separate bar.
-  const FOLDER_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+  const FOLDER_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+
+  // The equalizer is separate from the list's user-chosen emoji and reserved
+  // for a genuinely running work session, so identity and status stay distinct.
+  const SIDEBAR_EQUALIZER_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="9" width="3" height="12" rx="1.5"/><rect x="10.5" y="3" width="3" height="18" rx="1.5"/><rect x="18" y="7" width="3" height="14" rx="1.5"/></svg>`;
+  const SIDEBAR_EXPAND_ALL_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 5 5 5-5"/><path d="m7 13 5 5 5-5"/></svg>`;
+  const SIDEBAR_COLLAPSE_ALL_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 11 5-5 5 5"/><path d="m7 17 5-5 5 5"/></svg>`;
 
   // Spotify/Apple-Music-style sticky mini-header — sits above every .hdr
   // as #main's first child (see the 4 page renderers below), always
@@ -130,14 +165,18 @@ export function createRenderer({ state, helpers, actions }) {
   // alignment with each other.
   function sidebarListRow(listItem) {
     const count = tasksForList(listItem.id).length;
-    const detail = `${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder or onto a section, double-click to edit`;
+    const liveTask = state.S.run.activeTaskId && state.S.run.phase === "work" && state.S.run.runningStart
+      ? findTask(state.S.run.activeTaskId)
+      : null;
+    const isPlaying = liveTask?.listId === listItem.id;
+    const detail = `${isPlaying ? "Recording now · " : ""}${count} task${count === 1 ? "" : "s"} · ${withEst(fmtLong(listTotal(listItem.id)), listEstimateTotal(listItem.id))} — drag to reorder or onto a section, double-click to edit`;
     const isActive = state.view === "tasks" && listItem.id === state.activeListId;
     return `
-      <div class="list-item ${isActive ? "active" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="${esc(detail)}">
+      <div class="list-item sidebar-track${isActive ? " active" : ""}${isPlaying ? " playing-list" : ""}" draggable="true" data-drag-list-id="${listItem.id}" data-action="selectList" data-id="${listItem.id}" title="${esc(detail)}">
         <span class="list-grip" title="Drag to reorder">${GRIP_SVG}</span>
         <span class="li-icon">${listItem.emoji}</span>
         <span class="li-label">${esc(listItem.name)}</span>
-        <span class="count">${count}</span>
+        ${isPlaying ? `<span class="sidebar-equalizer" title="Recording now" aria-label="Recording now">${SIDEBAR_EQUALIZER_SVG}</span>` : ""}
         <button class="list-edit" title="Edit name, emoji &amp; color" data-action="editList" data-id="${listItem.id}" data-stop-propagation="true">✎</button>
       </div>`;
   }
@@ -147,10 +186,11 @@ export function createRenderer({ state, helpers, actions }) {
   // with its lists nested below. This makes the life category the top of the
   // navigation hierarchy (area → list → album → task) without any new data —
   // it reuses the list's existing `lifeArea` tag. Design constraints from
-  // CLAUDE.md: sections follow the canonical LIFE_AREAS order (never
-  // user-sorted — rule 8), and untagged lists stay a valid state in a calm
-  // "Unsorted" bucket rather than being nagged to file themselves (rule 8).
-  // Dragging a list onto a header re-files it.
+  // Life areas follow the user's persisted planning-priority order. This is
+  // a conflict-resolution fact surfaced at the point of planning, while
+  // untagged lists stay outside that order in a calm "Unsorted" bucket.
+  // Dragging a list onto a header re-files it; dragging a header's grip
+  // changes planning precedence.
   //
   // Every LIFE_AREAS entry always renders, even with zero lists — an earlier
   // version hid empty sections outright (an empty "Finances" section reading
@@ -170,14 +210,28 @@ export function createRenderer({ state, helpers, actions }) {
       if (!byArea.has(key)) byArea.set(key, []);
       byArea.get(key).push(listItem);
     }
+    const rankByArea = new Map((state.S.lifeAreaPriorities || []).map((item) => [item.areaKey, item.priorityRank]));
+    const orderedAreas = LIFE_AREAS.map((area, canonicalIndex) => ({ area, canonicalIndex }))
+      .sort((a, b) => (rankByArea.get(a.area.key) ?? a.canonicalIndex + 1) - (rankByArea.get(b.area.key) ?? b.canonicalIndex + 1));
     const sections = [];
-    for (const area of LIFE_AREAS) {
+    for (const [priorityIndex, entry] of orderedAreas.entries()) {
+      const area = entry.area;
       const items = byArea.get(area.key) || [];
-      sections.push({ key: area.key, dropArea: area.key, label: area.label, color: area.color, items });
+      sections.push({ key: area.key, dropArea: area.key, label: area.label, color: area.color, items, priorityRank: priorityIndex + 1 });
     }
     const untagged = byArea.get("");
     if (untagged && untagged.length) {
-      sections.push({ key: "__unsorted__", dropArea: "", label: "Unsorted", color: "var(--muted)", items: untagged });
+      sections.push({ key: "__unsorted__", dropArea: "", label: "Unsorted", color: "var(--muted)", items: untagged, priorityRank: null });
+    }
+
+    const anyCollapsed = sections.some((section) => state.sidebarCollapsed[section.key]);
+    const toggleAll = document.getElementById("sidebarToggleAll");
+    if (toggleAll) {
+      const label = anyCollapsed ? "Expand all list sections" : "Collapse all list sections";
+      toggleAll.innerHTML = anyCollapsed ? SIDEBAR_EXPAND_ALL_SVG : SIDEBAR_COLLAPSE_ALL_SVG;
+      toggleAll.title = label;
+      toggleAll.setAttribute("aria-label", label);
+      toggleAll.setAttribute("aria-expanded", String(!anyCollapsed));
     }
 
     document.getElementById("lists").innerHTML = sections.map((section) => {
@@ -188,10 +242,11 @@ export function createRenderer({ state, helpers, actions }) {
         : `<button type="button" class="ls-invite" data-action="addListInArea" data-area="${esc(section.dropArea)}" title="Create the first list in ${esc(section.label)}">+ Start a list</button>`;
       return `
       <div class="list-section${collapsed ? " collapsed" : ""}">
-        <div class="ls-header" data-action="toggleAreaSection" data-area="${section.key}" data-area-drop="${esc(section.dropArea)}" title="${esc(section.label)} — ${n} list${n === 1 ? "" : "s"}">
+        <div class="ls-header" data-action="toggleAreaSection" data-area="${section.key}" data-area-drop="${esc(section.dropArea)}" ${section.priorityRank ? `data-priority-area="${section.key}"` : ""} title="${esc(section.label)} — ${n} list${n === 1 ? "" : "s"}">
+          ${section.priorityRank ? `<span class="ls-priority-grip" draggable="true" data-drag-area="${section.key}" title="Drag to change planning priority">${GRIP_SVG}</span>` : ""}
           <span class="ls-folder" style="color:${section.color}">${FOLDER_SVG}</span>
           <span class="ls-label">${esc(section.label)}</span>
-          <span class="ls-chevron">${collapsed ? "▸" : "▾"}</span>
+          <span class="ls-chevron">›</span>
         </div>
         <div class="ls-body">${body}</div>
       </div>`;
@@ -199,11 +254,43 @@ export function createRenderer({ state, helpers, actions }) {
   }
 
   // Collapse/expand a sidebar life-area section (persisted, see state.js).
-  function toggleAreaSection(key) {
+  async function toggleAreaSection(key) {
     if (!key) return;
-    state.sidebarCollapsed[key] = !state.sidebarCollapsed[key];
+    const expanding = !!state.sidebarCollapsed[key];
+    const currentHeader = document.querySelector(`.ls-header[data-area="${key}"]`);
+    if (!expanding) await animateDisclosure(currentHeader?.nextElementSibling, currentHeader?.querySelector(".ls-chevron"), false);
+    state.sidebarCollapsed[key] = !expanding;
     try { localStorage.setItem("tp.sidebarCollapsed", JSON.stringify(state.sidebarCollapsed)); } catch (e) { /* non-fatal */ }
     renderSidebar();
+    if (expanding) {
+      const nextHeader = document.querySelector(`.ls-header[data-area="${key}"]`);
+      await animateDisclosure(nextHeader?.nextElementSibling, nextHeader?.querySelector(".ls-chevron"), true);
+    }
+  }
+
+  // One point-of-performance control beside "Your Lists": expand everything
+  // when any section is folded; once all are visible, the same control folds
+  // them all. This only changes the existing local UI preference.
+  async function toggleAllAreaSections() {
+    const keys = LIFE_AREAS.map((area) => area.key);
+    if (state.S?.lists.some((listItem) => !listItem.lifeArea)) keys.push("__unsorted__");
+    const shouldExpand = keys.some((key) => state.sidebarCollapsed[key]);
+    const changingKeys = keys.filter((key) => Boolean(state.sidebarCollapsed[key]) === shouldExpand);
+    if (!shouldExpand) {
+      await Promise.all(changingKeys.map((key) => {
+        const header = document.querySelector(`.ls-header[data-area="${key}"]`);
+        return animateDisclosure(header?.nextElementSibling, header?.querySelector(".ls-chevron"), false);
+      }));
+    }
+    for (const key of keys) state.sidebarCollapsed[key] = !shouldExpand;
+    try { localStorage.setItem("tp.sidebarCollapsed", JSON.stringify(state.sidebarCollapsed)); } catch (e) { /* non-fatal */ }
+    renderSidebar();
+    if (shouldExpand) {
+      await Promise.all(changingKeys.map((key) => {
+        const header = document.querySelector(`.ls-header[data-area="${key}"]`);
+        return animateDisclosure(header?.nextElementSibling, header?.querySelector(".ls-chevron"), true);
+      }));
+    }
   }
 
   // Force a section open (idempotent) — used by keyboard navigation so moving
@@ -277,6 +364,8 @@ export function createRenderer({ state, helpers, actions }) {
 
     const all = tasksForList(listItem.id);
     const todo = all.filter((task) => !task.completedAt);
+    const dailyTodo = todo.filter((task) => task.cadence === "daily");
+    const oneTimeTodo = todo.filter((task) => task.cadence !== "daily");
     const done = all.filter((task) => task.completedAt).sort((a, b) => b.completedAt - a.completedAt);
 
     const taskRow = (task, index) => {
@@ -299,15 +388,36 @@ export function createRenderer({ state, helpers, actions }) {
       const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
       if (working) durations.push(Date.now() - state.S.run.runningStart);
       const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
+
+      // A "daily" task has no lifetime total worth showing — it's not
+      // building toward a finish line, it resets its own question every
+      // midnight. So instead of the lifetime session count + capacity bar
+      // every other row gets, it shows today's session count and time. No
+      // streak or history of missed days (ADHD rule 7) — just today's work,
+      // recomputed fresh on every render.
+      const isDaily = task.cadence === "daily";
+      const todayStartMs = new Date().setHours(0, 0, 0, 0);
+      const todayMs = isDaily ? todayMsForTask(task.id) : 0;
+      const todaySessionCount = isDaily
+        ? taskSessions(task.id).filter((session) => session.start >= todayStartMs).length
+          + (working && state.S.run.runningStart >= todayStartMs ? 1 : 0)
+        : 0;
+
       const sessionCount = bar ? bar.sessionCount : durations.length;
-      const sessionsCell = sessionCount
-        ? `<span class="sess-count" title="${bar ? bar.sessionLabel : sessionCount + " session" + (sessionCount === 1 ? "" : "s")} logged">${sessionCount}</span>`
-        : `<span class="sess-count sess-count-empty" title="No sessions logged yet">–</span>`;
-      const rbarline = onBreak
-        ? `<span class="rbar-status">on break</span>`
-        : bar
-          ? bar.html
-          : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
+      const sessionsCell = isDaily
+        ? todaySessionCount
+          ? `<span class="sess-count today-done" title="${todaySessionCount} session${todaySessionCount === 1 ? "" : "s"} logged today">${todaySessionCount}</span>`
+          : `<span class="sess-count sess-count-empty" title="No session logged today">–</span>`
+        : sessionCount
+          ? `<span class="sess-count" title="${bar ? bar.sessionLabel : sessionCount + " session" + (sessionCount === 1 ? "" : "s")} logged">${sessionCount}</span>`
+          : `<span class="sess-count sess-count-empty" title="No sessions logged yet">–</span>`;
+      const rbarline = isDaily
+        ? `<span class="rbar-status">${onBreak ? "on break" : todayMs > 0 ? fmtHM(todayMs) + " today" : "Not yet today"}</span>`
+        : onBreak
+          ? `<span class="rbar-status">on break</span>`
+          : bar
+            ? bar.html
+            : `<span class="rbar-status">${fmtHM(taskTotal(task.id))}</span>`;
 
       // Deterministic jewel payout (see utils.js's jewelPayout — never
       // randomized, so this preview is always exactly what completing the
@@ -319,19 +429,29 @@ export function createRenderer({ state, helpers, actions }) {
       // Colored by the list's life area so what KIND of jewel it is is
       // legible without a hover, same as the rest of the app's color
       // language (see LIFE_AREAS) — a negative payout stays red regardless
-      // of area, matching the existing "against" convention.
+      // of area, matching the existing "against" convention. Color alone
+      // isn't reliable here though — the Relationships area's #e8115b sits
+      // close enough to the negative red (#e5484d) to be ambiguous at 8px,
+      // worse for colorblind users — so a negative group also gets an
+      // explicit "−" glyph up front. Positive stays glyph-free: it's every
+      // task's default sign, so marking the common case would just be
+      // noise where the exception is what actually needs flagging.
       const payout = jewelPayout(task);
       const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
+      // Same deterministic jewelPayout(), just retitled for a daily task —
+      // the amount never changes with cadence, only when it's disclosed as
+      // firing: once ever ("on completion") vs. once per qualifying day
+      // ("for today's session").
+      const payoutWhen = isDaily ? " for today's session" : "";
       const areaColor = listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
       const jewelHtml = payout
-        ? `<span class="jewel-group" title="${esc(payoutTitle)}">${Array.from({ length: Math.abs(payout.amount) }, () =>
+        ? `<span class="jewel-group${payout.amount < 0 ? " neg" : ""}" title="${esc(payoutTitle + payoutWhen)}">${payout.amount < 0 ? `<span class="jewel-sign">−</span>` : ""}${Array.from({ length: Math.abs(payout.amount) }, () =>
             `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
           ).join("")}</span>`
         : "";
       const playTitle = elsewhere
         ? `Playing on ${state.S.run.deviceName || "another device"} — click to play here`
-        : `Click to ${active ? "stop" : "start"}${payoutTitle ? " — earns " + payoutTitle : ""}`;
-
+        : `Click to ${active ? "stop" : "start"}${payoutTitle ? " — earns " + payoutTitle + payoutWhen : ""}`;
       return `<tr class="${active ? "playing" : ""}" draggable="true" data-drag-id="${task.id}" data-list-id="${listItem.id}" data-album="${esc(task.album || "")}" title="Drag to reorder">
         <td class="idx">
           <span class="grip" title="Drag to reorder">${GRIP_SVG}</span>
@@ -350,14 +470,20 @@ export function createRenderer({ state, helpers, actions }) {
     // explain themselves.
     const taskTheadHtml = `<thead><tr><th class="idx">#</th><th>Task</th><th class="r sess-cell">Sessions</th><th class="r">Progress</th><th class="menu-cell"></th></tr></thead>`;
 
-    // Group the to-do list into album sections — related tasks sharing a
+    const dailySection = `<div class="task-kind-label">Daily <span>· ${dailyTodo.length}</span></div>${
+      dailyTodo.length
+        ? `<table class="albrows task-kind-rows">${taskTheadHtml}<tbody>${dailyTodo.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
+        : `<div class="task-kind-empty">No daily tasks in this list.</div>`
+    }`;
+
+    // Group one-time tasks into album sections — related tasks sharing a
     // task.album value, in order of that album's first appearance, with
     // ungrouped tasks (no album) collected into a trailing "Singles"
     // section. Track numbering (the # column) restarts per section, like a
     // real album's track list.
     const albumOrder = [];
     const byAlbum = new Map();
-    for (const task of todo) {
+    for (const task of oneTimeTodo) {
       const key = task.album || "";
       let bucket = byAlbum.get(key);
       if (!bucket) { bucket = []; byAlbum.set(key, bucket); albumOrder.push(key); }
@@ -388,6 +514,11 @@ export function createRenderer({ state, helpers, actions }) {
       : singles.length
         ? `<table class="albrows">${taskTheadHtml}<tbody>${singles.map((task, i) => taskRow(task, i)).join("")}</tbody></table>`
         : "";
+    const oneTimeSection = `<div class="task-kind-label one-time">One-time <span>· ${oneTimeTodo.length}</span></div>${
+      oneTimeTodo.length
+        ? `${sections}${singlesSection}`
+        : `<div class="task-kind-empty">No one-time tasks in this list.</div>`
+    }`;
 
     const doneRows = done.map((task) => `
       <div class="crow" data-action="openDetail" data-id="${task.id}">
@@ -412,7 +543,7 @@ export function createRenderer({ state, helpers, actions }) {
         <button class="play-all" data-action="playFirst" title="Play first task">▶</button>
         <button class="pill" data-action="addTask">＋ Add task</button>
       </div>
-      ${todo.length ? `${sections}${singlesSection}`
+      ${todo.length ? `${dailySection}${oneTimeSection}`
         : `<div class="empty">${all.length ? "All done here. 🎉" : "No tasks yet. Click <b>Add task</b> to start."}</div>`}
       ${completedGroup}
       <p class="note">Only one task runs at a time. The menu-bar item shows live minutes and toggles play/pause.</p>`;
@@ -488,14 +619,9 @@ export function createRenderer({ state, helpers, actions }) {
       return;
     }
 
-    // Work block just ended (already logged) — the break clock doesn't start
-    // on its own. This big button *is* the "click the notification" gesture:
-    // macOS notification clicks aren't reliably wired to the app, so the
-    // window surfaces itself (see surface_main_window in main.rs) with this
-    // button already showing. Every Nth work block earns a longer break
-    // (see run.longBreak, set by the backend's timer::tick) — the button and
-    // status label call that out explicitly rather than showing an identical
-    // "Start break" for a 5m and a 20m break.
+    // Compatibility UI for an `awaiting_break` state synced from an older app
+    // version. New Pomodoro cycles enter `break` automatically and never show
+    // this button.
     if (run.phase === "awaiting_break") {
       const breakLen = run.longBreak ? state.S.config.longBreakMin : state.S.config.breakMin;
       const btnLabel = run.longBreak ? `Long break ☕☕ — ${breakLen}m` : `Break ☕ — ${breakLen}m`;
@@ -504,8 +630,8 @@ export function createRenderer({ state, helpers, actions }) {
       return;
     }
 
-    // Break just ended — same idea in reverse: work only resumes once
-    // clicked, never automatically.
+    // Compatibility UI for an old synced `awaiting_work` state. New cycles
+    // resume work automatically and never show this button.
     if (run.phase === "awaiting_work") {
       litRender(html`<div class="controls">${badge}<button class="bigaction" data-action="resumeWork" title="Start work" style="background:var(--green)">▶ Start work</button><button class="stopbtn" data-action="stop">■ End</button>${lyrBtn(task.id)}</div>
         <div class="timeline"><span class="clock" style="color:var(--green)">Break's over</span><div class="bar"><span style="width:100%"></span></div><span class="clock" style="color:var(--green)">waiting</span></div>`, center);
@@ -675,9 +801,16 @@ export function createRenderer({ state, helpers, actions }) {
     openDetail(id);
   }
 
-  function toggleCompleted() {
-    state.completedOpen = !state.completedOpen;
+  async function toggleCompleted() {
+    const expanding = !state.completedOpen;
+    const currentGroup = document.querySelector(".cgroup");
+    if (!expanding) await animateDisclosure(currentGroup?.querySelector(".clist"), currentGroup?.querySelector(".chev"), false);
+    state.completedOpen = expanding;
     renderMain();
+    if (expanding) {
+      const nextGroup = document.querySelector(".cgroup");
+      await animateDisclosure(nextGroup?.querySelector(".clist"), nextGroup?.querySelector(".chev"), true);
+    }
   }
 
   function playFirst() {
@@ -741,6 +874,14 @@ export function createRenderer({ state, helpers, actions }) {
     renderDetail();
   }
 
+  function openCreateDetail() {
+    if (!state.S || !state.activeListId) return;
+    state.openTaskId = null;
+    document.getElementById("overlay").classList.add("show");
+    renderCreateDetail();
+    document.getElementById("taskNameIn")?.focus();
+  }
+
   function closeDetail() {
     state.openTaskId = null;
     document.getElementById("overlay").classList.remove("show");
@@ -791,10 +932,19 @@ export function createRenderer({ state, helpers, actions }) {
 
     const payout = jewelPayout(task);
     const area = listItem && listItem.lifeArea ? LIFE_AREAS.find((a) => a.key === listItem.lifeArea) : null;
-    const dotsHtml = Array.from({ length: Math.abs(payout.amount) }, () =>
+    // Same jewel-sign glyph as the task row (see its comment on why color
+    // alone — red vs. an area color like Relationships' #e8115b — isn't
+    // reliable) so a negative payout reads the same everywhere it appears.
+    const dotsHtml = `${payout.amount < 0 ? `<span class="jewel-sign">−</span>` : ""}${Array.from({ length: Math.abs(payout.amount) }, () =>
       `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && area ? ` style="background:${area.color}"` : ""}></i>`
-    ).join("");
-    const payoutHtml = `<div class="payout-preview">Earns on completion: <span class="amt">${dotsHtml}<b>${payout.amount > 0 ? "+" : ""}${payout.amount}</b>${area ? " " + esc(area.label) : ""}</span></div>`;
+    ).join("")}`;
+    // Cadence changes when this fires, never the amount: a one-time task
+    // pays once, on completion; a "daily" task pays this same fixed amount
+    // once per qualifying day instead (see dailyPayoutOn/dailyPayoutDayCount
+    // in utils.js) — no escalation, no streak bonus, every day worth exactly
+    // the same as the first.
+    const earnsLabel = task.cadence === "daily" ? "Earns for today's session" : "Earns on completion";
+    const payoutHtml = `<div class="payout-preview">${earnsLabel}: <span class="amt">${dotsHtml}<b>${payout.amount > 0 ? "+" : ""}${payout.amount}</b>${area ? " " + esc(area.label) : ""}</span></div>`;
 
     return `
       <h4>Impact</h4>
@@ -828,6 +978,100 @@ export function createRenderer({ state, helpers, actions }) {
     shallow: `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>`,
     none: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="8"/></svg>`,
   };
+  // Cadence's own two-state icon set — a single filled dot for "once," a
+  // repeat/loop glyph for "daily" — kept separate from DEPTH_ICONS since
+  // these two controls encode unrelated ideas (focus type vs. recurrence)
+  // even though they share the same segmented-control markup.
+  const CADENCE_ICONS = {
+    once: `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`,
+    daily: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1 21 6l-4 3.9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 21.9 3 18l4-3.9"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`,
+  };
+
+  function renderCreateDetail() {
+    const listItem = list(state.activeListId);
+    if (!listItem) return closeDetail();
+    const impactTiers = IMPACT_TIER_KEYS.map((key) =>
+      `<button type="button" class="impact-notch" data-action="setCreateTaskChoice" data-choice-field="ImpactTier" data-choice-value="${key}">${IMPACT_TIERS[key].label}<small>${IMPACT_TIERS[key].weight}</small></button>`
+    ).join("");
+    const listOptions = state.S.lists.map((item) =>
+      `<option value="${item.id}" ${item.id === state.activeListId ? "selected" : ""}>${esc(item.emoji)} ${esc(item.name)}</option>`
+    ).join("");
+    const modal = document.getElementById("modal");
+    modal.classList.add("task-detail-two-column");
+    modal.innerHTML = `
+      <div class="top"><div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
+        <div><h2>New task</h2><div class="m">${esc(listItem.name)}</div></div>
+        <button class="close" data-action="closeDetail">×</button></div>
+      <div class="body">
+        <div class="task-detail-grid">
+          <div class="task-detail-column task-detail-primary">
+            <h4>Name</h4>
+            <input class="detail-name-input" id="taskNameIn" placeholder="Task name" autocomplete="off" autocorrect="off" spellcheck="false">
+            <h4 class="lyr-h">♪ Notes</h4>
+            <textarea class="lyrics-inline" id="taskNotesIn" placeholder="What will finishing this feel like? Add the goal, a note, a link…" rows="3"></textarea>
+            <h4>Effort</h4>
+            <input type="hidden" id="taskDepthIn" value="">
+            <span class="depth-seg" data-choice-group="depth">
+              <button type="button" data-action="setCreateTaskChoice" data-choice-field="Depth" data-choice-value="deep">${DEPTH_ICONS.deep}<span>Deep</span></button>
+              <button type="button" data-action="setCreateTaskChoice" data-choice-field="Depth" data-choice-value="shallow">${DEPTH_ICONS.shallow}<span>Shallow</span></button>
+              <button type="button" class="sel" data-action="setCreateTaskChoice" data-choice-field="Depth" data-choice-value="">${DEPTH_ICONS.none}<span>None</span></button>
+            </span>
+            <div class="depth-hint" id="taskDepthHint">Not classified.</div>
+            <h4>Repeat</h4>
+            <input type="hidden" id="taskCadenceIn" value="">
+            <span class="depth-seg" data-choice-group="cadence">
+              <button type="button" class="sel" data-action="setCreateTaskChoice" data-choice-field="Cadence" data-choice-value="">${CADENCE_ICONS.once}<span>One-time</span></button>
+              <button type="button" data-action="setCreateTaskChoice" data-choice-field="Cadence" data-choice-value="daily">${CADENCE_ICONS.daily}<span>Daily</span></button>
+            </span>
+            <div class="depth-hint" id="taskCadenceHint">Finishes once. Its jewel pays on completion.</div>
+            <div id="newTaskDeadlineFields">
+              <h4>Deadline</h4>
+              <input class="deadline-input" type="date" id="taskDeadlineIn">
+            </div>
+            <h4>Impact</h4>
+            <input type="hidden" id="taskImpactTierIn" value="">
+            <input type="hidden" id="taskImpactSignIn" value="${listItem.lifeDirection === "decrease" ? -1 : 1}" data-explicit="false">
+            <div class="impact-section">
+              <div class="impact-dial" data-choice-group="impact-tier">${impactTiers}</div>
+              <div class="sign-group hidden" id="newTaskImpactSign">
+                <div class="sign-toggle" data-choice-group="impact-sign">
+                  <button type="button" class="sign-btn ${listItem.lifeDirection !== "decrease" ? "sel" : ""}" data-action="setCreateTaskChoice" data-choice-field="ImpactSign" data-choice-value="1">For</button>
+                  <button type="button" class="sign-btn ${listItem.lifeDirection === "decrease" ? "sel neg" : ""}" data-action="setCreateTaskChoice" data-choice-field="ImpactSign" data-choice-value="-1">Against</button>
+                </div>
+              </div>
+              <div class="payout-preview muted">Choose an impact tier to set the disclosed jewel reward.</div>
+            </div>
+            <h4>List</h4>
+            <div class="list-select-wrap">
+              <select class="list-select" id="taskListIn">${listOptions}</select>
+              <svg class="list-select-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div class="task-detail-column task-detail-sessions">
+            <div id="newTaskOnceFields">
+              <h4>Session size</h4>
+              <div class="session-range-row">
+                <label><span>Shortest</span><input type="number" id="taskMinSessionIn" min="1" max="1440" placeholder="30"> min</label>
+                <span class="range-sep">to</span>
+                <label><span>Longest</span><input type="number" id="taskMaxSessionIn" min="1" max="1440" placeholder="90"> min</label>
+              </div>
+              <div class="depth-hint">The planner splits this task into blocks inside this range.</div>
+            </div>
+            <div id="newTaskDailyFields" class="hidden">
+              <h4>Daily time</h4>
+              <div class="detail-weekly-editor">${simpleScheduleEditorHtml("newTaskDailyWindows", [])}</div>
+              <div class="depth-hint">Optional. Each window becomes a fixed daily occurrence on that weekday.</div>
+            </div>
+            <div class="sh"><h4>Sessions</h4></div>
+            <div class="det-total" id="newTaskEstimateFields">0m <span class="of">of</span> <input class="est-inline" type="number" id="taskEstIn" min="0.25" max="1000" step="0.25" value="0.5">h <span class="dot">·</span> 0 sessions</div>
+            <div class="det-total hidden" id="newTaskDailySessionSummary">0m <span class="dot">·</span> 0 sessions</div>
+            <div class="entry"><span class="when">No sessions logged yet</span><span class="dur">—</span></div>
+          </div>
+        </div>
+        <div class="schedule-error task-detail-error" id="taskCreateError"></div>
+      </div>
+      <div class="foot"><button class="stopbtn" data-action="closeDetail">Cancel</button><button class="create-task-btn" data-action="createTaskFromDetail">Create task</button></div>`;
+  }
 
   function renderDetail() {
     if (!state.S) return;
@@ -865,6 +1109,48 @@ export function createRenderer({ state, helpers, actions }) {
     </span>
     <div class="depth-hint">${depthCaption}</div>`;
 
+    // Cadence toggle — same inline, immediate-commit, exact-state (not a
+    // toggle) shape as Depth right above it. Only two states on purpose:
+    // "daily" is the one recurring rhythm this app supports (see
+    // Task::cadence's doc comment) — no custom weekday picker, no interval
+    // field, same "don't build more machinery than the one idea is worth"
+    // call already made for impact_tier/deadline_at. The caption spells out
+    // the mechanic difference (when the jewel fires) up front rather than
+    // leaving it implicit, and deliberately promises "no streak kept" right
+    // here — the one place someone would think to ask.
+    const cadenceCaption = task.cadence === "daily"
+      ? "Repeats every day. No finish line, no streak kept — today's jewel is the same size every day."
+      : "Finishes once. Its jewel (if tagged) pays on completion.";
+    const cadenceSegHtml = `<span class="depth-seg" data-id="${task.id}">
+      <button class="${!task.cadence ? "sel" : ""}" data-action="setCadence" data-id="${task.id}" data-cadence="" data-stop-propagation="true">${CADENCE_ICONS.once}<span>One-time</span></button>
+      <button class="${task.cadence === "daily" ? "sel" : ""}" data-action="setCadence" data-id="${task.id}" data-cadence="daily" data-stop-propagation="true">${CADENCE_ICONS.daily}<span>Daily</span></button>
+    </span>
+    <div class="depth-hint">${cadenceCaption}</div>`;
+
+    const plannerPrimaryHtml = task.cadence === "daily"
+      ? ""
+      : `<h4>Deadline</h4>
+        <input class="deadline-input" type="date" value="${task.deadlineAt ? toDateInputValue(task.deadlineAt) : ""}" data-action="setDeadlineInline" data-id="${task.id}">`;
+    const plannerSessionHtml = task.cadence === "daily"
+      ? `<h4>Daily time</h4>
+        <div class="detail-weekly-editor">
+          ${simpleScheduleEditorHtml(`taskDailyWindows-${task.id}`, task.dailyWindows || [], {
+            taskId: task.id,
+            changeAction: "setDailySchedule",
+            addAction: "addDailyScheduleRow",
+            removeAction: "removeDailyScheduleRow",
+          })}
+          <div class="schedule-error" id="taskDailyScheduleError"></div>
+        </div>
+        <div class="depth-hint">Optional. Each window becomes a fixed daily occurrence on that weekday.</div>`
+      : `<h4>Session size</h4>
+        <div class="session-range-row">
+          <label><span>Shortest</span><input type="number" min="1" max="1440" placeholder="—" value="${task.minSessionMin || ""}" data-action="setSessionRangeField" data-id="${task.id}" data-range-field="min"> min</label>
+          <span class="range-sep">to</span>
+          <label><span>Longest</span><input type="number" min="1" max="1440" placeholder="—" value="${task.maxSessionMin || ""}" data-action="setSessionRangeField" data-id="${task.id}" data-range-field="max"> min</label>
+        </div>
+        <div class="depth-hint">The planner splits this task into blocks inside this range.</div>`;
+
     // The list name is the dropdown itself now — picking a different list
     // commits on change (moveTaskInline), same immediate-commit contract as
     // depth/impact, instead of a "Change" button opening its own dialog just
@@ -884,26 +1170,38 @@ export function createRenderer({ state, helpers, actions }) {
     // (the "5h" itself is the input, committing on change) without resurrecting
     // a dedicated timer-style display.
     const estimateValue = task.estimateMin ? parseFloat((task.estimateMin / 60).toFixed(2)) : "";
-    const sessTotalHtml = `<div class="det-total">${fmt(taskTotal(task.id))} <span class="of">of</span> <button class="est-step" data-action="decreaseEstimate" data-id="${task.id}" title="Decrease estimate by 1h">−</button><input class="est-inline" type="number" min="0" max="1000" step="0.25" placeholder="—" value="${estimateValue}" data-action="setEstimateInline" data-id="${task.id}"><button class="est-step" data-action="bumpEstimate" data-id="${task.id}" title="Increase estimate by 1h">+</button>h <span class="dot">·</span> ${sessionCount} session${sessionCount === 1 ? "" : "s"}</div>`;
+    const sessTotalHtml = task.cadence === "daily"
+      ? `<div class="det-total">${fmt(taskTotal(task.id))} <span class="dot">·</span> ${sessionCount} session${sessionCount === 1 ? "" : "s"}</div>`
+      : `<div class="det-total">${fmt(taskTotal(task.id))} <span class="of">of</span> <button class="est-step" data-action="decreaseEstimate" data-id="${task.id}" title="Decrease estimate by 1h">−</button><input class="est-inline" type="number" min="0" max="1000" step="0.25" placeholder="—" value="${estimateValue}" data-action="setEstimateInline" data-id="${task.id}"><button class="est-step" data-action="bumpEstimate" data-id="${task.id}" title="Increase estimate by 1h">+</button>h <span class="dot">·</span> ${sessionCount} session${sessionCount === 1 ? "" : "s"}</div>`;
 
-    document.getElementById("modal").innerHTML = `
+    const modal = document.getElementById("modal");
+    modal.classList.add("task-detail-two-column");
+    modal.innerHTML = `
       <div class="top"><div class="art" style="background:linear-gradient(135deg,${listItem.color},${listItem.color}55)">${listItem.emoji}</div>
         <div><h2><span class="list-link" data-action="navigate" data-view="tasks" data-list-id="${listItem.id}" data-stop-propagation="true" title="Go to ${esc(listItem.name)}">${esc(task.name)}</span> <button class="editbtn" title="Rename" data-action="renameTask" data-id="${task.id}">${DETAIL_PENCIL_ICON}</button></h2>
         </div>
         <button class="close" data-action="closeDetail">×</button></div>
       <div class="body">
-        <h4 class="lyr-h">♪ Notes</h4>
-        <textarea class="lyrics-inline" data-action="setLyricsInline" data-id="${task.id}" placeholder="What will finishing this feel like? Add the goal, a note, a link…" rows="3">${esc(task.description || "")}</textarea>
-        <h4>Depth</h4>
-        ${depthSegHtml}
-        <h4>Deadline</h4>
-        <input class="deadline-input" type="date" value="${task.deadlineAt ? toDateInputValue(task.deadlineAt) : ""}" data-action="setDeadlineInline" data-id="${task.id}">
-        ${renderImpactSection(task)}
-        <h4>List</h4>
-        ${listSelectHtml}
-        <div class="sh"><h4>Sessions</h4><button class="linkbtn blue" data-action="addSession" data-id="${task.id}">＋ Add session</button></div>
-        ${sessTotalHtml}
-        ${rows}
+        <div class="task-detail-grid">
+          <div class="task-detail-column task-detail-primary">
+            <h4 class="lyr-h">♪ Notes</h4>
+            <textarea class="lyrics-inline" data-action="setLyricsInline" data-id="${task.id}" placeholder="What will finishing this feel like? Add the goal, a note, a link…" rows="3">${esc(task.description || "")}</textarea>
+            <h4>Effort</h4>
+            ${depthSegHtml}
+            <h4>Repeat</h4>
+            ${cadenceSegHtml}
+            ${plannerPrimaryHtml}
+            ${renderImpactSection(task)}
+            <h4>List</h4>
+            ${listSelectHtml}
+          </div>
+          <div class="task-detail-column task-detail-sessions">
+            ${plannerSessionHtml}
+            <div class="sh"><h4>Sessions</h4><button class="linkbtn blue" data-action="addSession" data-id="${task.id}">＋ Add session</button></div>
+            ${sessTotalHtml}
+            ${rows}
+          </div>
+        </div>
       </div>
       <div class="foot"><button class="danger" data-action="deleteTask" data-id="${task.id}">Delete task</button><button class="stopbtn" data-action="closeDetail">Save</button></div>`;
   }
@@ -1042,13 +1340,20 @@ export function createRenderer({ state, helpers, actions }) {
   }
 
   // Notifications section body for the Settings page's Notifications album.
-  // Only Pomodoro mode ever fires a notification (see the tick loop in
-  // main.rs), so Open/Target mode shows an explanatory note instead of an
-  // empty-looking sound-picker block.
+  // Every mode fires notifications now (see the tick loop in main.rs), but
+  // each mode's are different, so the section body follows the mode picked
+  // in Workflow above: Pomodoro gets the work/break sound pickers, Open gets
+  // the hourly check-in toggle, Target gets a note about the target-reached
+  // alert (no knobs — it fires exactly once, reusing the break sound).
   function notificationsSectionHtml() {
     const config = state.S.config;
-    if (config.mode !== "pomodoro") {
-      return `<p class="hint" style="margin-top:0">Notifications play at the end of a work block or break — only in 🍅 Pomodoro mode (see Workflow above). Switch modes to enable them.</p>`;
+    if (config.mode === "open") {
+      return `<h4>Hourly check-in</h4>
+        <div class="fld"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" data-action="setConfigField" data-key="hourlyNudge" ${config.hourlyNudge ? "checked" : ""}> Check in every hour I keep going</label></div>
+        <p class="hint">Each full hour of continuous work: a quiet note that you're doing great, with a nudge to stretch or grab water. No sound.</p>${notifHintHtml()}`;
+    }
+    if (config.mode === "target") {
+      return `<p class="hint" style="margin-top:0">When you reach your target length you'll get a notification saying the session's complete — the clock keeps counting if you stay on. It plays the "Break time" sound; work/break sound pickers apply to 🍅 Pomodoro mode.</p>${notifHintHtml()}`;
     }
     return `${soundPickersHtml(config)}${notifHintHtml()}`;
   }
@@ -1078,10 +1383,10 @@ export function createRenderer({ state, helpers, actions }) {
         <button class="modebtn ${config.mode === "target" ? "sel" : ""}" data-action="setMode" data-value="target">🎯 Target<small>Aim for a length</small></button>
         <button class="modebtn ${config.mode === "pomodoro" ? "sel" : ""}" data-action="setMode" data-value="pomodoro">🍅 Pomodoro<small>Work / break</small></button>
       </div>
-      ${config.mode === "target" ? `<h4>Target length</h4><div class="fld"><input type="number" min="1" max="240" value="${config.targetMin}" data-action="setConfigField" data-key="targetMin"> minutes</div><p class="hint">The bar fills toward your target and pulses when reached; it keeps counting if you go over.</p>` : ""}
+      ${config.mode === "target" ? `<h4>Target length</h4><div class="fld"><input type="number" min="1" max="240" value="${config.targetMin}" data-action="setConfigField" data-key="targetMin"> minutes</div><p class="hint">The bar fills toward your target and pulses when reached — you'll also get a notification. It keeps counting if you go over.</p>` : ""}
       ${config.mode === "pomodoro" ? `<h4>Work / break lengths</h4><div class="fld"><input type="number" min="1" max="120" value="${config.workMin}" data-action="setConfigField" data-key="workMin"> min work</div><div class="fld"><input type="number" min="1" max="60" value="${config.breakMin}" data-action="setConfigField" data-key="breakMin"> min break</div><p class="hint">Work blocks auto-log; music pauses on breaks and resumes on work. Classic is 25 / 5.</p>
         <h4>Long break</h4><div class="fld"><input type="number" min="1" max="12" value="${config.cyclesBeforeLongBreak}" data-action="setConfigField" data-key="cyclesBeforeLongBreak"> cycles before a long break</div><div class="fld"><input type="number" min="1" max="60" value="${config.longBreakMin}" data-action="setConfigField" data-key="longBreakMin"> min long break</div><p class="hint">Every Nth break is longer, so a full set of work blocks ends in real recovery. Classic is every 4th, 20 min.</p>` : ""}
-      ${config.mode === "open" ? `<p class="hint">The classic stopwatch — runs until you press stop.</p>` : ""}`;
+      ${config.mode === "open" ? `<p class="hint">The classic stopwatch — runs until you press stop. An hourly check-in nudge can be toggled in Notifications below.</p>` : ""}`;
   }
 
   function aboutSectionHtml() {
@@ -1253,6 +1558,85 @@ export function createRenderer({ state, helpers, actions }) {
       return `<div class="daybar" style="width:${TRACK_PX}px">${segs}${nowNeedle}</div>
         <div class="dayruler" style="width:${TRACK_PX}px">${ruler.join("")}</div>
         <div class="ticks" style="width:${TRACK_PX}px">${labels.map((l) => `<span>${l}</span>`).join("")}</div>`;
+    }
+
+    // Day view only: one horizontal lane per life area instead of one flat
+    // track, with note width = session duration (the "piano roll" insights
+    // view). Reuses the list's existing `lifeArea` tag — same fact already
+    // used by the sidebar sections and the Home radar (see LIFE_AREAS import
+    // and buildLifeBalanceGrid) — rather than inventing a second grouping
+    // for tasks to be sorted into (ADHD rule 8: categorization must be a
+    // fact, not a decision). Untagged lists land in a fixed "Other" lane
+    // rather than being forced into one of the six real areas, since
+    // untagged is itself a valid, already-supported state elsewhere in the
+    // app. Only areas actually touched that day get a row — a fixed
+    // six-or-seven-lane grid would leave most days mostly empty rows, which
+    // is exactly the kind of clutter rule 5 (quick glance, not a browsable
+    // destination) warns against. Lane order follows the canonical
+    // LIFE_AREAS order (never user-sorted, same rule 8), with Other last.
+    function buildDayLanes(dayItems, dayStart, nowInRange) {
+      const periodMs = 86400000;
+      const laneMap = new Map();
+      for (const item of dayItems) {
+        const task = findTask(item.taskId);
+        const listItem = task ? list(task.listId) : null;
+        const area = listItem && listItem.lifeArea ? LIFE_AREAS.find((a) => a.key === listItem.lifeArea) : null;
+        const key = area ? area.key : "other";
+        if (!laneMap.has(key)) laneMap.set(key, { label: area ? area.label : "Other", color: area ? area.color : "#6b6b6b", items: [] });
+        laneMap.get(key).items.push(item);
+      }
+      const orderedKeys = [...LIFE_AREAS.map((a) => a.key), "other"].filter((k) => laneMap.has(k));
+      const LANE_H = 30, NOTE_H = 20, LABEL_W = 92, LANE_GAP = 8;
+      // Keep the complete Day visualization (legend + gap + plot) on the
+      // same 640px axis as Week and Month. Previously the legend was added
+      // beside a full-width plot, shifting Day view 100px out of alignment.
+      const LANE_TRACK_PX = TRACK_PX - LABEL_W - LANE_GAP;
+
+      // Full-height hourly gridlines behind every lane — the "map a 1-hour
+      // grid onto it" ask. One weight only (no major/minor split): at day
+      // width a 15-minute minor tick per lane row was more ink than signal
+      // once there's more than one row.
+      const gridLines = [];
+      for (let h = 0; h <= 24; h++) {
+        gridLines.push(`<i class="grid-line" style="left:${((h / 24) * LANE_TRACK_PX).toFixed(1)}px"></i>`);
+      }
+
+      const notes = [];
+      orderedKeys.forEach((key, i) => {
+        const lane = laneMap.get(key);
+        const top = i * LANE_H + (LANE_H - NOTE_H) / 2;
+        for (const item of lane.items) {
+          const task = findTask(item.taskId);
+          const startFrac = Math.max(0, (item.start - dayStart) / periodMs);
+          const endFrac = Math.min(1, ((item.end ?? now) - dayStart) / periodMs);
+          const left = startFrac * LANE_TRACK_PX;
+          const width = Math.max(3, (endFrac - startFrac) * LANE_TRACK_PX);
+          const label = task ? esc(task.name) : "(deleted task)";
+          const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${item.end ? new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}`;
+          // Hover detail is facts only (name, exact range, exact duration) —
+          // never a comparison to an estimate, so this stays a neutral
+          // lookup rather than the shame-tally rule 7/9 ban on.
+          const title = `${label} · ${range} · ${fmt((item.end ?? now) - item.start)}`;
+          notes.push(`<i class="lane-note${item.live ? " live" : ""}" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;top:${top}px;height:${NOTE_H}px;background:${lane.color}" title="${title}"></i>`);
+        }
+      });
+
+      const totalH = orderedKeys.length * LANE_H;
+      const nowNeedle = nowInRange
+        ? `<span class="now-line" style="left:${(((now - dayStart) / periodMs) * LANE_TRACK_PX).toFixed(1)}px;top:0;bottom:0"></span>`
+        : "";
+
+      const labelsHtml = orderedKeys.map((key) => `<div class="lane-label" style="height:${LANE_H}px">${esc(laneMap.get(key).label)}</div>`).join("");
+      const ticksLabels = ["12a", "6a", "12p", "6p", "12a"];
+
+      return `<div class="lanes-wrap">
+        <div class="lanes-labels" style="width:${LABEL_W}px">${labelsHtml}</div>
+        <div class="lanes-track" style="width:${LANE_TRACK_PX}px;height:${totalH}px">${gridLines.join("")}${notes.join("")}${nowNeedle}</div>
+      </div>
+      <div class="lanes-ticks-row">
+        <div class="lanes-labels-spacer" style="width:${LABEL_W}px"></div>
+        <div class="ticks" style="width:${LANE_TRACK_PX}px">${ticksLabels.map((l) => `<span>${l}</span>`).join("")}</div>
+      </div>`;
     }
 
     // Month: the track's job (show real session shape) gets handed to the
@@ -1464,8 +1848,7 @@ export function createRenderer({ state, helpers, actions }) {
         const total = group.items.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
         const dayStart = new Date(group.ts);
         dayStart.setHours(0, 0, 0, 0);
-        const ruler = buildTrackAndRuler(group.items, dayStart.getTime(), 86400000, 3600000, 900000,
-          ["12a", "6a", "12p", "6p", "12a"], group.key === todayKey);
+        const ruler = buildDayLanes(group.items, dayStart.getTime(), group.key === todayKey);
         const rows = buildTaskRollup(group.key, group.items, "session");
         return `<section class="sess-group">
           <div class="sess-head"><h4>${dayLabel(group.ts)}</h4><span class="sess-total">${fmtLong(total)}</span></div>
@@ -1526,6 +1909,38 @@ export function createRenderer({ state, helpers, actions }) {
       .filter((entry) => entry.task && !entry.task.completedAt && !isAgainstTask(entry.task))
       .sort((a, b) => b.at - a.at)
       .slice(0, limit);
+  }
+
+  // Today's whole cadence:"daily" set, for the Home page's "Daily Jam"
+  // section — every daily task lives in whatever list it was created in
+  // (Health, Career, Growth, ...), so without this there's no single place
+  // that answers "what's left in my daily set today" without hunting across
+  // lists (ADHD rule 2: externalize, don't rely on memory). `doneToday`
+  // reuses the exact same today-only check the task row itself uses
+  // (dailyPayoutOn) — no separate source of truth, and deliberately no
+  // history: a task either happened today or it didn't, nothing about
+  // yesterday or a streak is computed or stored (rule 7 — no permanent
+  // negative record). Not-yet-today entries sort first so the actionable
+  // half of the list reads before the already-done half; no other reordering
+  // (rule 8 — no extra decision imposed on the user).
+  function dailyJamTasks() {
+    if (!state.S) return [];
+    const run = state.S.run;
+    const liveTaskId = run.activeTaskId && run.phase === "work" && run.runningStart ? run.activeTaskId : null;
+    const todayStartMs = new Date().setHours(0, 0, 0, 0);
+    // Against (negative-impact) daily tasks are excluded — same call as
+    // recentTasks() above: a checklist that pays out a jewel for "checking
+    // off" a habit someone's trying to cut would be rewarding the wrong
+    // thing.
+    const entries = state.S.tasks
+      .filter((task) => task.cadence === "daily" && !task.completedAt && !isAgainstTask(task))
+      .map((task) => {
+        const working = task.id === liveTaskId;
+        const doneToday = working || dailyPayoutOn(task, state.S.sessions, todayStartMs);
+        return { task, listItem: list(task.listId), working, doneToday };
+      });
+    entries.sort((a, b) => (a.doneToday === b.doneToday ? 0 : a.doneToday ? 1 : -1));
+    return entries;
   }
 
   // "What should I be doing now" — the Home page's "Now" section (see
@@ -1603,6 +2018,22 @@ export function createRenderer({ state, helpers, actions }) {
     const start = cutoff.getTime();
     const now = Date.now();
     return state.S.sessions.reduce((sum, session) => {
+      const segStart = Math.max(session.start, start);
+      const segEnd = Math.min(session.end ?? now, now);
+      return sum + Math.max(0, segEnd - segStart);
+    }, 0);
+  }
+
+  // Same overlap-clamp idea as todayTotalMs, scoped to one task — feeds the
+  // "daily" cadence row's today-only bar (see taskRow in renderMain) instead
+  // of the lifetime total every other row shows.
+  function todayMsForTask(taskId) {
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    const start = cutoff.getTime();
+    const now = Date.now();
+    return state.S.sessions.reduce((sum, session) => {
+      if (session.taskId !== taskId) return sum;
       const segStart = Math.max(session.start, start);
       const segEnd = Math.min(session.end ?? now, now);
       return sum + Math.max(0, segEnd - segStart);
@@ -1698,6 +2129,21 @@ export function createRenderer({ state, helpers, actions }) {
       let timeMs = 0;
       for (const task of tasksForList(listItem.id)) {
         const payout = jewelPayout(task);
+        // A "daily" task never sets completedAt, so it gets its own branch
+        // rather than falling through to the completedAt check below (which
+        // would never match) and then double-counting via raw session time.
+        // Each qualifying day in the window contributes one full tier swing —
+        // the cadence equivalent of "completed once in this window" repeated
+        // per day it actually happened.
+        if (payout && task.cadence === "daily") {
+          const days = dailyPayoutDayCount(task, state.S.sessions, windowStart, now);
+          if (days > 0) {
+            const swing = payout.amount * IMPACT_WEIGHT_TO_MS * days;
+            if (swing >= 0) addPos(listItem.lifeArea, swing);
+            else addNeg(listItem.lifeArea, -swing);
+          }
+          continue;
+        }
         if (payout && task.completedAt && task.completedAt >= windowStart && task.completedAt <= now) {
           const swing = payout.amount * IMPACT_WEIGHT_TO_MS;
           if (swing >= 0) addPos(listItem.lifeArea, swing);
@@ -1720,6 +2166,111 @@ export function createRenderer({ state, helpers, actions }) {
       const negPct = Math.max(0, Math.min(100, Math.round((neg / LIFE_BALANCE_CAP_MS) * 100)));
       return { ...area, ms: net, pct, negMs: neg, negPct };
     });
+  }
+
+  // Lifetime positive jewels, bucketed by life area ("other" for untagged
+  // lists) — feeds the rank badge below. Distinct from lifeBalanceScores
+  // above: that's a rolling 7-day *time* budget for the radar; this is an
+  // all-time *jewel* sum with no window, since rank is meant to never reset
+  // or go backwards. Only positive amounts count — an against-tagged task's
+  // negative jewels don't feed rank at all (see RANKS' comment in utils.js:
+  // rank must only ever climb, never demote).
+  function lifetimeJewelsByArea() {
+    const totals = new Map();
+    if (!state.S) return totals;
+    const now = Date.now();
+    const add = (key, amount) => totals.set(key, (totals.get(key) || 0) + amount);
+    for (const task of state.S.tasks) {
+      const payout = jewelPayout(task);
+      if (!payout || payout.amount <= 0) continue;
+      const listItem = list(task.listId);
+      const key = listItem && listItem.lifeArea ? listItem.lifeArea : "other";
+      if (task.cadence === "daily") {
+        const days = dailyPayoutDayCount(task, state.S.sessions, 0, now);
+        if (days > 0) add(key, payout.amount * days);
+      } else if (task.completedAt) {
+        add(key, payout.amount);
+      }
+    }
+    return totals;
+  }
+
+  // Current rank + progress toward the next tier (see RANKS/
+  // RANK_AREA_CAP_RATIO in utils.js). Crossing a tier requires a "balanced"
+  // score — no single bucket (area, or "other" for untagged work) counts
+  // for more than RANK_AREA_CAP_RATIO of that tier's threshold — so
+  // hyperfocusing lifetime jewels into one or two favorite areas caps out
+  // and stalls the badge rather than sailing to Crescendo. Computed fresh
+  // every render from lifetimeJewelsByArea(), nothing persisted. Falls back
+  // to a plain uncapped sum if the person hasn't tagged any list with a
+  // life area yet — there's nothing to balance across, same reasoning as
+  // the radar only rendering once hasLifeTags is true.
+  function buildRankInfo() {
+    if (!state.S) return null;
+    const byArea = lifetimeJewelsByArea();
+    const hasLifeTags = state.S.lists.some((listItem) => listItem.lifeArea);
+    const rawTotal = Array.from(byArea.values()).reduce((sum, v) => sum + v, 0);
+    const balancedScoreFor = (tier) => {
+      if (!hasLifeTags) return rawTotal;
+      const cap = tier.min * RANK_AREA_CAP_RATIO;
+      let total = 0;
+      for (const v of byArea.values()) total += Math.min(v, cap);
+      return total;
+    };
+    let current = RANKS[0];
+    for (let i = 1; i < RANKS.length; i++) {
+      // Epsilon guard: capping several buckets at `tier.min / 3` and summing
+      // them back up can land a hair under the threshold on pure floating-
+      // point rounding (e.g. three even buckets meant to hit exactly 50
+      // summing to 49.999999999999993) — without this, a genuinely balanced
+      // person could get stuck one render-cycle short of a tier they've
+      // actually earned.
+      if (balancedScoreFor(RANKS[i]) >= RANKS[i].min - 1e-6) current = RANKS[i];
+      else break;
+    }
+    const currentIdx = RANKS.indexOf(current);
+    const next = RANKS[currentIdx + 1] || null;
+    const progress = next ? Math.min(balancedScoreFor(next), next.min) : null;
+    return { current, next, progress, rawTotal };
+  }
+
+  // Plain, honest jewel ledgers for the Home stats row — distinct from
+  // buildRankInfo's rawTotal, which only sums positive amounts because rank
+  // must never go down. These are just "how many jewels did today/all time
+  // actually net out to" and are allowed to include negative (against-task)
+  // amounts, same as the jewel-dot preview itself already shows a "−" for
+  // those. Neither is stored — recomputed fresh every render like every
+  // other jewel number in the app.
+  function todayJewels() {
+    if (!state.S) return 0;
+    const todayStartMs = new Date().setHours(0, 0, 0, 0);
+    let total = 0;
+    for (const task of state.S.tasks) {
+      const payout = jewelPayout(task);
+      if (!payout) continue;
+      if (task.cadence === "daily") {
+        if (dailyPayoutOn(task, state.S.sessions, todayStartMs)) total += payout.amount;
+      } else if (task.completedAt && task.completedAt >= todayStartMs) {
+        total += payout.amount;
+      }
+    }
+    return total;
+  }
+
+  function lifetimeJewelsNet() {
+    if (!state.S) return 0;
+    const now = Date.now();
+    let total = 0;
+    for (const task of state.S.tasks) {
+      const payout = jewelPayout(task);
+      if (!payout) continue;
+      if (task.cadence === "daily") {
+        total += payout.amount * dailyPayoutDayCount(task, state.S.sessions, 0, now);
+      } else if (task.completedAt) {
+        total += payout.amount;
+      }
+    }
+    return total;
   }
 
   // A single day, per area, is judged "full" past this — a solid session or
@@ -1782,6 +2333,23 @@ export function createRenderer({ state, helpers, actions }) {
       if (!row) continue;
       for (const task of tasksForList(listItem.id)) {
         const payout = jewelPayout(task);
+        // "daily" task: check each of the 7 day-buckets independently
+        // (dailyPayoutOn) instead of the single completedAt check below —
+        // it can land tier swings on several of this week's days, not just
+        // one, since it has no single completion date to place.
+        if (payout && task.cadence === "daily") {
+          days.forEach((day, dayIndex) => {
+            if (!dailyPayoutOn(task, state.S.sessions, day.startMs)) return;
+            const tierMs = payout.amount * IMPACT_WEIGHT_TO_MS;
+            const cell = row.cells[dayIndex];
+            cell.ms += tierMs;
+            cell.contributors.push({
+              taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color,
+              kind: "tier", tier: task.impactTier, amount: payout.amount, ms: tierMs,
+            });
+          });
+          continue;
+        }
         if (payout && task.completedAt) {
           const dayIndex = days.findIndex((day) => task.completedAt >= day.startMs && task.completedAt < day.endMs);
           if (dayIndex !== -1) {
@@ -1856,6 +2424,16 @@ export function createRenderer({ state, helpers, actions }) {
       if (listItem.lifeArea !== areaKey) continue;
       for (const task of tasksForList(listItem.id)) {
         const payout = jewelPayout(task);
+        if (payout && task.cadence === "daily") {
+          if (payout.amount < 0) {
+            const days = dailyPayoutDayCount(task, state.S.sessions, windowStart, now);
+            if (days > 0) {
+              out.push({ taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color,
+                kind: "tier", tier: task.impactTier, amount: payout.amount, ms: -payout.amount * IMPACT_WEIGHT_TO_MS * days });
+            }
+          }
+          continue;
+        }
         if (payout && task.completedAt && task.completedAt >= windowStart && task.completedAt <= now) {
           if (payout.amount < 0) {
             out.push({ taskId: task.id, taskName: task.name, listName: listItem.name, listColor: listItem.color,
@@ -2095,6 +2673,45 @@ export function createRenderer({ state, helpers, actions }) {
     </tr>`;
   }
 
+  // Row markup for "Daily Jam" (see dailyJamTasks() above) — same .idx/
+  // .tname/.jewel-group row vocabulary as the Now table and the to-do list
+  // itself, so it reads as the same kind of row everywhere. Status column
+  // is deliberately plain text ("Done today" / "Not yet today" / "on
+  // break") rather than a red/green pass-fail — a task not done yet by
+  // 4pm is routine, not a failure (CLAUDE.md rule 9, no punitive tone).
+  // Play button mirrors the to-do list's own pause/resume/"playing
+  // elsewhere" states exactly (see taskRow) so starting a daily task from
+  // here behaves identically to starting it from its own list.
+  function dailyJamRowHtml(entry, index) {
+    const { task, listItem, working, doneToday } = entry;
+    const run = state.S.run;
+    const active = run.activeTaskId === task.id && run.phase;
+    const onBreak = active && (run.phase === "break" || run.phase === "awaiting_break" || run.phase === "awaiting_work");
+    const elsewhere = active && run.deviceId && state.S.deviceId && run.deviceId !== state.S.deviceId;
+    const payout = jewelPayout(task);
+    const payoutTitle = payout ? `${payout.amount > 0 ? "+" : ""}${payout.amount}` : "";
+    const areaColor = listItem && listItem.lifeArea ? (LIFE_AREAS.find((a) => a.key === listItem.lifeArea) || {}).color : null;
+    const jewelHtml = payout
+      ? `<span class="jewel-group${payout.amount < 0 ? " neg" : ""}" title="${esc(payoutTitle)} for today's session">${payout.amount < 0 ? `<span class="jewel-sign">−</span>` : ""}${Array.from({ length: Math.abs(payout.amount) }, () =>
+          `<i class="jewel-dot${payout.amount < 0 ? " neg" : ""}"${payout.amount > 0 && areaColor ? ` style="background:${areaColor}"` : ""}></i>`
+        ).join("")}</span>`
+      : "";
+    const playTitle = elsewhere
+      ? `Playing on ${run.deviceName || "another device"} — click to play here`
+      : `Click to ${active ? "stop" : "start"}${payoutTitle ? " — earns " + payoutTitle + " for today's session" : ""}`;
+    const statusLabel = onBreak ? "on break" : doneToday ? "Done today" : "Not yet today";
+    return `<tr class="${doneToday ? "done" : ""}" data-action="searchGoTask" data-id="${task.id}" title="Open ${esc(task.name)}">
+      <td class="idx">
+        <span class="num">${doneToday ? "✓" : working ? "♪" : index + 1}</span><button class="go" data-action="play" data-id="${task.id}" data-stop-propagation="true" title="${esc(playTitle)}">${active && !elsewhere ? "⏸" : "▶"}</button>
+      </td>
+      <td class="tname">${esc(task.name)}${jewelHtml}</td>
+      <td class="r daily-jam-status">
+        <span class="daily-jam-tag">${statusLabel}</span>
+        ${listItem ? `<span class="daily-jam-list">${esc(listItem.name)}</span>` : ""}
+      </td>
+    </tr>`;
+  }
+
   function renderHomePage() {
     if (!state.S) return;
     const radarScores = lifeBalanceScores();
@@ -2105,6 +2722,14 @@ export function createRenderer({ state, helpers, actions }) {
     const nowHtml = nowTasks.length
       ? `<table class="albrows now-table"><tbody>${nowTasks.map((task, i) => nowRowHtml(task, i)).join("")}</tbody></table>`
       : `<div class="home-empty">Nothing needs attention right now.</div>`;
+
+    const dailyEntries = dailyJamTasks();
+    const dailyDoneCount = dailyEntries.filter((entry) => entry.doneToday).length;
+    const dailyPct = dailyEntries.length ? Math.round((dailyDoneCount / dailyEntries.length) * 100) : 0;
+    const dailyJamHtml = dailyEntries.length
+      ? `<div class="daily-jam-bar"><div class="daily-jam-bar-fill" style="width:${dailyPct}%"></div></div>
+         <table class="albrows now-table daily-jam-table"><tbody>${dailyEntries.map((entry, i) => dailyJamRowHtml(entry, i)).join("")}</tbody></table>`
+      : `<div class="home-empty">Tag a task "Daily" (open the task, set its cadence) to build your daily set.</div>`;
     const jump = recentTasks(RECENT_TASKS_SIZE);
     const jumpHtml = jump.length
       ? jump.map((entry) => {
@@ -2137,12 +2762,24 @@ export function createRenderer({ state, helpers, actions }) {
     const todayMs = todayTotalMs();
     const allMs = state.S.lists.reduce((sum, listItem) => sum + listTotal(listItem.id), 0);
     const doneCount = state.S.tasks.filter((task) => task.completedAt).length;
+    const todayJewelCount = todayJewels();
+    const allTimeJewelCount = lifetimeJewelsNet();
+
+    // Rank badge: a quiet fact in the greeting line, not a stat tile of its
+    // own — see buildRankInfo above for why it's capped/balanced rather than
+    // a flat lifetime sum. Tooltip spells out the next tier and its plain-
+    // language subtitle so the dynamics-marking name (Forte, Fortissimo...)
+    // is legible without knowing music theory.
+    const rankInfo = buildRankInfo();
+    const rankBadgeHtml = rankInfo
+      ? `<span class="rank-badge" title="${esc(rankInfo.current.sub)}${rankInfo.next ? ` — ${Math.round(rankInfo.progress)} of ${rankInfo.next.min} to ${esc(rankInfo.next.label)}` : ""}">${esc(rankInfo.current.label)}</span>`
+      : "";
 
     document.getElementById("main").innerHTML = `
       ${stickyBarHtml(HOME_SVG, "Home")}
       <div class="hdr" data-tauri-drag-region>
         <div class="cover" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c)">${greetingEmoji()}</div>
-        <div class="info"><small>${esc(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}</small><h1>${greeting()}</h1><div class="sub">${fmtHM(todayMs)} tracked today</div></div>
+        <div class="info"><small>${esc(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}</small><h1>${greeting()}</h1><div class="sub">${fmtHM(todayMs)} tracked today · ${rankBadgeHtml}</div></div>
       </div>
       <div class="home-body">
         <div class="home-stats">
@@ -2150,7 +2787,17 @@ export function createRenderer({ state, helpers, actions }) {
           <div class="hs-stat"><div class="hs-num">${fmtHM(allMs)}</div><div class="hs-label">All time</div></div>
           <div class="hs-stat"><div class="hs-num">${doneCount}</div><div class="hs-label">Completed</div></div>
           <div class="hs-stat"><div class="hs-num">${state.S.lists.length}</div><div class="hs-label">Lists</div></div>
+          <div class="hs-stat"><div class="hs-num">${todayJewelCount > 0 ? "+" : ""}${todayJewelCount}</div><div class="hs-label">Jewels today</div></div>
+          <div class="hs-stat"><div class="hs-num">${allTimeJewelCount > 0 ? "+" : ""}${allTimeJewelCount}</div><div class="hs-label">Jewels all-time</div></div>
         </div>
+        <section class="home-section">
+          <h4>Jump back in</h4>
+          <div class="jb-grid">${jumpHtml}</div>
+        </section>
+        <section class="home-section">
+          <h4>Daily Jam${dailyEntries.length ? `<span class="home-sub-note">· ${dailyDoneCount} of ${dailyEntries.length} today</span>` : ""}</h4>
+          ${dailyJamHtml}
+        </section>
         <section class="home-section">
           <h4>Needs attention</h4>
           ${nowHtml}
@@ -2160,10 +2807,6 @@ export function createRenderer({ state, helpers, actions }) {
           ${hasLifeTags
             ? `<div class="home-radar">${buildLifeRadar(radarScores, { against: againstOn, selectedAgainst: againstOn ? selectedAgainstArea : null })}</div>${againstOn && hasAgainst ? `<div class="radar-legend"><span class="rl-swatch"></span>Time pulling against your areas · last 7 days · tap a grey dot for detail</div>` : ""}${againstOn && selectedAgainstArea ? `<div class="against-detail-wrap">${buildAgainstDetail(selectedAgainstArea)}</div>` : ""}${buildLifeBalanceGrid()}`
             : `<div class="home-empty">Tag a list with a life area (Edit list, or when creating a new one) to see your balance here.</div>`}
-        </section>
-        <section class="home-section">
-          <h4>Jump back in</h4>
-          <div class="jb-grid">${jumpHtml}</div>
         </section>
         <section class="home-section">
           <h4>Recent lists</h4>
@@ -2369,6 +3012,7 @@ export function createRenderer({ state, helpers, actions }) {
     rowMenu,
     closeRowMenu,
     openDetail,
+    openCreateDetail,
     closeDetail,
     renderDetail,
     openLyrics,
@@ -2390,6 +3034,7 @@ export function createRenderer({ state, helpers, actions }) {
     renderPinnedNav,
     renderSidebar,
     toggleAreaSection,
+    toggleAllAreaSections,
     expandAreaSection,
     toggleLifeAgainst,
     selectAgainstArea,

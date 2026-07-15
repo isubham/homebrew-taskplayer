@@ -1,0 +1,28 @@
+# Decision records
+
+Decision records preserve the reason behind durable product and architecture choices. They
+complement the current-state feature catalog and changelog:
+
+- [`../features.md`](../features.md) says what exists now.
+- [`../../CHANGELOG.md`](../../CHANGELOG.md) says what changed and when.
+- This directory says why an important choice was made.
+
+Create a record when a decision is expensive to reverse, establishes a cross-feature rule, or
+would otherwise be repeatedly debated. Do not create one for routine implementation details.
+
+## Index
+
+| Record | Status | Decision |
+|---|---|---|
+| [0001](0001-documentation-system.md) | Accepted | Separate current features, release history, and durable decisions |
+| [0002](0002-automatic-pomodoro-transitions.md) | Accepted | Start Pomodoro break/work phases automatically at boundaries |
+| [0003](0003-backward-compatible-storage-and-sync.md) | Accepted | Preserve compatibility across SQLite, Supabase, and client versions |
+
+## Creating a record
+
+1. Copy [`0000-template.md`](0000-template.md).
+2. Use the next four-digit number and a short kebab-case name.
+3. Keep context factual and list alternatives actually considered.
+4. Mark it Proposed, Accepted, Superseded, or Rejected.
+5. Add it to the index above.
+6. Never rewrite an accepted decision to hide history; supersede it with a new record.

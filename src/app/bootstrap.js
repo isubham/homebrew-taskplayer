@@ -2,6 +2,7 @@ import { createAppState } from "./state.js";
 import { createUi } from "./ui.js";
 import { createRenderer } from "./render.js";
 import { createCommands } from "./commands.js";
+import { animate } from "../vendor/motion.js";
 
 export function bootstrapApp() {
   const appState = createAppState();
@@ -18,8 +19,15 @@ export function bootstrapApp() {
       case "deleteList": return commands.deleteList(id);
       case "selectList": return commands.selectList(id);
       case "addTask": return commands.addTask();
+      case "setCreateTaskChoice": return commands.setCreateTaskChoice(payload.choiceField, payload.choiceValue ?? "", element);
+      case "createTaskFromDetail": return commands.createTaskFromDetail();
       case "renameTask": return commands.renameTask(id);
       case "setDepth": return commands.setDepth(id, payload.depth ?? value);
+      case "setCadence": return commands.setCadence(id, payload.cadence ?? value);
+      case "addDailyScheduleRow": return commands.addDailyScheduleRow(id);
+      case "removeDailyScheduleRow": return commands.removeDailyScheduleRow(id, element);
+      case "setDailySchedule": return commands.setDailySchedule(id, element);
+      case "setSessionRangeField": return commands.setSessionRangeField(id, payload.rangeField, value);
       case "deleteTask": return commands.deleteTask(id);
       case "setEstimateInline": return commands.setEstimateInline(id, value);
       case "bumpEstimate": return commands.bumpEstimate(id);
@@ -31,8 +39,11 @@ export function bootstrapApp() {
       case "moveTaskInline": return commands.moveTaskInline(id, value);
       case "reorderTasks": return commands.reorderTasks(listId, payload.orderedIds);
       case "reorderLists": return commands.reorderLists(payload.orderedIds);
+      case "reorderLifeAreas": return commands.reorderLifeAreas(payload.orderedAreaKeys);
+      case "showLifePriorityInfo": return commands.showLifePriorityInfo();
       case "setListArea": return commands.setListArea(id, payload.area);
       case "toggleAreaSection": return renderer.toggleAreaSection(payload.area);
+      case "toggleAllAreaSections": return renderer.toggleAllAreaSections();
       case "toggleLifeAgainst": return renderer.toggleLifeAgainst();
       case "selectAgainstArea": return renderer.selectAgainstArea(payload.key);
       case "toggleKeybindings": return renderer.toggleKeybindings();
@@ -126,6 +137,9 @@ export function bootstrapApp() {
       renderer.closeRowMenu();
     }
 
+    // The life-area priority grip belongs inside a clickable collapse header;
+    // clicking or finishing a drag on the grip must not also fold the area.
+    if (event.target.closest(".ls-priority-grip")) return;
     const trigger = event.target.closest("[data-action]");
     if (!trigger) return;
     // Form controls (the pomodoro/target-length number inputs, the music
@@ -151,7 +165,11 @@ export function bootstrapApp() {
     const trigger = event.target.closest("[data-action]");
     if (!trigger) return;
     const action = trigger.dataset.action;
-    const payload = { ...trigger.dataset, event, element: trigger, id: trigger.dataset.id ?? null, value: event.target.value, key: trigger.dataset.key ?? null, overlay: trigger.dataset.overlay ?? null, view: trigger.dataset.view ?? null, listId: trigger.dataset.listId ?? null, action: trigger.dataset.actionName ?? null, depth: trigger.dataset.depth ?? null, mode: trigger.dataset.mode ?? null };
+    // Checkboxes carry their state in `checked`, not `value` (which is a
+    // constant "on") — normalized to "1"/"0" so actions can parseInt it the
+    // same way as every number input.
+    const value = event.target.type === "checkbox" ? (event.target.checked ? "1" : "0") : event.target.value;
+    const payload = { ...trigger.dataset, event, element: trigger, id: trigger.dataset.id ?? null, value, key: trigger.dataset.key ?? null, overlay: trigger.dataset.overlay ?? null, view: trigger.dataset.view ?? null, listId: trigger.dataset.listId ?? null, action: trigger.dataset.actionName ?? null, depth: trigger.dataset.depth ?? null, mode: trigger.dataset.mode ?? null };
     await dispatchAction(action, payload);
   });
 
@@ -257,6 +275,106 @@ export function bootstrapApp() {
   // tr[data-drag-id], and with no grouping key since there's only ever one
   // sidebar list to reorder within.
   let listDragId = null;
+  let areaDragKey = null;
+  let areaDropIndex = null;
+
+  const priorityHeaders = () => Array.from(document.querySelectorAll("#lists .ls-header[data-priority-area]"));
+
+  function prioritySectionPositions() {
+    return new Map(priorityHeaders().map((header) => [
+      header.dataset.priorityArea,
+      header.closest(".list-section")?.getBoundingClientRect(),
+    ]));
+  }
+
+  function animatePriorityReorder(previousPositions) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    priorityHeaders().forEach((header) => {
+      const section = header.closest(".list-section");
+      const previous = previousPositions.get(header.dataset.priorityArea);
+      if (!section || !previous) return;
+      const deltaY = previous.top - section.getBoundingClientRect().top;
+      if (Math.abs(deltaY) < 1) return;
+      animate(
+        section,
+        { transform: [`translateY(${deltaY}px)`, "translateY(0)"] },
+        { type: "spring", visualDuration: 0.32, bounce: 0.12 },
+      );
+    });
+  }
+
+  function priorityBoundaryAt(clientY) {
+    const headers = priorityHeaders();
+    const index = headers.findIndex((header) => clientY < header.getBoundingClientRect().top + header.offsetHeight / 2);
+    return index === -1 ? headers.length : index;
+  }
+
+  function showPriorityBoundary(index) {
+    const headers = priorityHeaders();
+    headers.forEach((header) => header.classList.remove("priority-drag-over-top", "priority-drag-over-bottom"));
+    if (index < headers.length) headers[index].classList.add("priority-drag-over-top");
+    else headers.at(-1)?.classList.add("priority-drag-over-bottom");
+  }
+
+  function showPriorityFeedback(movedLabel, relation, targetLabel) {
+    ui.showToast({
+      title: "Planning priority updated",
+      message: `${movedLabel} moved ${relation} ${targetLabel}.`,
+      tone: "success",
+    });
+  }
+
+  document.addEventListener("dragstart", (event) => {
+    const grip = event.target.closest(".ls-priority-grip[data-drag-area]");
+    if (!grip) return;
+    areaDragKey = grip.dataset.dragArea;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", areaDragKey);
+    requestAnimationFrame(() => grip.closest(".ls-header")?.classList.add("priority-dragging"));
+  });
+
+  document.addEventListener("dragover", (event) => {
+    if (!areaDragKey) return;
+    if (!event.target.closest("#lists")) return;
+    event.preventDefault();
+    areaDropIndex = priorityBoundaryAt(event.clientY);
+    showPriorityBoundary(areaDropIndex);
+  });
+
+  document.addEventListener("drop", async (event) => {
+    if (!areaDragKey) return;
+    if (!event.target.closest("#lists")) return;
+    event.preventDefault();
+    const headers = priorityHeaders();
+    const labelsByKey = new Map(headers.map((header) => [header.dataset.priorityArea, header.querySelector(".ls-label")?.textContent || header.dataset.priorityArea]));
+    const orderedAreaKeys = headers.map((header) => header.dataset.priorityArea);
+    const originalOrder = [...orderedAreaKeys];
+    const from = orderedAreaKeys.indexOf(areaDragKey);
+    if (from !== -1) {
+      const movedLabel = labelsByKey.get(areaDragKey) || areaDragKey;
+      let to = areaDropIndex ?? priorityBoundaryAt(event.clientY);
+      orderedAreaKeys.splice(from, 1);
+      if (from < to) to -= 1;
+      to = Math.max(0, Math.min(to, orderedAreaKeys.length));
+      orderedAreaKeys.splice(to, 0, areaDragKey);
+      const movedKey = areaDragKey;
+      areaDragKey = null;
+      areaDropIndex = null;
+      if (orderedAreaKeys.some((key, index) => key !== originalOrder[index])) {
+        const movedUp = to < from;
+        const targetKey = orderedAreaKeys[movedUp ? to + 1 : to - 1];
+        const previousPositions = prioritySectionPositions();
+        await dispatchAction("reorderLifeAreas", { orderedAreaKeys });
+        animatePriorityReorder(previousPositions);
+        showPriorityFeedback(movedLabel, movedUp ? "above" : "below", labelsByKey.get(targetKey) || targetKey);
+      }
+      document.querySelector(`.ls-header[data-priority-area="${movedKey}"]`)?.classList.remove("priority-dragging");
+    } else {
+      areaDragKey = null;
+      areaDropIndex = null;
+    }
+    document.querySelectorAll(".ls-header.priority-drag-over-top,.ls-header.priority-drag-over-bottom").forEach((item) => item.classList.remove("priority-drag-over-top", "priority-drag-over-bottom"));
+  });
 
   document.addEventListener("dragstart", (event) => {
     const row = event.target.closest(".list-item[data-drag-list-id]");
@@ -336,7 +454,10 @@ export function bootstrapApp() {
     document.querySelectorAll(".list-item.dragging").forEach((row) => row.classList.remove("dragging"));
     document.querySelectorAll(".list-item.drag-over-top,.list-item.drag-over-bottom").forEach((row) => row.classList.remove("drag-over-top", "drag-over-bottom"));
     document.querySelectorAll(".ls-header.drop-zone-over").forEach((el) => el.classList.remove("drop-zone-over"));
+    document.querySelectorAll(".ls-header.priority-dragging,.ls-header.priority-drag-over-top,.ls-header.priority-drag-over-bottom").forEach((el) => el.classList.remove("priority-dragging", "priority-drag-over-top", "priority-drag-over-bottom"));
     listDragId = null;
+    areaDragKey = null;
+    areaDropIndex = null;
   });
 
   // Topbar search — a plain "input" listener rather than routing through

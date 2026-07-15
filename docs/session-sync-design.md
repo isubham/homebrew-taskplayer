@@ -1,6 +1,7 @@
 # Cross-device live session sync — design doc
 
-Status: proposed, not yet implemented. Scoped against the actual current implementation
+Status: implemented. This document preserves the original design; the authoritative current
+behavior and limitations are in [`features.md`](features.md). Scoped against the implementation
 (`src-tauri/src/sync.rs`, `src-tauri/core/src/db.rs`, `src-tauri/core/src/models.rs`,
 `src-tauri/core/src/timer.rs`, `src-tauri/src/main.rs`) — not a generic wishlist.
 

@@ -10,6 +10,7 @@ use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use base64::prelude::*;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::fmt;
 use taskplayer_core::AccountInfo;
 
 /// Must match the scheme registered in `tauri.conf.json`'s `plugins.deep-link`
@@ -46,7 +47,10 @@ pub fn generate_pkce() -> Pkce {
     let mut hasher = Sha256::new();
     hasher.update(verifier.as_bytes());
     let challenge = BASE64_URL_SAFE_NO_PAD.encode(hasher.finalize());
-    Pkce { verifier, challenge }
+    Pkce {
+        verifier,
+        challenge,
+    }
 }
 
 /// The URL to open in the system browser to start the Google consent flow.
@@ -129,28 +133,92 @@ fn client() -> reqwest::blocking::Client {
     reqwest::blocking::Client::new()
 }
 
-fn token_request(grant_type: &str, body: serde_json::Value) -> Result<Session, String> {
+/// A token refresh can fail because the session is genuinely unusable, or
+/// because the network/server is temporarily unavailable. Callers must keep
+/// the stored refresh token and retry the latter instead of treating every
+/// transport failure as a sign-out.
+#[derive(Debug)]
+pub struct TokenRequestError {
+    message: String,
+    invalid_session: bool,
+}
+
+impl TokenRequestError {
+    pub fn invalid_session(&self) -> bool {
+        self.invalid_session
+    }
+
+    pub fn missing_refresh_token() -> Self {
+        Self {
+            message: "no stored refresh token".to_string(),
+            invalid_session: true,
+        }
+    }
+
+    fn retryable(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            invalid_session: false,
+        }
+    }
+
+    fn invalid(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            invalid_session: true,
+        }
+    }
+}
+
+impl fmt::Display for TokenRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+fn invalid_session_status(status: reqwest::StatusCode) -> bool {
+    matches!(status.as_u16(), 400 | 401 | 403)
+}
+
+fn token_request(grant_type: &str, body: serde_json::Value) -> Result<Session, TokenRequestError> {
     let url = format!("{SUPABASE_URL}/auth/v1/token?grant_type={grant_type}");
     let resp = client()
         .post(&url)
         .header("apikey", SUPABASE_PUBLISHABLE_KEY)
         .json(&body)
         .send()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| TokenRequestError::retryable(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(format!("Supabase token request ({grant_type}) failed: HTTP {}", resp.status()));
+        let status = resp.status();
+        let message = format!("Supabase token request ({grant_type}) failed: HTTP {status}");
+        // Invalid/expired/rotated refresh tokens are client-auth failures.
+        // Rate limits and server failures can recover without user action.
+        return Err(if invalid_session_status(status) {
+            TokenRequestError::invalid(message)
+        } else {
+            TokenRequestError::retryable(message)
+        });
     }
-    resp.json::<TokenResponse>().map(to_session).map_err(|e| e.to_string())
+    resp.json::<TokenResponse>()
+        .map(to_session)
+        .map_err(|e| TokenRequestError::retryable(e.to_string()))
 }
 
 /// Exchanges the PKCE auth code (from the deep-link callback) for a session.
 pub fn exchange_code(auth_code: &str, verifier: &str) -> Result<Session, String> {
-    token_request("pkce", serde_json::json!({ "auth_code": auth_code, "code_verifier": verifier }))
+    token_request(
+        "pkce",
+        serde_json::json!({ "auth_code": auth_code, "code_verifier": verifier }),
+    )
+    .map_err(|e| e.to_string())
 }
 
 /// Silently refreshes an existing session using the stored refresh token.
-pub fn refresh_session(refresh_token: &str) -> Result<Session, String> {
-    token_request("refresh_token", serde_json::json!({ "refresh_token": refresh_token }))
+pub fn refresh_session(refresh_token: &str) -> Result<Session, TokenRequestError> {
+    token_request(
+        "refresh_token",
+        serde_json::json!({ "refresh_token": refresh_token }),
+    )
 }
 
 // ---- Session file ----
@@ -175,11 +243,16 @@ fn session_path(dir: &std::path::Path) -> std::path::PathBuf {
 
 pub fn save_refresh_token(dir: &std::path::Path, token: &str) -> Result<(), String> {
     let path = session_path(dir);
-    std::fs::write(&path, serde_json::json!({ "refresh_token": token }).to_string()).map_err(|e| e.to_string())?;
+    std::fs::write(
+        &path,
+        serde_json::json!({ "refresh_token": token }).to_string(),
+    )
+    .map_err(|e| e.to_string())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -232,7 +305,34 @@ mod tests {
         assert!(url.contains("code_challenge_method=s256"));
         // redirect_to is percent-encoded, so check the decoded round-trip instead of a raw substring.
         let parsed = reqwest::Url::parse(&url).unwrap();
-        let redirect = parsed.query_pairs().find(|(k, _)| k == "redirect_to").unwrap().1;
+        let redirect = parsed
+            .query_pairs()
+            .find(|(k, _)| k == "redirect_to")
+            .unwrap()
+            .1;
         assert_eq!(redirect, REDIRECT_URL);
+    }
+
+    #[test]
+    fn missing_refresh_token_is_an_invalid_session() {
+        assert!(TokenRequestError::missing_refresh_token().invalid_session());
+    }
+
+    #[test]
+    fn transport_failure_is_retryable() {
+        assert!(!TokenRequestError::retryable("offline").invalid_session());
+    }
+
+    #[test]
+    fn refresh_http_statuses_distinguish_invalid_from_retryable() {
+        assert!(invalid_session_status(reqwest::StatusCode::BAD_REQUEST));
+        assert!(invalid_session_status(reqwest::StatusCode::UNAUTHORIZED));
+        assert!(invalid_session_status(reqwest::StatusCode::FORBIDDEN));
+        assert!(!invalid_session_status(
+            reqwest::StatusCode::TOO_MANY_REQUESTS
+        ));
+        assert!(!invalid_session_status(
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR
+        ));
     }
 }

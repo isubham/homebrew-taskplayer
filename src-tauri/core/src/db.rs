@@ -1,9 +1,23 @@
 use crate::models::*;
-use rusqlite::{params, Connection};
+use rusqlite::{params, types::Type, Connection, Row};
 
 const PALETTE: [&str; 8] = [
     "#2f9e8f", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
 ];
+
+fn read_windows(row: &Row<'_>, index: usize) -> rusqlite::Result<Vec<WeeklyTimeWindow>> {
+    let raw = row
+        .get::<_, Option<String>>(index)?
+        .unwrap_or_else(|| "[]".to_string());
+    serde_json::from_str(&raw).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(index, Type::Text, Box::new(error))
+    })
+}
+
+fn windows_json(windows: &[WeeklyTimeWindow]) -> rusqlite::Result<String> {
+    serde_json::to_string(windows)
+        .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))
+}
 
 pub struct Db {
     conn: Connection,
@@ -11,14 +25,18 @@ pub struct Db {
 
 impl Db {
     pub fn open(path: &str) -> rusqlite::Result<Db> {
-        let db = Db { conn: Connection::open(path)? };
+        let db = Db {
+            conn: Connection::open(path)?,
+        };
         db.migrate()?;
         db.seed_if_empty()?;
         Ok(db)
     }
 
     pub fn open_in_memory() -> rusqlite::Result<Db> {
-        let db = Db { conn: Connection::open_in_memory()? };
+        let db = Db {
+            conn: Connection::open_in_memory()?,
+        };
         db.migrate()?;
         Ok(db)
     }
@@ -35,7 +53,7 @@ impl Db {
     pub fn lists(&self) -> rusqlite::Result<Vec<TaskList>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id,name,emoji,color,ord,updated_at,life_area,life_direction FROM lists WHERE deleted_at IS NULL ORDER BY ord")?;
+            .prepare("SELECT id,name,emoji,color,ord,updated_at,life_area,life_direction,availability_windows FROM lists WHERE deleted_at IS NULL ORDER BY ord")?;
         let rows = stmt.query_map([], |r| {
             Ok(TaskList {
                 id: r.get(0)?,
@@ -46,6 +64,7 @@ impl Db {
                 updated_at: r.get(5)?,
                 life_area: r.get(6)?,
                 life_direction: r.get(7)?,
+                availability_windows: read_windows(r, 8)?,
                 deleted_at: None,
             })
         })?;
@@ -55,7 +74,18 @@ impl Db {
     pub fn add_list(&self, name: &str) -> rusqlite::Result<TaskList> {
         let order = self.lists()?.len() as i64;
         let color = PALETTE[(order as usize) % PALETTE.len()].to_string();
-        let l = TaskList { id: new_id(), name: name.to_string(), emoji: "📁".into(), color, order, updated_at: now_ms(), life_area: None, life_direction: None, deleted_at: None };
+        let l = TaskList {
+            id: new_id(),
+            name: name.to_string(),
+            emoji: "📁".into(),
+            color,
+            order,
+            updated_at: now_ms(),
+            life_area: None,
+            life_direction: None,
+            availability_windows: Vec::new(),
+            deleted_at: None,
+        };
         self.conn.execute(
             "INSERT INTO lists(id,name,emoji,color,ord,updated_at) VALUES(?1,?2,?3,?4,?5,?6)",
             params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at],
@@ -64,8 +94,10 @@ impl Db {
     }
 
     pub fn rename_list(&self, id: &str, name: &str) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE lists SET name=?1, updated_at=?2 WHERE id=?3", params![name, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE lists SET name=?1, updated_at=?2 WHERE id=?3",
+            params![name, now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -84,10 +116,27 @@ impl Db {
     /// from the "New list" dialog, not just "Edit list", so a list can be
     /// tagged right at creation. `area`/`direction` of `None` clears the
     /// tag (an untagged list simply doesn't factor into any radar axis).
-    pub fn set_list_life_tag(&self, id: &str, area: Option<&str>, direction: Option<&str>) -> rusqlite::Result<()> {
+    pub fn set_list_life_tag(
+        &self,
+        id: &str,
+        area: Option<&str>,
+        direction: Option<&str>,
+    ) -> rusqlite::Result<()> {
         self.conn.execute(
             "UPDATE lists SET life_area=?1, life_direction=?2, updated_at=?3 WHERE id=?4",
             params![area, direction, now_ms(), id],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_list_availability(
+        &self,
+        id: &str,
+        windows: &[WeeklyTimeWindow],
+    ) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE lists SET availability_windows=?1, updated_at=?2 WHERE id=?3",
+            params![windows_json(windows)?, now_ms(), id],
         )?;
         Ok(())
     }
@@ -108,14 +157,100 @@ impl Db {
         Ok(())
     }
 
+    // ---- Life-area planning priority ----
+    pub fn life_area_priorities(&self) -> rusqlite::Result<Vec<LifeAreaPriority>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT area_key,priority_rank,updated_at FROM life_area_priorities ORDER BY priority_rank,area_key",
+        )?;
+        let priorities = stmt
+            .query_map([], |r| {
+                Ok(LifeAreaPriority {
+                    area_key: r.get(0)?,
+                    priority_rank: r.get(1)?,
+                    updated_at: r.get(2)?,
+                })
+            })?
+            .collect();
+        priorities
+    }
+
+    pub fn reorder_life_areas(&self, ordered_area_keys: &[String]) -> rusqlite::Result<()> {
+        let latest: i64 = self.conn.query_row(
+            "SELECT COALESCE(MAX(updated_at),0) FROM life_area_priorities",
+            [],
+            |row| row.get(0),
+        )?;
+        let now = now_ms().max(latest + 1);
+        let tx = self.conn.unchecked_transaction()?;
+        for (index, key) in ordered_area_keys.iter().enumerate() {
+            tx.execute(
+                "UPDATE life_area_priorities SET priority_rank=?1,updated_at=?2 WHERE area_key=?3",
+                params![index as i64 + 1, now, key],
+            )?;
+        }
+        tx.commit()
+    }
+
+    pub fn life_area_priorities_dirty_since(
+        &self,
+        ts: i64,
+    ) -> rusqlite::Result<Vec<LifeAreaPriority>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT area_key,priority_rank,updated_at FROM life_area_priorities WHERE updated_at > ?1 ORDER BY priority_rank,area_key",
+        )?;
+        let priorities = stmt
+            .query_map(params![ts], |r| {
+                Ok(LifeAreaPriority {
+                    area_key: r.get(0)?,
+                    priority_rank: r.get(1)?,
+                    updated_at: r.get(2)?,
+                })
+            })?
+            .collect();
+        priorities
+    }
+
+    pub fn upsert_life_area_priorities_from_remote(
+        &self,
+        priorities: &[LifeAreaPriority],
+        force: bool,
+    ) -> rusqlite::Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        for priority in priorities {
+            let sql = if force {
+                "INSERT INTO life_area_priorities(area_key,priority_rank,updated_at) VALUES(?1,?2,?3)
+                 ON CONFLICT(area_key) DO UPDATE SET priority_rank=excluded.priority_rank,updated_at=excluded.updated_at"
+            } else {
+                "INSERT INTO life_area_priorities(area_key,priority_rank,updated_at) VALUES(?1,?2,?3)
+                 ON CONFLICT(area_key) DO UPDATE SET priority_rank=excluded.priority_rank,updated_at=excluded.updated_at
+                 WHERE excluded.updated_at > life_area_priorities.updated_at"
+            };
+            tx.execute(
+                sql,
+                params![
+                    priority.area_key,
+                    priority.priority_rank,
+                    priority.updated_at
+                ],
+            )?;
+        }
+        tx.commit()
+    }
+
     pub fn delete_list(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
         self.conn.execute(
             "UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE task_id IN (SELECT id FROM tasks WHERE list_id=?2)",
             params![now, id],
         )?;
-        self.conn.execute("UPDATE tasks SET deleted_at=?1, updated_at=?1 WHERE list_id=?2", params![now, id])?;
-        self.conn.execute("UPDATE lists SET deleted_at=?1, updated_at=?1 WHERE id=?2", params![now, id])?;
+        self.conn.execute(
+            "UPDATE tasks SET deleted_at=?1, updated_at=?1 WHERE list_id=?2",
+            params![now, id],
+        )?;
+        self.conn.execute(
+            "UPDATE lists SET deleted_at=?1, updated_at=?1 WHERE id=?2",
+            params![now, id],
+        )?;
         Ok(())
     }
 
@@ -123,7 +258,7 @@ impl Db {
     pub fn tasks(&self) -> rusqlite::Result<Vec<Task>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign,deadline_at FROM tasks WHERE deleted_at IS NULL ORDER BY ord")?;
+            .prepare("SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign,deadline_at,cadence,daily_windows,min_session_min,max_session_min FROM tasks WHERE deleted_at IS NULL ORDER BY ord")?;
         let rows = stmt.query_map([], |r| {
             Ok(Task {
                 id: r.get(0)?,
@@ -139,19 +274,47 @@ impl Db {
                 impact_tier: r.get(10)?,
                 impact_sign: r.get::<_, Option<i64>>(11)?.unwrap_or(1),
                 deadline_at: r.get(12)?,
+                cadence: r.get(13)?,
+                daily_windows: read_windows(r, 14)?,
+                min_session_min: r.get(15)?,
+                max_session_min: r.get(16)?,
                 deleted_at: None,
             })
         })?;
         rows.collect()
     }
 
-    pub fn add_task(&self, list_id: &str, name: &str, estimate_min: Option<i64>) -> rusqlite::Result<Task> {
+    pub fn add_task(
+        &self,
+        list_id: &str,
+        name: &str,
+        estimate_min: Option<i64>,
+    ) -> rusqlite::Result<Task> {
         let order: i64 = self.conn.query_row(
             "SELECT COUNT(*) FROM tasks WHERE list_id=?1 AND deleted_at IS NULL",
             params![list_id],
             |r| r.get(0),
         )?;
-        let t = Task { id: new_id(), list_id: list_id.to_string(), name: name.to_string(), depth: None, order, estimate_min, album: None, completed_at: None, description: None, updated_at: now_ms(), impact_tier: None, impact_sign: 1, deadline_at: None, deleted_at: None };
+        let t = Task {
+            id: new_id(),
+            list_id: list_id.to_string(),
+            name: name.to_string(),
+            depth: None,
+            order,
+            estimate_min,
+            album: None,
+            completed_at: None,
+            description: None,
+            updated_at: now_ms(),
+            impact_tier: None,
+            impact_sign: 1,
+            deadline_at: None,
+            cadence: None,
+            daily_windows: Vec::new(),
+            min_session_min: None,
+            max_session_min: None,
+            deleted_at: None,
+        };
         self.conn.execute(
             "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,impact_sign) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
             params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.impact_sign],
@@ -172,20 +335,63 @@ impl Db {
     }
 
     pub fn rename_task(&self, id: &str, name: &str) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE tasks SET name=?1, updated_at=?2 WHERE id=?3", params![name, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE tasks SET name=?1, updated_at=?2 WHERE id=?3",
+            params![name, now_ms(), id],
+        )?;
         Ok(())
     }
 
     pub fn set_depth(&self, id: &str, depth: Option<&str>) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE tasks SET depth=?1, updated_at=?2 WHERE id=?3", params![depth, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE tasks SET depth=?1, updated_at=?2 WHERE id=?3",
+            params![depth, now_ms(), id],
+        )?;
+        Ok(())
+    }
+
+    /// None = one-time (default), "daily" = repeating — see `Task::cadence`'s
+    /// doc comment. Doesn't touch `completed_at`/`impact_tier` — a task
+    /// switched to "daily" keeps whatever those already were; the frontend's
+    /// aggregation just stops reading `completed_at` for it going forward.
+    pub fn set_cadence(&self, id: &str, cadence: Option<&str>) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET cadence=?1, updated_at=?2 WHERE id=?3",
+            params![cadence, now_ms(), id],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_daily_windows(
+        &self,
+        id: &str,
+        windows: &[WeeklyTimeWindow],
+    ) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET daily_windows=?1, updated_at=?2 WHERE id=?3",
+            params![windows_json(windows)?, now_ms(), id],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_session_range(
+        &self,
+        id: &str,
+        min_minutes: Option<i64>,
+        max_minutes: Option<i64>,
+    ) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET min_session_min=?1, max_session_min=?2, updated_at=?3 WHERE id=?4",
+            params![min_minutes, max_minutes, now_ms(), id],
+        )?;
         Ok(())
     }
 
     pub fn set_estimate(&self, id: &str, est_min: Option<i64>) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE tasks SET est=?1, updated_at=?2 WHERE id=?3", params![est_min, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE tasks SET est=?1, updated_at=?2 WHERE id=?3",
+            params![est_min, now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -202,14 +408,18 @@ impl Db {
     }
 
     pub fn set_completed(&self, id: &str, at: Option<i64>) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE tasks SET done=?1, updated_at=?2 WHERE id=?3", params![at, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE tasks SET done=?1, updated_at=?2 WHERE id=?3",
+            params![at, now_ms(), id],
+        )?;
         Ok(())
     }
 
     pub fn set_description(&self, id: &str, descr: Option<&str>) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE tasks SET descr=?1, updated_at=?2 WHERE id=?3", params![descr, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE tasks SET descr=?1, updated_at=?2 WHERE id=?3",
+            params![descr, now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -218,8 +428,10 @@ impl Db {
     /// empty text input) reads back as "no album" rather than an empty tag.
     pub fn set_album(&self, id: &str, album: Option<&str>) -> rusqlite::Result<()> {
         let album = album.map(str::trim).filter(|s| !s.is_empty());
-        self.conn
-            .execute("UPDATE tasks SET album=?1, updated_at=?2 WHERE id=?3", params![album, now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE tasks SET album=?1, updated_at=?2 WHERE id=?3",
+            params![album, now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -255,8 +467,14 @@ impl Db {
 
     pub fn delete_task(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
-        self.conn.execute("UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE task_id=?2", params![now, id])?;
-        self.conn.execute("UPDATE tasks SET deleted_at=?1, updated_at=?1 WHERE id=?2", params![now, id])?;
+        self.conn.execute(
+            "UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE task_id=?2",
+            params![now, id],
+        )?;
+        self.conn.execute(
+            "UPDATE tasks SET deleted_at=?1, updated_at=?1 WHERE id=?2",
+            params![now, id],
+        )?;
         Ok(())
     }
 
@@ -266,13 +484,27 @@ impl Db {
             .conn
             .prepare("SELECT id,task_id,start,end,updated_at FROM sessions WHERE deleted_at IS NULL ORDER BY start")?;
         let rows = stmt.query_map([], |r| {
-            Ok(Session { id: r.get(0)?, task_id: r.get(1)?, start: r.get(2)?, end: r.get(3)?, updated_at: r.get(4)?, deleted_at: None })
+            Ok(Session {
+                id: r.get(0)?,
+                task_id: r.get(1)?,
+                start: r.get(2)?,
+                end: r.get(3)?,
+                updated_at: r.get(4)?,
+                deleted_at: None,
+            })
         })?;
         rows.collect()
     }
 
     pub fn add_session(&self, log: &SessionLog) -> rusqlite::Result<Session> {
-        let s = Session { id: new_id(), task_id: log.task_id.clone(), start: log.start, end: Some(log.end), updated_at: now_ms(), deleted_at: None };
+        let s = Session {
+            id: new_id(),
+            task_id: log.task_id.clone(),
+            start: log.start,
+            end: Some(log.end),
+            updated_at: now_ms(),
+            deleted_at: None,
+        };
         self.conn.execute(
             "INSERT INTO sessions(id,task_id,start,end,updated_at) VALUES(?1,?2,?3,?4,?5)",
             params![s.id, s.task_id, s.start, s.end, s.updated_at],
@@ -281,8 +513,10 @@ impl Db {
     }
 
     pub fn delete_session(&self, id: &str) -> rusqlite::Result<()> {
-        self.conn
-            .execute("UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE id=?2", params![now_ms(), id])?;
+        self.conn.execute(
+            "UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE id=?2",
+            params![now_ms(), id],
+        )?;
         Ok(())
     }
 
@@ -315,30 +549,54 @@ impl Db {
     /// pushing to the remote. Unlike `lists()`/`tasks()`/`sessions()`, this
     /// intentionally does not filter `deleted_at` — a delete has to reach the
     /// other device too.
-    pub fn dirty_since(&self, ts: i64) -> rusqlite::Result<(Vec<TaskList>, Vec<Task>, Vec<Session>)> {
+    pub fn dirty_since(
+        &self,
+        ts: i64,
+    ) -> rusqlite::Result<(Vec<TaskList>, Vec<Task>, Vec<Session>)> {
         let mut lstmt = self.conn.prepare(
-            "SELECT id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction FROM lists WHERE updated_at > ?1",
+            "SELECT id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction,availability_windows FROM lists WHERE updated_at > ?1",
         )?;
         let lists = lstmt
             .query_map(params![ts], |r| {
                 Ok(TaskList {
-                    id: r.get(0)?, name: r.get(1)?, emoji: r.get(2)?, color: r.get(3)?, order: r.get(4)?,
-                    updated_at: r.get(5)?, deleted_at: r.get(6)?, life_area: r.get(7)?, life_direction: r.get(8)?,
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    emoji: r.get(2)?,
+                    color: r.get(3)?,
+                    order: r.get(4)?,
+                    updated_at: r.get(5)?,
+                    deleted_at: r.get(6)?,
+                    life_area: r.get(7)?,
+                    life_direction: r.get(8)?,
+                    availability_windows: read_windows(r, 9)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         let mut tstmt = self.conn.prepare(
-            "SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at FROM tasks WHERE updated_at > ?1",
+            "SELECT id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at,cadence,daily_windows,min_session_min,max_session_min FROM tasks WHERE updated_at > ?1",
         )?;
         let tasks = tstmt
             .query_map(params![ts], |r| {
                 Ok(Task {
-                    id: r.get(0)?, list_id: r.get(1)?, name: r.get(2)?, depth: r.get(3)?, order: r.get(4)?,
-                    estimate_min: r.get(5)?, completed_at: r.get(6)?, description: r.get(7)?,
-                    updated_at: r.get(8)?, deleted_at: r.get(9)?, album: r.get(10)?,
-                    impact_tier: r.get(11)?, impact_sign: r.get::<_, Option<i64>>(12)?.unwrap_or(1),
+                    id: r.get(0)?,
+                    list_id: r.get(1)?,
+                    name: r.get(2)?,
+                    depth: r.get(3)?,
+                    order: r.get(4)?,
+                    estimate_min: r.get(5)?,
+                    completed_at: r.get(6)?,
+                    description: r.get(7)?,
+                    updated_at: r.get(8)?,
+                    deleted_at: r.get(9)?,
+                    album: r.get(10)?,
+                    impact_tier: r.get(11)?,
+                    impact_sign: r.get::<_, Option<i64>>(12)?.unwrap_or(1),
                     deadline_at: r.get(13)?,
+                    cadence: r.get(14)?,
+                    daily_windows: read_windows(r, 15)?,
+                    min_session_min: r.get(16)?,
+                    max_session_min: r.get(17)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -349,8 +607,12 @@ impl Db {
         let sessions = sstmt
             .query_map(params![ts], |r| {
                 Ok(Session {
-                    id: r.get(0)?, task_id: r.get(1)?, start: r.get(2)?, end: r.get(3)?,
-                    updated_at: r.get(4)?, deleted_at: r.get(5)?,
+                    id: r.get(0)?,
+                    task_id: r.get(1)?,
+                    start: r.get(2)?,
+                    end: r.get(3)?,
+                    updated_at: r.get(4)?,
+                    deleted_at: r.get(5)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -361,7 +623,12 @@ impl Db {
     /// Apply rows pulled from the remote. Same last-write-wins rule as the
     /// Postgres-side `lww_guard` trigger: a row only overwrites the local
     /// copy if its `updated_at` is strictly newer.
-    pub fn upsert_from_remote(&self, lists: &[TaskList], tasks: &[Task], sessions: &[Session]) -> rusqlite::Result<()> {
+    pub fn upsert_from_remote(
+        &self,
+        lists: &[TaskList],
+        tasks: &[Task],
+        sessions: &[Session],
+    ) -> rusqlite::Result<()> {
         self.upsert_from_remote_inner(lists, tasks, sessions, false)
     }
 
@@ -383,26 +650,53 @@ impl Db {
     /// newer. A row that's genuinely local-only (no remote counterpart at
     /// all) is untouched here and still syncs up normally afterward via the
     /// regular push path.
-    pub fn upsert_from_remote_force(&self, lists: &[TaskList], tasks: &[Task], sessions: &[Session]) -> rusqlite::Result<()> {
+    pub fn upsert_from_remote_force(
+        &self,
+        lists: &[TaskList],
+        tasks: &[Task],
+        sessions: &[Session],
+    ) -> rusqlite::Result<()> {
         self.upsert_from_remote_inner(lists, tasks, sessions, true)
     }
 
-    fn upsert_from_remote_inner(&self, lists: &[TaskList], tasks: &[Task], sessions: &[Session], force: bool) -> rusqlite::Result<()> {
+    fn upsert_from_remote_inner(
+        &self,
+        lists: &[TaskList],
+        tasks: &[Task],
+        sessions: &[Session],
+        force: bool,
+    ) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         for l in lists {
             let sql = if force {
-                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)
+                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction,availability_windows) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
                  ON CONFLICT(id) DO UPDATE SET name=excluded.name, emoji=excluded.emoji, color=excluded.color,
                    ord=excluded.ord, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
-                   life_area=excluded.life_area, life_direction=excluded.life_direction"
+                   life_area=excluded.life_area, life_direction=excluded.life_direction,
+                   availability_windows=excluded.availability_windows"
             } else {
-                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)
+                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,deleted_at,life_area,life_direction,availability_windows) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
                  ON CONFLICT(id) DO UPDATE SET name=excluded.name, emoji=excluded.emoji, color=excluded.color,
                    ord=excluded.ord, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
-                   life_area=excluded.life_area, life_direction=excluded.life_direction
+                   life_area=excluded.life_area, life_direction=excluded.life_direction,
+                   availability_windows=excluded.availability_windows
                  WHERE excluded.updated_at > lists.updated_at"
             };
-            tx.execute(sql, params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.deleted_at, l.life_area, l.life_direction])?;
+            tx.execute(
+                sql,
+                params![
+                    l.id,
+                    l.name,
+                    l.emoji,
+                    l.color,
+                    l.order,
+                    l.updated_at,
+                    l.deleted_at,
+                    l.life_area,
+                    l.life_direction,
+                    windows_json(&l.availability_windows)?
+                ],
+            )?;
         }
         for t in tasks {
             // impact_tier/impact_sign/deadline_at now round-trip through
@@ -412,20 +706,46 @@ impl Db {
             // to actually carry a real value here instead of the
             // pre-migration default.
             let sql = if force {
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at,cadence,daily_windows,min_session_min,max_session_min) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)
                  ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
                    ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album,
-                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at"
+                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at,
+                   cadence=excluded.cadence, daily_windows=excluded.daily_windows,
+                   min_session_min=excluded.min_session_min, max_session_min=excluded.max_session_min"
             } else {
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,deleted_at,album,impact_tier,impact_sign,deadline_at,cadence,daily_windows,min_session_min,max_session_min) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)
                  ON CONFLICT(id) DO UPDATE SET list_id=excluded.list_id, name=excluded.name, depth=excluded.depth,
                    ord=excluded.ord, est=excluded.est, done=excluded.done, descr=excluded.descr,
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, album=excluded.album,
-                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at
+                   impact_tier=excluded.impact_tier, impact_sign=excluded.impact_sign, deadline_at=excluded.deadline_at,
+                   cadence=excluded.cadence, daily_windows=excluded.daily_windows,
+                   min_session_min=excluded.min_session_min, max_session_min=excluded.max_session_min
                  WHERE excluded.updated_at > tasks.updated_at"
             };
-            tx.execute(sql, params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.deleted_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at])?;
+            tx.execute(
+                sql,
+                params![
+                    t.id,
+                    t.list_id,
+                    t.name,
+                    t.depth,
+                    t.order,
+                    t.estimate_min,
+                    t.completed_at,
+                    t.description,
+                    t.updated_at,
+                    t.deleted_at,
+                    t.album,
+                    t.impact_tier,
+                    t.impact_sign,
+                    t.deadline_at,
+                    t.cadence,
+                    windows_json(&t.daily_windows)?,
+                    t.min_session_min,
+                    t.max_session_min
+                ],
+            )?;
         }
         for s in sessions {
             let sql = if force {
@@ -438,7 +758,10 @@ impl Db {
                    updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
                  WHERE excluded.updated_at > sessions.updated_at"
             };
-            tx.execute(sql, params![s.id, s.task_id, s.start, s.end, s.updated_at, s.deleted_at])?;
+            tx.execute(
+                sql,
+                params![s.id, s.task_id, s.start, s.end, s.updated_at, s.deleted_at],
+            )?;
         }
         tx.commit()
     }
@@ -460,14 +783,14 @@ impl Db {
         tx.execute("DELETE FROM lists", [])?;
         for l in lists {
             tx.execute(
-                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,life_area,life_direction) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
-                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.life_area, l.life_direction],
+                "INSERT INTO lists(id,name,emoji,color,ord,updated_at,life_area,life_direction,availability_windows) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+                params![l.id, l.name, l.emoji, l.color, l.order, l.updated_at, l.life_area, l.life_direction, windows_json(&l.availability_windows)?],
             )?;
         }
         for t in tasks {
             tx.execute(
-                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign,deadline_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
-                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at],
+                "INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr,updated_at,album,impact_tier,impact_sign,deadline_at,cadence,daily_windows,min_session_min,max_session_min) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)",
+                params![t.id, t.list_id, t.name, t.depth, t.order, t.estimate_min, t.completed_at, t.description, t.updated_at, t.album, t.impact_tier, t.impact_sign, t.deadline_at, t.cadence, windows_json(&t.daily_windows)?, t.min_session_min, t.max_session_min],
             )?;
         }
         for s in sessions {
@@ -486,7 +809,9 @@ impl Db {
     // ---- Meta (config + run state, stored as JSON) ----
     fn get_meta(&self, key: &str) -> Option<String> {
         self.conn
-            .query_row("SELECT value FROM meta WHERE key=?1", params![key], |r| r.get::<_, String>(0))
+            .query_row("SELECT value FROM meta WHERE key=?1", params![key], |r| {
+                r.get::<_, String>(0)
+            })
             .ok()
     }
 
@@ -566,14 +891,16 @@ impl Db {
     }
 
     fn delete_meta(&self, key: &str) -> rusqlite::Result<()> {
-        self.conn.execute("DELETE FROM meta WHERE key=?1", params![key])?;
+        self.conn
+            .execute("DELETE FROM meta WHERE key=?1", params![key])?;
         Ok(())
     }
 
     /// Cached, non-secret Google/Supabase profile info. The actual refresh
     /// token lives in the OS Keychain (see `src-tauri/src/auth.rs`), never here.
     pub fn get_account(&self) -> Option<AccountInfo> {
-        self.get_meta("account").and_then(|v| serde_json::from_str(&v).ok())
+        self.get_meta("account")
+            .and_then(|v| serde_json::from_str(&v).ok())
     }
 
     pub fn set_account(&self, account: Option<&AccountInfo>) -> rusqlite::Result<()> {
@@ -587,7 +914,9 @@ impl Db {
     /// remote `updated_at=gt.<cursor>` filter. 0 (never synced) pulls/pushes
     /// everything on the first run.
     pub fn get_push_cursor(&self) -> i64 {
-        self.get_meta("sync_push_cursor").and_then(|v| v.parse().ok()).unwrap_or(0)
+        self.get_meta("sync_push_cursor")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
     }
 
     pub fn set_push_cursor(&self, ts: i64) -> rusqlite::Result<()> {
@@ -595,7 +924,9 @@ impl Db {
     }
 
     pub fn get_pull_cursor(&self) -> i64 {
-        self.get_meta("sync_pull_cursor").and_then(|v| v.parse().ok()).unwrap_or(0)
+        self.get_meta("sync_pull_cursor")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
     }
 
     pub fn set_pull_cursor(&self, ts: i64) -> rusqlite::Result<()> {
@@ -606,6 +937,7 @@ impl Db {
     pub fn snapshot(&self) -> rusqlite::Result<Snapshot> {
         Ok(Snapshot {
             lists: self.lists()?,
+            life_area_priorities: self.life_area_priorities()?,
             tasks: self.tasks()?,
             sessions: self.sessions()?,
             config: self.get_config(),
@@ -629,7 +961,9 @@ impl Db {
     }
 
     fn seed_if_empty(&self) -> rusqlite::Result<()> {
-        let count: i64 = self.conn.query_row("SELECT COUNT(*) FROM lists", [], |r| r.get(0))?;
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM lists", [], |r| r.get(0))?;
         if count > 0 {
             return Ok(());
         }
@@ -655,9 +989,21 @@ impl Db {
         self.set_depth(&t4.id, Some("shallow"))?;
         self.add_task(&admin.id, "Inbox zero", None)?;
 
-        self.add_session(&SessionLog { task_id: t1.id.clone(), start: now - 86_400_000, end: now - 86_400_000 + 3_600_000 })?;
-        self.add_session(&SessionLog { task_id: t1.id.clone(), start: now - 3_600_000, end: now - 3_600_000 + 1_500_000 })?;
-        self.add_session(&SessionLog { task_id: t2.id.clone(), start: now - 7_200_000, end: now - 7_200_000 + 2_100_000 })?;
+        self.add_session(&SessionLog {
+            task_id: t1.id.clone(),
+            start: now - 86_400_000,
+            end: now - 86_400_000 + 3_600_000,
+        })?;
+        self.add_session(&SessionLog {
+            task_id: t1.id.clone(),
+            start: now - 3_600_000,
+            end: now - 3_600_000 + 1_500_000,
+        })?;
+        self.add_session(&SessionLog {
+            task_id: t2.id.clone(),
+            start: now - 7_200_000,
+            end: now - 7_200_000 + 2_100_000,
+        })?;
         Ok(())
     }
 }
@@ -689,7 +1035,15 @@ mod tests {
         assert_eq!(tasks[0].depth.as_deref(), Some("deep"));
 
         db.rename_list(&l.id, "Renamed").unwrap();
-        assert_eq!(db.lists().iter().flatten().find(|x| x.id == l.id).unwrap().name, "Renamed");
+        assert_eq!(
+            db.lists()
+                .iter()
+                .flatten()
+                .find(|x| x.id == l.id)
+                .unwrap()
+                .name,
+            "Renamed"
+        );
     }
 
     #[test]
@@ -713,7 +1067,12 @@ mod tests {
         let db = Db::open_in_memory().unwrap();
         let l = db.add_list("L").unwrap();
         let t = db.add_task(&l.id, "T", None).unwrap();
-        db.add_session(&SessionLog { task_id: t.id.clone(), start: 0, end: 100 }).unwrap();
+        db.add_session(&SessionLog {
+            task_id: t.id.clone(),
+            start: 0,
+            end: 100,
+        })
+        .unwrap();
         db.delete_list(&l.id).unwrap();
         assert_eq!(db.lists().unwrap().len(), 0);
         assert_eq!(db.tasks().unwrap().len(), 0);
@@ -731,7 +1090,10 @@ mod tests {
         assert_eq!(db.tasks().unwrap().len(), 0);
         // ...but present as a tombstone for sync to push.
         let (_, tasks, _) = db.dirty_since(0).unwrap();
-        let dirty = tasks.iter().find(|task| task.id == t.id).expect("tombstone should be visible to dirty_since");
+        let dirty = tasks
+            .iter()
+            .find(|task| task.id == t.id)
+            .expect("tombstone should be visible to dirty_since");
         assert!(dirty.deleted_at.is_some());
         assert!(dirty.updated_at > 0);
     }
@@ -741,10 +1103,22 @@ mod tests {
         let db = Db::open_in_memory().unwrap();
         let l = db.add_list("L").unwrap();
         let t = db.add_task(&l.id, "T", None).unwrap();
-        let before = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap().updated_at;
+        let before = db
+            .tasks()
+            .unwrap()
+            .into_iter()
+            .find(|x| x.id == t.id)
+            .unwrap()
+            .updated_at;
         std::thread::sleep(std::time::Duration::from_millis(2));
         db.rename_task(&t.id, "T2").unwrap();
-        let after = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap().updated_at;
+        let after = db
+            .tasks()
+            .unwrap()
+            .into_iter()
+            .find(|x| x.id == t.id)
+            .unwrap()
+            .updated_at;
         assert!(after > before);
     }
 
@@ -752,21 +1126,42 @@ mod tests {
     fn upsert_from_remote_is_last_write_wins() {
         let db = Db::open_in_memory().unwrap();
         let l = db.add_list("L").unwrap();
-        let local = db.lists().unwrap().into_iter().find(|x| x.id == l.id).unwrap();
+        let local = db
+            .lists()
+            .unwrap()
+            .into_iter()
+            .find(|x| x.id == l.id)
+            .unwrap();
 
         // Stale remote row (older updated_at) must not clobber the local one.
         let mut stale = local.clone();
         stale.name = "Stale".into();
         stale.updated_at = local.updated_at - 1000;
         db.upsert_from_remote(&[stale], &[], &[]).unwrap();
-        assert_eq!(db.lists().unwrap().into_iter().find(|x| x.id == l.id).unwrap().name, "L");
+        assert_eq!(
+            db.lists()
+                .unwrap()
+                .into_iter()
+                .find(|x| x.id == l.id)
+                .unwrap()
+                .name,
+            "L"
+        );
 
         // Newer remote row must win.
         let mut newer = local.clone();
         newer.name = "Newer".into();
         newer.updated_at = local.updated_at + 1000;
         db.upsert_from_remote(&[newer], &[], &[]).unwrap();
-        assert_eq!(db.lists().unwrap().into_iter().find(|x| x.id == l.id).unwrap().name, "Newer");
+        assert_eq!(
+            db.lists()
+                .unwrap()
+                .into_iter()
+                .find(|x| x.id == l.id)
+                .unwrap()
+                .name,
+            "Newer"
+        );
     }
 
     #[test]
@@ -780,15 +1175,106 @@ mod tests {
         assert_eq!(t.impact_sign, 1);
 
         db.set_task_impact(&t.id, Some("high"), -1).unwrap();
-        let reloaded = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap();
+        let reloaded = db
+            .tasks()
+            .unwrap()
+            .into_iter()
+            .find(|x| x.id == t.id)
+            .unwrap();
         assert_eq!(reloaded.impact_tier.as_deref(), Some("high"));
         assert_eq!(reloaded.impact_sign, -1);
 
         // clearing the tier keeps the row (not deleted), just untagged again.
         db.set_task_impact(&t.id, None, 1).unwrap();
-        let cleared = db.tasks().unwrap().into_iter().find(|x| x.id == t.id).unwrap();
+        let cleared = db
+            .tasks()
+            .unwrap()
+            .into_iter()
+            .find(|x| x.id == t.id)
+            .unwrap();
         assert_eq!(cleared.impact_tier, None);
         assert_eq!(cleared.impact_sign, 1);
     }
 
+    #[test]
+    fn planner_fields_roundtrip() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("Workplace").unwrap();
+        let availability = vec![
+            WeeklyTimeWindow {
+                weekday: 1,
+                start_minute: 9 * 60,
+                end_minute: 13 * 60,
+            },
+            WeeklyTimeWindow {
+                weekday: 1,
+                start_minute: 14 * 60,
+                end_minute: 18 * 60,
+            },
+        ];
+        db.set_list_availability(&list.id, &availability).unwrap();
+
+        let task = db
+            .add_task(&list.id, "Write proposal", Some(8 * 60))
+            .unwrap();
+        let daily_windows = vec![WeeklyTimeWindow {
+            weekday: 2,
+            start_minute: 7 * 60,
+            end_minute: 7 * 60 + 45,
+        }];
+        db.set_daily_windows(&task.id, &daily_windows).unwrap();
+        db.set_session_range(&task.id, Some(30), Some(90)).unwrap();
+
+        let reloaded_list = db
+            .lists()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.id == list.id)
+            .unwrap();
+        assert_eq!(reloaded_list.availability_windows, availability);
+
+        let reloaded_task = db
+            .tasks()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.id == task.id)
+            .unwrap();
+        assert_eq!(reloaded_task.daily_windows, daily_windows);
+        assert_eq!(reloaded_task.min_session_min, Some(30));
+        assert_eq!(reloaded_task.max_session_min, Some(90));
+    }
+
+    #[test]
+    fn life_area_priority_defaults_reorder_and_sync_guard() {
+        let db = Db::open_in_memory().unwrap();
+        let defaults = db.life_area_priorities().unwrap();
+        assert_eq!(defaults.len(), 6);
+        assert_eq!(defaults[0].area_key, "career");
+
+        let order = [
+            "relationships",
+            "health",
+            "career",
+            "growth",
+            "finance",
+            "recreation",
+        ]
+        .map(String::from);
+        db.reorder_life_areas(&order).unwrap();
+
+        let reordered = db.life_area_priorities().unwrap();
+        assert_eq!(reordered[0].area_key, "relationships");
+        assert_eq!(reordered[0].priority_rank, 1);
+        assert_eq!(db.snapshot().unwrap().life_area_priorities, reordered);
+
+        let mut stale = reordered[0].clone();
+        stale.priority_rank = 6;
+        stale.updated_at -= 1;
+        db.upsert_life_area_priorities_from_remote(&[stale], false)
+            .unwrap();
+        assert_eq!(
+            db.life_area_priorities().unwrap()[0].area_key,
+            "relationships"
+        );
+    }
 }

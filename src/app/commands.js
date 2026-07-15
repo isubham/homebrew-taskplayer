@@ -1,4 +1,5 @@
 import { esc, LIFE_AREAS, colorForArea } from "./utils.js";
+import { timeToMinute, simpleScheduleRowHtml, simpleScheduleEditorHtml, updateOvernightIndicator } from "./weekly-schedule.js";
 
 // Curated set for the "Edit list" emoji picker, grouped into the categories
 // a task list tends to fall into — still a curated pick per category (24
@@ -37,6 +38,49 @@ const lifeAreaOptionsHtml = (selected) =>
 const lifeDirOptionsHtml = (selected) => `
   <option value="increase" ${selected !== "decrease" ? "selected" : ""}>Increases this area</option>
   <option value="decrease" ${selected === "decrease" ? "selected" : ""}>Decreases this area</option>`;
+
+function bindWeeklyEditor(id) {
+  const editor = document.getElementById(id);
+  if (!editor) return;
+  const list = editor.querySelector("[data-window-list]");
+  const updateRemoveButtons = () => {
+    const onlyOne = list.querySelectorAll("[data-window-row]").length === 1;
+    list.querySelectorAll("[data-window-remove]").forEach((button) => button.classList.toggle("hidden", onlyOne));
+  };
+  editor.querySelector("[data-window-add]")?.addEventListener("click", () => {
+    list.insertAdjacentHTML("beforeend", simpleScheduleRowHtml({ weekdays: [], startMinute: 9 * 60, endMinute: 17 * 60 }));
+    updateRemoveButtons();
+  });
+  list.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-window-remove]");
+    if (!remove || list.querySelectorAll("[data-window-row]").length === 1) return;
+    remove.closest("[data-window-row]")?.remove();
+    updateRemoveButtons();
+  });
+  list.addEventListener("input", (event) => {
+    if (event.target.matches("[data-window-start], [data-window-end]")) {
+      updateOvernightIndicator(event.target.closest("[data-window-row]"));
+    }
+  });
+  updateRemoveButtons();
+}
+
+function readWeeklyEditor(id) {
+  const editor = document.getElementById(id);
+  if (!editor) return { windows: [], error: null };
+  const windows = [];
+  for (const row of editor.querySelectorAll("[data-window-row]")) {
+    const weekdays = Array.from(row.querySelectorAll("[data-weekday]:checked"), (input) => Number(input.dataset.weekday));
+    if (!weekdays.length) continue;
+    const startMinute = timeToMinute(row.querySelector("[data-window-start]").value);
+    const endMinute = timeToMinute(row.querySelector("[data-window-end]").value);
+    if (startMinute === null || endMinute === null) return { windows: [], error: "Choose a start time and end time for each selected row." };
+    if (endMinute === startMinute) return { windows: [], error: "Start and end time cannot be the same." };
+    weekdays.forEach((weekday) => windows.push({ weekday, startMinute, endMinute }));
+  }
+  windows.sort((a, b) => a.weekday - b.weekday || a.startMinute - b.startMinute);
+  return { windows, error: null };
+}
 
 
 export function createCommands({ state, ui, renderer, invoke }) {
@@ -85,9 +129,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     ).join("");
     const previewStyle = (color) => `background:${color}22;color:${color};width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font-size:15px;flex:none`;
     const deleteHtml = deleteId
-      ? `<div style="margin:18px 22px 0;padding-top:14px;border-top:1px solid var(--line)">
-          <button type="button" class="danger" data-action="deleteList" data-id="${deleteId}">Delete list</button>
-        </div>`
+      ? `<button type="button" class="btn danger dfoot-delete" data-action="deleteList" data-id="${deleteId}">Delete list</button>`
       : "";
     // `uiForm` mutates the DOM synchronously before returning its (still
     // pending) promise (see ui.js), so the elements below can be grabbed and
@@ -112,25 +154,37 @@ export function createCommands({ state, ui, renderer, invoke }) {
         </div>
         <div class="ffield"><label>Life area</label><select id="listAreaIn">${lifeAreaOptionsHtml(current.lifeArea || "")}</select></div>
         <div class="ffield"><label>Effect</label><select id="listDirIn">${lifeDirOptionsHtml(current.lifeDirection)}</select></div>
-        ${deleteHtml}`,
+        <div class="schedule-field">
+          <div class="schedule-field-head"><div><strong>Available here</strong><span>One-time tasks in this list can be planned during these windows.</span></div></div>
+          ${simpleScheduleEditorHtml("listAvailabilityIn", current.availabilityWindows || [])}
+          <div class="schedule-error" id="listScheduleError"></div>
+        </div>`,
       collect: () => {
         const name = document.getElementById("listNameIn").value.trim();
         if (!name) return undefined;
+        const schedule = readWeeklyEditor("listAvailabilityIn");
+        const scheduleError = document.getElementById("listScheduleError");
+        if (schedule.error) {
+          if (scheduleError) scheduleError.textContent = schedule.error;
+          return undefined;
+        }
         const area = document.getElementById("listAreaIn").value || null;
         const direction = area ? document.getElementById("listDirIn").value : null;
-        return { name, emoji: chosenEmoji, color: colorForArea(area), area, direction };
+        return { name, emoji: chosenEmoji, color: colorForArea(area), area, direction, availabilityWindows: schedule.windows };
       },
     });
     // Wider than the default dialog so each category's 24 emoji fit 2 rows
     // (see "dlg-emoji" in styles.css); removed again once it resolves.
     const modal = document.getElementById("dmodal");
     modal?.classList.add("dlg-emoji");
+    if (deleteHtml) modal?.querySelector(".dfoot")?.insertAdjacentHTML("afterbegin", deleteHtml);
     const preview = document.getElementById("stylePreview");
     const areaSelect = document.getElementById("listAreaIn");
     const grid = document.getElementById("emojiGrid");
     const catLabel = document.getElementById("emojiCatLabel");
     const catPrev = document.getElementById("emojiCatPrev");
     const catNext = document.getElementById("emojiCatNext");
+    bindWeeklyEditor("listAvailabilityIn");
     grid?.addEventListener("click", (event) => {
       const btn = event.target.closest(".emoji-opt");
       if (!btn) return;
@@ -173,7 +227,7 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const value = await openListForm({
       title: "New list",
       confirmText: "Create",
-      current: { name: "", emoji: "📁", lifeArea: presetArea || "", lifeDirection: "increase" },
+      current: { name: "", emoji: "📁", lifeArea: presetArea || "", lifeDirection: "increase", availabilityWindows: [] },
     });
     if (!value) return;
     const snap = await invoke("add_list", { name: value.name });
@@ -182,7 +236,8 @@ export function createCommands({ state, ui, renderer, invoke }) {
     const created = snap.lists[snap.lists.length - 1];
     if (!created) return apply(snap);
     await invoke("set_list_style", { id: created.id, emoji: value.emoji, color: value.color });
-    apply(await invoke("set_list_life_tag", { id: created.id, area: value.area, direction: value.direction }));
+    await invoke("set_list_life_tag", { id: created.id, area: value.area, direction: value.direction });
+    apply(await invoke("set_list_availability", { id: created.id, windows: value.availabilityWindows }));
   }
 
   async function editList(id) {
@@ -194,7 +249,8 @@ export function createCommands({ state, ui, renderer, invoke }) {
     // existing rename_list vs. set_list_style split); apply the final snapshot.
     await invoke("rename_list", { id, name: value.name });
     await invoke("set_list_style", { id, emoji: value.emoji, color: value.color });
-    apply(await invoke("set_list_life_tag", { id, area: value.area, direction: value.direction }));
+    await invoke("set_list_life_tag", { id, area: value.area, direction: value.direction });
+    apply(await invoke("set_list_availability", { id, windows: value.availabilityWindows }));
   }
 
   async function deleteList(id) {
@@ -207,24 +263,94 @@ export function createCommands({ state, ui, renderer, invoke }) {
     renderer.navigate({ view: "tasks", listId: id });
   }
 
-  async function addTask() {
+  function addTask() {
     if (!state.activeListId) return;
-    const value = await uiForm({
-      title: "New task",
-      confirmText: "Add task",
-      focusSel: "#taskNameIn",
-      bodyHtml: `
-        <div class="ffield"><label>Name</label><input id="taskNameIn" placeholder="Task name" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1"></div>
-        <div class="ffield"><label>Estimate</label><input type="number" id="taskEstIn" min="0.25" max="1000" step="0.25" value="0.5" autocomplete="off"> hours</div>`,
-      collect: () => {
-        const name = document.getElementById("taskNameIn").value.trim();
-        if (!name) return undefined;
-        const hours = parseFloat(document.getElementById("taskEstIn").value);
-        if (isNaN(hours) || hours <= 0) return undefined;
-        return { name, minutes: Math.round(hours * 60) };
-      },
+    renderer.openCreateDetail();
+    bindWeeklyEditor("newTaskDailyWindows");
+  }
+
+  function setCreateTaskChoice(field, value, element) {
+    const input = document.getElementById(`task${field}In`);
+    if (!input) return;
+    const next = field === "ImpactTier" && input.value === value ? "" : value;
+    input.value = next;
+    element?.closest("[data-choice-group]")?.querySelectorAll("button[data-choice-value]").forEach((button) => {
+      button.classList.toggle("sel", button.dataset.choiceValue === next);
     });
-    if (value) apply(await invoke("add_task", { listId: state.activeListId, name: value.name, estimateMin: value.minutes }));
+    if (field === "Cadence") {
+      const daily = next === "daily";
+      document.getElementById("newTaskOnceFields")?.classList.toggle("hidden", daily);
+      document.getElementById("newTaskDeadlineFields")?.classList.toggle("hidden", daily);
+      document.getElementById("newTaskDailyFields")?.classList.toggle("hidden", !daily);
+      document.getElementById("newTaskEstimateFields")?.classList.toggle("hidden", daily);
+      document.getElementById("newTaskDailySessionSummary")?.classList.toggle("hidden", !daily);
+      const hint = document.getElementById("taskCadenceHint");
+      if (hint) hint.textContent = daily
+        ? "Repeats every day. No finish line and no streak kept."
+        : "Finishes once. Its jewel pays on completion.";
+    } else if (field === "Depth") {
+      const hint = document.getElementById("taskDepthHint");
+      if (hint) hint.textContent = next === "deep" ? "Long, focused, hard to interrupt."
+        : next === "shallow" ? "Quick, low-focus busywork."
+        : "Not classified.";
+    } else if (field === "ImpactTier") {
+      document.getElementById("newTaskImpactSign")?.classList.toggle("hidden", !next);
+    } else if (field === "ImpactSign") {
+      input.dataset.explicit = "true";
+    }
+  }
+
+  async function createTaskFromDetail() {
+    const error = document.getElementById("taskCreateError");
+    if (error) error.textContent = "";
+    const name = document.getElementById("taskNameIn")?.value.trim();
+    if (!name) {
+      if (error) error.textContent = "Add a task name.";
+      document.getElementById("taskNameIn")?.focus();
+      return;
+    }
+    const cadence = document.getElementById("taskCadenceIn")?.value || null;
+    const estimateRaw = cadence === "daily" ? "" : (document.getElementById("taskEstIn")?.value.trim() || "");
+    const hours = estimateRaw ? parseFloat(estimateRaw) : null;
+    if (hours !== null && (isNaN(hours) || hours <= 0)) {
+      if (error) error.textContent = "Use a positive estimate, or leave it blank.";
+      return;
+    }
+    const minSessionMin = parseInt(document.getElementById("taskMinSessionIn")?.value, 10) || null;
+    const maxSessionMin = parseInt(document.getElementById("taskMaxSessionIn")?.value, 10) || null;
+    if (minSessionMin && maxSessionMin && minSessionMin > maxSessionMin) {
+      if (error) error.textContent = "The shortest session cannot be longer than the longest session.";
+      return;
+    }
+    const schedule = cadence === "daily" ? readWeeklyEditor("newTaskDailyWindows") : { windows: [], error: null };
+    if (schedule.error) {
+      if (error) error.textContent = schedule.error;
+      return;
+    }
+    const listId = document.getElementById("taskListIn")?.value || state.activeListId;
+    const deadline = document.getElementById("taskDeadlineIn")?.value || "";
+    const deadlineAt = deadline ? new Date(deadline + "T00:00:00").getTime() : null;
+    const depth = document.getElementById("taskDepthIn")?.value || null;
+    const description = document.getElementById("taskNotesIn")?.value.trim() || null;
+    const impactTier = document.getElementById("taskImpactTierIn")?.value || null;
+    const impactSignInput = document.getElementById("taskImpactSignIn");
+    const selectedList = list(listId);
+    const impactSign = impactSignInput?.dataset.explicit === "true"
+      ? (parseInt(impactSignInput.value, 10) === -1 ? -1 : 1)
+      : (selectedList?.lifeDirection === "decrease" ? -1 : 1);
+    const beforeIds = new Set(state.S.tasks.map((task) => task.id));
+    let snap = await invoke("add_task", { listId, name, estimateMin: hours === null ? null : Math.round(hours * 60) });
+    const created = snap.tasks.find((task) => !beforeIds.has(task.id));
+    if (!created) return apply(snap);
+    if (description) snap = await invoke("set_description", { id: created.id, text: description });
+    if (depth) snap = await invoke("set_depth", { id: created.id, depth });
+    if (cadence) snap = await invoke("set_cadence", { id: created.id, cadence });
+    if (deadlineAt && cadence !== "daily") snap = await invoke("set_deadline", { id: created.id, deadlineAt });
+    if (cadence === "daily" && schedule.windows.length) snap = await invoke("set_daily_windows", { id: created.id, windows: schedule.windows });
+    if (cadence !== "daily") snap = await invoke("set_session_range", { id: created.id, minMinutes: minSessionMin, maxMinutes: maxSessionMin });
+    if (impactTier) snap = await invoke("set_task_impact", { id: created.id, tier: impactTier, sign: impactSign });
+    renderer.closeDetail();
+    apply(snap);
   }
 
   async function renameTask(id) {
@@ -242,6 +368,71 @@ export function createCommands({ state, ui, renderer, invoke }) {
   // its own explicit option rather than "click the current one again".
   async function setDepth(id, depth) {
     apply(await invoke("set_depth", { id, depth: depth || null }));
+  }
+
+  // Same immediate-commit, exact-value-not-toggle contract as setDepth above.
+  // null/"" = one-time (the default), "daily" = repeating — see the Task
+  // model's doc comment on `cadence` for what that changes.
+  async function setCadence(id, cadence) {
+    apply(await invoke("set_cadence", { id, cadence: cadence || null }));
+  }
+
+  const detailDailyEditorOptions = (id) => ({
+    taskId: id,
+    changeAction: "setDailySchedule",
+    addAction: "addDailyScheduleRow",
+    removeAction: "removeDailyScheduleRow",
+  });
+
+  async function persistDailySchedule(id) {
+    const result = readWeeklyEditor(`taskDailyWindows-${id}`);
+    const error = document.getElementById("taskDailyScheduleError");
+    if (result.error) {
+      if (error) error.textContent = result.error;
+      return;
+    }
+    if (error) error.textContent = "";
+    apply(await invoke("set_daily_windows", { id, windows: result.windows }));
+  }
+
+  function addDailyScheduleRow(id) {
+    const editor = document.getElementById(`taskDailyWindows-${id}`);
+    editor?.querySelector("[data-window-list]")?.insertAdjacentHTML(
+      "beforeend",
+      simpleScheduleRowHtml({ weekdays: [], startMinute: 9 * 60, endMinute: 17 * 60 }, detailDailyEditorOptions(id)),
+    );
+  }
+
+  async function removeDailyScheduleRow(id, element) {
+    const list = element?.closest("[data-window-list]");
+    if (!list || list.querySelectorAll("[data-window-row]").length === 1) return;
+    element.closest("[data-window-row]")?.remove();
+    await persistDailySchedule(id);
+  }
+
+  async function setDailySchedule(id, element) {
+    const row = element?.closest("[data-window-row]");
+    if (element?.matches("input[type=time]")) updateOvernightIndicator(row);
+    if (element?.matches("input[type=time]") && !row?.querySelector("[data-weekday]:checked")) return;
+    await persistDailySchedule(id);
+  }
+
+  async function setSessionRangeField(id, field, rawValue) {
+    const task = findTask(id);
+    if (!task || !["min", "max"].includes(field)) return;
+    const parsed = (rawValue ?? "").trim() === "" ? null : parseInt(rawValue, 10);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
+      renderer.renderDetail();
+      return;
+    }
+    const minMinutes = field === "min" ? parsed : task.minSessionMin;
+    const maxMinutes = field === "max" ? parsed : task.maxSessionMin;
+    if (minMinutes && maxMinutes && minMinutes > maxMinutes) {
+      renderer.renderDetail();
+      await uiNote("Adjust the session range", "The shortest session cannot be longer than the longest session.", "OK");
+      return;
+    }
+    apply(await invoke("set_session_range", { id, minMinutes, maxMinutes }));
   }
 
   async function deleteTask(id) {
@@ -386,6 +577,19 @@ export function createCommands({ state, ui, renderer, invoke }) {
 
   async function reorderLists(orderedIds) {
     apply(await invoke("reorder_lists", { orderedIds }));
+  }
+
+  async function reorderLifeAreas(orderedAreaKeys) {
+    apply(await invoke("reorder_life_areas", { orderedAreaKeys }));
+  }
+
+  function showLifePriorityInfo() {
+    return uiNote(
+      "Planning priority",
+      `<p>Life areas are ordered from highest to lowest planning priority.</p>
+       <p>Hover over a life area and drag its handle to change the order. When time windows conflict, an area may use time belonging to areas below it—not areas above it.</p>
+       <p><strong>Example:</strong> If Relationships is above Career / Work, a Relationships task can use a Work window. A Work task cannot use time reserved for Relationships.</p>`,
+    );
   }
 
   // The keyboard shortcuts cheat sheet — shown from the `?` key and from
@@ -689,15 +893,12 @@ export function createCommands({ state, ui, renderer, invoke }) {
     apply(await invoke("skip_break"));
   }
 
-  // The button shown while `run.phase === "awaiting_break"` — the work block
-  // already ended and got logged; the break clock only starts now.
+  // Compatibility action for an old synced `awaiting_break` state.
   async function startBreak() {
     apply(await invoke("start_break"));
   }
 
-  // The button shown while `run.phase === "awaiting_work"` — same underlying
-  // command as skipBreak (both just mean "resume work now"), kept as its own
-  // named action so the two buttons read clearly in bootstrap.js/render.js.
+  // Compatibility action for an old synced `awaiting_work` state.
   async function resumeWork() {
     apply(await invoke("resume_work"));
   }
@@ -708,7 +909,12 @@ export function createCommands({ state, ui, renderer, invoke }) {
   }
 
   async function setConfigField(key, value) {
-    apply(await invoke("set_config_field", { key, value: parseInt(value, 10) || 1 }));
+    // NaN (cleared number input) still falls back to 1, but a real 0 must
+    // survive — the hourlyNudge checkbox sends "0" to mean off, and the old
+    // `|| 1` would have silently re-enabled it. Numeric fields are unhurt:
+    // the backend clamps them to >= 1 anyway.
+    const parsed = parseInt(value, 10);
+    apply(await invoke("set_config_field", { key, value: Number.isNaN(parsed) ? 1 : parsed }));
     renderer.renderSettingsPage();
   }
 
@@ -725,13 +931,22 @@ export function createCommands({ state, ui, renderer, invoke }) {
     addList,
     editList,
     reorderLists,
+    reorderLifeAreas,
+    showLifePriorityInfo,
     setListArea,
     showShortcuts,
     deleteList,
     selectList,
     addTask,
+    setCreateTaskChoice,
+    createTaskFromDetail,
     renameTask,
     setDepth,
+    setCadence,
+    addDailyScheduleRow,
+    removeDailyScheduleRow,
+    setDailySchedule,
+    setSessionRangeField,
     deleteTask,
     setEstimateInline,
     bumpEstimate,

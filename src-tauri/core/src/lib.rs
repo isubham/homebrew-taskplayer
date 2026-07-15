@@ -6,6 +6,7 @@
 pub mod db;
 mod migrations;
 pub mod models;
+pub mod schedule;
 pub mod timer;
 
 pub use db::Db;
@@ -33,7 +34,14 @@ mod tests {
 
     #[test]
     fn task_total_includes_live_segment() {
-        let sessions = vec![Session { id: "s".into(), task_id: "a".into(), start: 0, end: Some(1000), updated_at: 0, deleted_at: None }];
+        let sessions = vec![Session {
+            id: "s".into(),
+            task_id: "a".into(),
+            start: 0,
+            end: Some(1000),
+            updated_at: 0,
+            deleted_at: None,
+        }];
         let (run, _) = timer::play(&RunState::default(), "a", 2000);
         // 1000 logged + live (5000-2000)=3000
         assert_eq!(task_total_ms(&sessions, &run, "a", 5000), 4000);

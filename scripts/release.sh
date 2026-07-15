@@ -222,7 +222,8 @@ info "Wrote $LATEST_JSON (darwin-$TAURI_ARCH)"
 # ---------- 5. commit + tag ----------
 
 info "Committing version bump and tagging $TAG"
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml "$CASK_FILE"
+git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml \
+  "$CASK_FILE" "$LATEST_JSON"
 git commit -m "release $TAG"
 git tag -a "$TAG" -m "$APP_NAME $VERSION"
 

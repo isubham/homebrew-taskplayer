@@ -84,6 +84,74 @@ export function jewelPayout(task) {
   return { amount: sign * tier.weight };
 }
 
+// ---- Rank progression (Home page badge) ----
+// Six tiers off cumulative lifetime jewels — musical dynamics markings
+// rather than a generic "level 1/2/3", to stay inside the same vocabulary
+// as the rest of the app (Now Playing, tracks, jewels). `min` thresholds
+// are fixed and disclosed (see the rank badge's tooltip in render.js) —
+// never randomized, same discipline as IMPACT_TIERS above. Rank only ever
+// climbs: it's computed fresh from lifetime *positive* jewels only (see
+// render.js's lifetimeJewelsByArea/buildRankInfo), so an against-tagged
+// task's negative jewels can never pull it back down — a rank demotion
+// would be a Loss & Avoidance mechanic, which CLAUDE.md's gamification
+// section rules out entirely for this app.
+export const RANKS = [
+  { key: "pp", label: "Pianissimo", sub: "just starting out", min: 0 },
+  { key: "p", label: "Piano", sub: "quiet, steady progress", min: 15 },
+  { key: "mf", label: "Mezzo-forte", sub: "building momentum", min: 50 },
+  { key: "f", label: "Forte", sub: "strong and steady", min: 150 },
+  { key: "ff", label: "Fortissimo", sub: "powerful, all in", min: 400 },
+  { key: "cresc", label: "Crescendo", sub: "full swell", min: 1000 },
+];
+
+// Rank is computed from a "balanced" jewel total, not the raw sum: no
+// single life area (or the "other"/untagged bucket) may supply more than
+// this share of whatever tier threshold is being tested (see
+// buildRankInfo in render.js). At 1/3, crossing a tier needs meaningful
+// jewels from at least ~3 different areas — hyperfocusing lifetime jewels
+// into one or two favorite areas caps out and stalls the badge, which is
+// the whole point: this app's ADHD-balance concern (see the Home radar)
+// shouldn't be gameable by a rank system that only cares about volume.
+export const RANK_AREA_CAP_RATIO = 1 / 3;
+
+// ---- Cadence: repeating ("daily") vs one-time tasks ----
+// A one-time task's jewel pays once, on `completedAt`. A "daily" task never
+// gets a terminal completion, so it needs its own answer to "did this pay
+// out" — derived at read time from sessions, same discipline as everything
+// else here (deadline_at's avoidance scoring, impact_tier's weightless-until-
+// tagged rule): nothing new is stored, no streak counter, no history of
+// misses. Just "is there a session today/in this window," recomputed fresh
+// every render.
+
+// True if `task` (a "daily" cadence task) has at least one session that
+// *started* within the local calendar day beginning at `dayStart` (a
+// midnight-aligned ms timestamp). This is the per-day equivalent of
+// `completedAt` being set — the thing that makes today's jewel fire.
+export function dailyPayoutOn(task, sessions, dayStart) {
+  if (task.cadence !== "daily") return false;
+  const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+  return sessions.some((s) => s.taskId === task.id && s.start >= dayStart && s.start < dayEnd);
+}
+
+// Count of distinct calendar days within [windowStart, windowEnd) on which a
+// "daily" cadence task earned its jewel — the cadence equivalent of checking
+// `completedAt >= windowStart && completedAt <= windowEnd` for a one-time
+// task, just repeated per qualifying day instead of firing once. Returns 0
+// (not a fallback to raw time) for a non-"daily" task or one with no
+// qualifying day in range.
+export function dailyPayoutDayCount(task, sessions, windowStart, windowEnd) {
+  if (task.cadence !== "daily") return 0;
+  const days = new Set();
+  for (const s of sessions) {
+    if (s.taskId !== task.id) continue;
+    if (s.start < windowStart || s.start >= windowEnd) continue;
+    const d = new Date(s.start);
+    d.setHours(0, 0, 0, 0);
+    days.add(d.getTime());
+  }
+  return days.size;
+}
+
 export function esc(s) {
   return String(s).replace(/[&<>\"]/g, (char) => ({
     "&": "&amp;",

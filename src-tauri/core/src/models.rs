@@ -20,6 +20,35 @@ pub fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+/// A recurring local-time window within a week. `weekday` follows ISO-8601
+/// numbering (Monday = 1, Sunday = 7); start/end are minutes after local
+/// midnight and describe a half-open interval `[start_minute, end_minute)`.
+/// When `end_minute < start_minute`, the interval ends on the following day;
+/// equal start/end values are rejected by the editor as ambiguous.
+///
+/// The planner will validate ranges before saving them. Keeping this as a
+/// shared value object lets lists describe when their context is available
+/// and daily tasks describe when each occurrence happens without inventing
+/// separate time formats for the two features.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WeeklyTimeWindow {
+    pub weekday: i64,
+    pub start_minute: i64,
+    pub end_minute: i64,
+}
+
+/// User-controlled planning precedence for one fixed life area. Rank 1 is
+/// highest. The area name/color remain defined by the app; only this order is
+/// persisted and synced.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LifeAreaPriority {
+    pub area_key: String,
+    pub priority_rank: i64,
+    pub updated_at: i64,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskList {
@@ -47,6 +76,11 @@ pub struct TaskList {
     /// lists saved before this field existed deserializable.
     #[serde(default)]
     pub life_direction: Option<String>,
+    /// Weekly local-time windows in which tasks belonging to this list may
+    /// be planned. Empty means the list has no scheduling constraint yet,
+    /// preserving the behavior of every list created before the planner.
+    #[serde(default)]
+    pub availability_windows: Vec<WeeklyTimeWindow>,
     /// Soft-delete tombstone; never sent to the frontend (deleted rows are
     /// filtered out of every normal query before they'd reach a Snapshot).
     #[serde(skip)]
@@ -104,6 +138,30 @@ pub struct Task {
     /// existed deserializable.
     #[serde(default)]
     pub deadline_at: Option<i64>,
+    /// None = one-time task (default; `completed_at` is the terminal
+    /// "done" state, jewelPayout counts once on that date). `Some("daily")`
+    /// = repeating — there is no terminal completion, "done" is derived
+    /// per calendar day from whether a session exists that day (see
+    /// render.js's `dailyPayoutOn`/`dailyPayoutDayCount`), and the jewel
+    /// pays out at most once per qualifying day rather than once ever.
+    /// Deliberately just an enum string, not a richer schedule (custom
+    /// weekdays, intervals, etc.) — matches the "don't build more machinery
+    /// than the one idea is worth" precedent set by `impact_tier`/`deadline_at`.
+    /// `#[serde(default)]` keeps tasks saved before this field existed
+    /// deserializable.
+    #[serde(default)]
+    pub cadence: Option<String>,
+    /// Fixed local-time occurrences for a daily task. Ignored for one-time
+    /// tasks. Empty keeps a daily unscheduled rather than guessing a time.
+    #[serde(default)]
+    pub daily_windows: Vec<WeeklyTimeWindow>,
+    /// Smallest/largest useful planner block for a one-time task, in minutes.
+    /// Both are optional so existing tasks remain valid and can continue to
+    /// run without participating in automatic scheduling.
+    #[serde(default)]
+    pub min_session_min: Option<i64>,
+    #[serde(default)]
+    pub max_session_min: Option<i64>,
     /// Soft-delete tombstone; never sent to the frontend (deleted rows are
     /// filtered out of every normal query before they'd reach a Snapshot).
     #[serde(skip)]
@@ -148,6 +206,13 @@ fn default_long_break_min() -> i64 {
     20
 }
 
+/// Open mode's hourly check-in defaults to on — it's a gentle, positive
+/// nudge (stretch, water), and the Settings toggle sits right next to where
+/// it's explained, so opting out is one click.
+fn default_hourly_nudge() -> bool {
+    true
+}
+
 /// Every task defaults to counting FOR (not against) whatever area(s) it's
 /// tagged with — matches the polarity of a plain, untagged task pre-dating
 /// the impact system, so `#[serde(default)]` never turns an old task
@@ -182,6 +247,15 @@ pub struct SessionConfig {
     /// `break_min`).
     #[serde(default = "default_long_break_min")]
     pub long_break_min: i64,
+    /// Open mode only: fire a gentle check-in notification at each full hour
+    /// of continuous work. Device-local preference — deliberately NOT part of
+    /// `RemoteConfig` in sync.rs (notifications only ever fire on the device
+    /// running the session, and the remote `config` table has no such
+    /// column); the pull side preserves the local value when applying a
+    /// remote config. `#[serde(default)]` keeps configs saved before this
+    /// field existed deserializable.
+    #[serde(default = "default_hourly_nudge")]
+    pub hourly_nudge: bool,
     /// ms epoch of last change — drives cross-device sync (last-write-wins),
     /// same convention as `RunState::updated_at` (see docs/session-sync-design.md
     /// for the pattern this reuses: a singleton `config` row per account,
@@ -204,6 +278,7 @@ impl Default for SessionConfig {
             work_sound: default_work_sound(),
             cycles_before_long_break: default_cycles_before_long_break(),
             long_break_min: default_long_break_min(),
+            hourly_nudge: default_hourly_nudge(),
             updated_at: 0,
         }
     }
@@ -226,17 +301,17 @@ pub struct RunState {
     /// Completed work cycles (full pomodoro work blocks) since the last long
     /// break. Incremented by `timer::tick` each time a work block finishes;
     /// reset to 0 the moment that count reaches `cycles_before_long_break` —
-    /// i.e. it resets as soon as a long break is *earned*, not when the user
-    /// actually clicks "Start break". Stopping/resuming the timer never
-    /// touches this counter — only a work block that runs to completion
-    /// does. `#[serde(default)]` keeps old saved run-state JSON deserializable.
+    /// i.e. it resets as soon as the automatically-started long break is
+    /// earned. Stopping/resuming the timer never touches this counter — only
+    /// a work block that runs to completion does. `#[serde(default)]` keeps
+    /// old saved run-state JSON deserializable.
     #[serde(default)]
     pub cycles_completed: i64,
-    /// True while `phase` is "awaiting_break" or "break" and that break is
-    /// the long one. Set by `timer::tick` when the cycle threshold is hit,
-    /// carried through `start_break`, and cleared once the break ends or the
-    /// timer takes any other transition. `#[serde(default)]` keeps old saved
-    /// run-state JSON deserializable.
+    /// True while `phase` is "break" and that break is the long one. Set by
+    /// `timer::tick` when the cycle threshold is hit and cleared once the
+    /// break ends or the timer takes another transition. Older synced states
+    /// may still contain `awaiting_break`; `start_break` preserves the flag
+    /// while recovering them. `#[serde(default)]` keeps old JSON readable.
     #[serde(default)]
     pub long_break: bool,
     /// Which device currently owns this session, for cross-device sync (see
@@ -281,6 +356,8 @@ pub struct AccountInfo {
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub lists: Vec<TaskList>,
+    #[serde(default)]
+    pub life_area_priorities: Vec<LifeAreaPriority>,
     pub tasks: Vec<Task>,
     pub sessions: Vec<Session>,
     pub config: SessionConfig,

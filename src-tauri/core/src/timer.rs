@@ -6,7 +6,11 @@ use crate::models::{RunState, SessionConfig, SessionLog};
 fn log_segment(run: &RunState, now: i64) -> Option<SessionLog> {
     if run.phase.as_deref() == Some("work") {
         if let (Some(tid), Some(start)) = (run.active_task_id.clone(), run.running_start) {
-            return Some(SessionLog { task_id: tid, start, end: now });
+            return Some(SessionLog {
+                task_id: tid,
+                start,
+                end: now,
+            });
         }
     }
     None
@@ -18,7 +22,11 @@ pub fn play(run: &RunState, task_id: &str, now: i64) -> (RunState, Option<Sessio
     if run.active_task_id.as_deref() == Some(task_id) && run.phase.is_some() {
         return stop(run, now);
     }
-    let log = if run.active_task_id.is_some() { log_segment(run, now) } else { None };
+    let log = if run.active_task_id.is_some() {
+        log_segment(run, now)
+    } else {
+        None
+    };
     (
         RunState {
             active_task_id: Some(task_id.to_string()),
@@ -52,7 +60,10 @@ pub fn stop(run: &RunState, now: i64) -> (RunState, Option<SessionLog>) {
             running_start: None,
             phase: None,
             break_start: None,
-            last_task_id: run.active_task_id.clone().or_else(|| run.last_task_id.clone()),
+            last_task_id: run
+                .active_task_id
+                .clone()
+                .or_else(|| run.last_task_id.clone()),
             // Stopping mid-cycle doesn't forfeit progress already earned
             // toward the next long break — only a completed work block
             // (see `tick`) changes this counter.
@@ -66,16 +77,19 @@ pub fn stop(run: &RunState, now: i64) -> (RunState, Option<SessionLog>) {
     )
 }
 
-/// End a break early and resume work on the same task. Also used to advance
-/// out of `awaiting_work` when the user clicks "Start work" — from either
-/// starting phase the resulting state is identical: work resumes now.
+/// End a break early and resume work on the same task. Also recovers an old
+/// synced `awaiting_work` state created by app versions that paused at phase
+/// boundaries; new Pomodoro cycles advance automatically in `tick`.
 pub fn skip_break(run: &RunState, now: i64) -> RunState {
     RunState {
         active_task_id: run.active_task_id.clone(),
         running_start: Some(now),
         phase: Some("work".into()),
         break_start: None,
-        last_task_id: run.active_task_id.clone().or_else(|| run.last_task_id.clone()),
+        last_task_id: run
+            .active_task_id
+            .clone()
+            .or_else(|| run.last_task_id.clone()),
         cycles_completed: run.cycles_completed,
         long_break: false,
         device_id: run.device_id.clone(),
@@ -84,20 +98,21 @@ pub fn skip_break(run: &RunState, now: i64) -> RunState {
     }
 }
 
-/// Starts the break countdown when the user clicks "Start break" from
-/// `awaiting_break`. A no-op-shaped state change if called from any other
-/// phase (callers are expected to only invoke this from `awaiting_break`).
+/// Recovers an old synced `awaiting_break` state created by app versions that
+/// required a manual "Start break" click. New Pomodoro cycles start their
+/// break automatically in `tick`.
 pub fn start_break(run: &RunState, now: i64) -> RunState {
     RunState {
         active_task_id: run.active_task_id.clone(),
         running_start: None,
         phase: Some("break".into()),
         break_start: Some(now),
-        last_task_id: run.active_task_id.clone().or_else(|| run.last_task_id.clone()),
+        last_task_id: run
+            .active_task_id
+            .clone()
+            .or_else(|| run.last_task_id.clone()),
         cycles_completed: run.cycles_completed,
-        // Carries over the flag `tick` set on `awaiting_break` — whether
-        // *this* break is the long one doesn't change just because the user
-        // finally clicked the button.
+        // Carries over whether this recovered break is the long one.
         long_break: run.long_break,
         device_id: run.device_id.clone(),
         device_name: run.device_name.clone(),
@@ -108,21 +123,15 @@ pub fn start_break(run: &RunState, now: i64) -> RunState {
 #[derive(Debug, PartialEq)]
 pub enum Tick {
     None,
-    /// Work block finished and logged — now waiting on the user to start the break.
+    /// Work block finished and logged; the break has started automatically.
     ToBreak(SessionLog),
-    /// Break finished — now waiting on the user to resume work.
+    /// Break finished and work has resumed automatically.
     ToWork,
 }
 
 /// Advance pomodoro phases based on elapsed time. No-op for other modes.
-///
-/// Both real countdowns (`work`, `break`) end in a *waiting* phase
-/// (`awaiting_break`, `awaiting_work`) rather than immediately starting the
-/// next one — the clock doesn't advance again until the user explicitly
-/// clicks "Start break" / "Start work" (see `start_break`/`skip_break`).
-/// `awaiting_break`/`awaiting_work` are otherwise inert here: this function
-/// never advances out of them on its own, so a tick that lands while paused
-/// there is always a no-op.
+/// Work and break boundaries start the next phase immediately. Notifications
+/// are handled by the app shell from the returned `Tick` event.
 pub fn tick(run: &RunState, config: &SessionConfig, now: i64) -> (RunState, Tick) {
     if config.mode != "pomodoro" || run.active_task_id.is_none() {
         return (run.clone(), Tick::None);
@@ -138,11 +147,8 @@ pub fn tick(run: &RunState, config: &SessionConfig, now: i64) -> (RunState, Tick
                     };
                     // A completed work block earns one cycle toward the next
                     // long break. Once that count reaches the configured
-                    // threshold, this break is the long one and the counter
-                    // resets — the long break is "earned" the instant the
-                    // Nth work block finishes, not when the user actually
-                    // starts it (see `start_break`, which just carries the
-                    // flag through unchanged).
+                    // threshold, this automatically-started break is the long
+                    // one and the counter resets.
                     let cycles = run.cycles_completed + 1;
                     let is_long = cycles >= config.cycles_before_long_break.max(1);
                     let next_cycles = if is_long { 0 } else { cycles };
@@ -150,9 +156,12 @@ pub fn tick(run: &RunState, config: &SessionConfig, now: i64) -> (RunState, Tick
                         RunState {
                             active_task_id: run.active_task_id.clone(),
                             running_start: None,
-                            phase: Some("awaiting_break".into()),
-                            break_start: None,
-                            last_task_id: run.active_task_id.clone().or_else(|| run.last_task_id.clone()),
+                            phase: Some("break".into()),
+                            break_start: Some(now),
+                            last_task_id: run
+                                .active_task_id
+                                .clone()
+                                .or_else(|| run.last_task_id.clone()),
                             cycles_completed: next_cycles,
                             long_break: is_long,
                             device_id: run.device_id.clone(),
@@ -166,15 +175,22 @@ pub fn tick(run: &RunState, config: &SessionConfig, now: i64) -> (RunState, Tick
         }
         Some("break") => {
             if let Some(bs) = run.break_start {
-                let break_len = if run.long_break { config.long_break_min } else { config.break_min };
+                let break_len = if run.long_break {
+                    config.long_break_min
+                } else {
+                    config.break_min
+                };
                 if now - bs >= break_len * 60_000 {
                     return (
                         RunState {
                             active_task_id: run.active_task_id.clone(),
-                            running_start: None,
-                            phase: Some("awaiting_work".into()),
+                            running_start: Some(now),
+                            phase: Some("work".into()),
                             break_start: None,
-                            last_task_id: run.active_task_id.clone().or_else(|| run.last_task_id.clone()),
+                            last_task_id: run
+                                .active_task_id
+                                .clone()
+                                .or_else(|| run.last_task_id.clone()),
                             cycles_completed: run.cycles_completed,
                             long_break: false,
                             device_id: run.device_id.clone(),
@@ -206,7 +222,11 @@ pub fn work_elapsed(run: &RunState, now: i64) -> i64 {
 pub fn break_remaining(run: &RunState, config: &SessionConfig, now: i64) -> i64 {
     if run.phase.as_deref() == Some("break") {
         if let Some(bs) = run.break_start {
-            let break_len = if run.long_break { config.long_break_min } else { config.break_min };
+            let break_len = if run.long_break {
+                config.long_break_min
+            } else {
+                config.break_min
+            };
             return (break_len * 60_000 - (now - bs)).max(0);
         }
     }
@@ -227,6 +247,7 @@ mod tests {
             work_sound: "Ping".into(),
             cycles_before_long_break: 4,
             long_break_min: 20,
+            hourly_nudge: true,
             updated_at: 0,
         }
     }
@@ -259,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn pomodoro_transitions_wait_for_user_input_at_each_boundary() {
+    fn pomodoro_transitions_start_each_phase_automatically() {
         let cfg = cfg_pomodoro();
         let (run, _) = play(&RunState::default(), "a", 0);
         let w = cfg.work_min * 60_000;
@@ -268,41 +289,23 @@ mod tests {
         // still working just before 25m
         assert_eq!(tick(&run, &cfg, w - 1000).1, Tick::None);
 
-        // work -> awaiting_break at 25m, logs a 25m block, but the break
-        // clock does NOT start on its own.
+        // Work ends at 25m, logs the block, and starts the break immediately.
         let (run2, t) = tick(&run, &cfg, w);
         match t {
             Tick::ToBreak(log) => assert_eq!(log.end - log.start, w),
             _ => panic!("expected ToBreak"),
         }
-        assert_eq!(run2.phase.as_deref(), Some("awaiting_break"));
-        assert_eq!(run2.break_start, None);
-
-        // ticking indefinitely while awaiting_break never advances on its own
-        assert_eq!(tick(&run2, &cfg, w + 999_999_999).1, Tick::None);
-        assert_eq!(tick(&run2, &cfg, w + 999_999_999).0.phase.as_deref(), Some("awaiting_break"));
-
-        // user clicks "Start break" — now the break countdown actually begins
-        let run3 = start_break(&run2, w + 10_000);
-        assert_eq!(run3.phase.as_deref(), Some("break"));
-        assert_eq!(run3.break_start, Some(w + 10_000));
+        assert_eq!(run2.phase.as_deref(), Some("break"));
+        assert_eq!(run2.break_start, Some(w));
 
         // still on break
-        assert_eq!(tick(&run3, &cfg, w + 10_000 + b - 1000).1, Tick::None);
+        assert_eq!(tick(&run2, &cfg, w + b - 1000).1, Tick::None);
 
-        // break -> awaiting_work after 5m; work does NOT resume on its own
-        let (run4, t2) = tick(&run3, &cfg, w + 10_000 + b);
+        // Break ends after 5m and starts the next work block immediately.
+        let (run3, t2) = tick(&run2, &cfg, w + b);
         assert_eq!(t2, Tick::ToWork);
-        assert_eq!(run4.phase.as_deref(), Some("awaiting_work"));
-        assert_eq!(run4.running_start, None);
-
-        // ticking indefinitely while awaiting_work never advances on its own
-        assert_eq!(tick(&run4, &cfg, w + 10_000 + b + 999_999_999).1, Tick::None);
-
-        // user clicks "Start work" (same primitive as skipping a break early)
-        let run5 = skip_break(&run4, w + 10_000 + b + 20_000);
-        assert_eq!(run5.phase.as_deref(), Some("work"));
-        assert_eq!(run5.running_start, Some(w + 10_000 + b + 20_000));
+        assert_eq!(run3.phase.as_deref(), Some("work"));
+        assert_eq!(run3.running_start, Some(w + b));
     }
 
     #[test]
@@ -329,7 +332,7 @@ mod tests {
     /// Runs a full 4-cycle pomodoro set and checks the first three breaks are
     /// normal-length while the 4th is flagged long and uses `long_break_min`
     /// instead of `break_min` — the Nth-cycle case the acceptance criteria
-    /// calls out, on top of the unmodified boundary-waiting test above.
+    /// calls out, on top of the automatic boundary test above.
     #[test]
     fn long_break_every_nth_cycle() {
         let cfg = cfg_pomodoro(); // cycles_before_long_break: 4, long_break_min: 20
@@ -344,26 +347,35 @@ mod tests {
         for expected_cycle in 1..=3 {
             now += w;
             let (r, t) = tick(&run, &cfg, now);
-            assert!(matches!(t, Tick::ToBreak(_)), "expected ToBreak for cycle {expected_cycle}");
+            assert!(
+                matches!(t, Tick::ToBreak(_)),
+                "expected ToBreak for cycle {expected_cycle}"
+            );
             assert!(!r.long_break, "cycle {expected_cycle} should not be long");
             assert_eq!(r.cycles_completed, expected_cycle);
 
-            run = start_break(&r, now);
+            run = r;
             assert!(!run.long_break);
             now += b;
             let (r2, t2) = tick(&run, &cfg, now);
             assert_eq!(t2, Tick::ToWork);
-            run = skip_break(&r2, now);
+            run = r2;
         }
 
         // Fourth work block completes -> long break earned, counter resets to 0.
         now += w;
         let (r, t) = tick(&run, &cfg, now);
-        assert!(matches!(t, Tick::ToBreak(_)), "expected ToBreak for the 4th cycle");
+        assert!(
+            matches!(t, Tick::ToBreak(_)),
+            "expected ToBreak for the 4th cycle"
+        );
         assert!(r.long_break, "4th break should be flagged long");
-        assert_eq!(r.cycles_completed, 0, "counter resets once the long break is earned");
+        assert_eq!(
+            r.cycles_completed, 0,
+            "counter resets once the long break is earned"
+        );
 
-        run = start_break(&r, now);
+        run = r;
         assert!(run.long_break);
 
         // A break_min-length (5m) tick does NOT end the long break.
@@ -394,17 +406,22 @@ mod tests {
         let cfg = cfg_pomodoro();
         let (run, _) = play(&RunState::default(), "a", 0);
         let (run, _) = tick(&run, &cfg, cfg.work_min * 60_000);
-        let run = start_break(&run, cfg.work_min * 60_000);
         let (run, _) = tick(&run, &cfg, cfg.work_min * 60_000 + cfg.break_min * 60_000);
-        let run = skip_break(&run, cfg.work_min * 60_000 + cfg.break_min * 60_000 + 1000);
         assert_eq!(run.cycles_completed, 1);
 
         // Stop mid-way through the second work block.
         let (stopped, _) = stop(&run, cfg.work_min * 60_000 + cfg.break_min * 60_000 + 5000);
-        assert_eq!(stopped.cycles_completed, 1, "stopping doesn't forfeit an already-earned cycle");
+        assert_eq!(
+            stopped.cycles_completed, 1,
+            "stopping doesn't forfeit an already-earned cycle"
+        );
 
         // Resuming keeps the progress.
-        let (resumed, _) = play(&stopped, "a", cfg.work_min * 60_000 + cfg.break_min * 60_000 + 6000);
+        let (resumed, _) = play(
+            &stopped,
+            "a",
+            cfg.work_min * 60_000 + cfg.break_min * 60_000 + 6000,
+        );
         assert_eq!(resumed.cycles_completed, 1);
     }
 }

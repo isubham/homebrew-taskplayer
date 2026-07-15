@@ -57,6 +57,12 @@ jobs:
         with:
           workspaces: "src-tauri -> target"
 
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Compatibility gate
+        run: npm run test:compatibility
+
       - name: Release
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

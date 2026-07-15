@@ -107,6 +107,23 @@ move those entries into a dated version section.
   valid refresh token.
 - Overnight daily routines no longer require splitting one occurrence into two artificial rows.
 
+
+## 0.9.0 - 2026-07-15
+
+### Added
+
+- Simplified UI for playing, 
+- added notification for attention tasks.
+
+### Changed
+
+- cleaned home to show few things.
+
+
+### Fixed
+- N/A
+
+
 ## Historical releases
 
 - Release history through app version 0.7.4 has not been reconstructed. Git tags and GitHub

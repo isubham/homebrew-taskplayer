@@ -24,3 +24,4 @@ repo `CLAUDE.md` (auto-loaded each session); this file is the fuller record.
 - Prefers verification after non-trivial changes (syntax checks, no dead refs).
 - Progress updates should state the exact user-visible or code-level change
   being made in each action, rather than using generic status language.
+- Before editing `CHANGELOG.md` for a future change, ask for confirmation first.

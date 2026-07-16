@@ -4,6 +4,7 @@
 
 - Address me as **Jarvis** — the user prefers this name for the assistant.
 - Responses: concise and direct; minimal formatting; cut words that don't change the meaning.
+- **Never use hardcoded strings/values** — always store them centrally (in `src/app/constants.tsx` or similar constants file) and import/use them across the codebase.
 - Full/growing record: `memory/preferences.md`.
 
 ## Documentation definition of done
@@ -18,6 +19,12 @@
   list.
 - During a release, move `CHANGELOG.md` entries from `Unreleased` into the new dated version;
   leave an empty `Unreleased` section ready for subsequent work.
+
+## Architecture guidelines
+
+- **Component boundaries & size constraint**: Aim to strictly limit React component files to around **150 lines**. Extract massive `useEffect` blocks into custom hooks (e.g., `useTauriSubscriptions`), separate state logic from UI markup, and maintain single responsibility. This reduces cognitive overload, minimizes AI token usage, and drastically improves maintainability.
+- **Rust shell boundaries**: Read [`docs/rust-module-map.md`](docs/rust-module-map.md) before editing `src-tauri/src`. Keep every Rust shell file below **200 lines after `rustfmt`**, preserve facade modules, and update the map whenever responsibility moves.
+- **Icons**: Never use inline SVG strings in React components. Use the `lucide-react` icon library to reduce visual noise.
 
 ## Backward compatibility — release constraint
 

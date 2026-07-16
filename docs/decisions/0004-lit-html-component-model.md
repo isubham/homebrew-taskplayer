@@ -1,6 +1,6 @@
 # 0004 — Use one lit-html module per UI component
 
-- Status: Accepted
+- Status: Superseded by [0008](0008-react-and-vite-migration.md)
 - Date: 2026-07-15
 - Owners: TaskPlayer
 - Related: [`../ui-architecture-assessment.md`](../ui-architecture-assessment.md), [`../features.md`](../features.md)

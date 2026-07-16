@@ -5,6 +5,8 @@
   "description": "TaskPlayer — playlist-style deep-work timer for macOS (Tauri + Rust + SQLite).",
   "scripts": {
     "tauri": "tauri",
+    "dev:frontend": "vite",
+    "build:frontend": "vite build",
     "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "build": "tauri build",
     "icons": "tauri icon src-tauri/icons/app-icon.png",
@@ -16,11 +18,23 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
-    "supabase": "^2.109.1"
+    "@types/lodash": "^4.17.24",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "supabase": "^2.109.1",
+    "typescript": "^7.0.2",
+    "vite": "^5.4.15"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "@tauri-apps/api": "^2.11.1",
     "lit-html": "^3.3.3",
-    "motion": "^12.42.2"
+    "lodash": "^4.18.1",
+    "lucide-react": "^1.24.0",
+    "motion": "^12.42.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "packageManager": "pnpm@9.9.0+sha1.3edbe440f4e570aa8f049adbd06b9483d55cc2d2"
 }

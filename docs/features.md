@@ -35,13 +35,18 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Pinned Insights page.
 - Settings page.
 - Dedicated Now Playing focus page and task/track overlays.
+- The left sidebar uses a 280px column so list and life-area labels have more room.
+- Its hierarchy is labeled “Life Areas,” matching the five factual areas that organize lists.
+- The list-heading expand/collapse control stays against the sidebar's right edge, with its glyph
+  aligned to the life-area row chevrons.
 - The desktop window opens at 1280×840 and cannot be resized below 1280×800, preserving the
   sidebar, task workspace, and bottom player without a compact mobile layout.
 - Clicking the current task identity in the bottom player opens Now Playing as a dedicated page.
   It keeps the familiar list panel for orientation, keeps playback in the global player, and
   restores the exact previous page and scroll position on Back.
 - Back/forward navigation with animated page transitions and `⌘[` / `⌘]` shortcuts.
-- Sticky mini-headers appear after large page headers scroll away.
+- Sticky mini-headers appear after large page headers scroll away and remain visible throughout
+  the growable page scroll surface without compressing or cropping the hero header.
 
 ### Search — Shipped
 
@@ -64,27 +69,33 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Motion and feedback — Shipped
 
-- Finder-style animated expansion/collapse for life-area, list, and completed-task groups.
+- Life-area folders use a Finder-style disclosure animation: the contents smoothly resize,
+  reveal, and fade with the rotating chevron, while reduced-motion mode changes state instantly.
+- List and completed-task groups use animated expansion/collapse.
 - Motion-based list/life-area drag reordering.
 - A single centered toast component is the app-wide transient feedback channel.
+- Confirmation, prompt, and session dialogs resolve once and close without leaving an empty modal.
 - Life-area reorder feedback explains the relationship created by the move.
-- The top bar, pinned navigation, grouped sidebar, task-list page, task rows, sticky task header,
-  and Daily Jam update through isolated `lit-html` components. Re-renders patch those surfaces in
-  place, preserving their DOM identity and automatically escaping displayed task/list text.
+- The entire application is built using React components (including the top bar, sidebar, pages, overlays, and player). Re-renders patch those surfaces in place, preserving their DOM identity and automatically escaping displayed task/list text.
 
 ## 2. Lists and life areas
 
 ### List management — Shipped
 
 - Create, edit, rename, reorder, and delete lists.
-- Choose an emoji from a curated, paged picker.
+- Choose an emoji from a curated, paged picker; editing keeps the picker behind the clickable
+  list preview so the form stays focused, while the wider form keeps availability details clear.
+- Edit List separates list details from availability with a single section divider.
 - Deleting a list soft-deletes its tasks and sessions for sync safety.
 - Lists display incomplete/done counts, tracked time, and combined estimates.
 - Tasks can be dragged between lists and album sections.
+- Selecting a task row opens task detail directly; rows omit a redundant overflow-menu trigger.
 
 ### Life-area filing — Shipped
 
 - Five fixed areas: Career / Work, Health & Wellbeing, Relationships, Finances, and Recreation.
+- Each area has a prominent, color-tinted symbol and larger label for quick scanning; Unsorted
+  uses a neutral Inbox. Sidebar list names use the same readable type scale.
 - Personal Growth is folded into Health & Wellbeing. Legacy `growth` values from supported older
   clients are accepted and normalized instead of appearing as Unsorted.
 - Lists may be left Unsorted.
@@ -96,8 +107,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Life-area planning priority — Shipped foundation
 
 - Life areas can be reordered in the sidebar from most to least important.
-- The drag handle appears on hover.
-- An info dialog explains the priority meaning with an example.
+- The grip appears on hover, while the full life-area header uses the same drag interaction and
+  subdued dragging feedback as list rows.
+- List rows and life-area headers share the same inline, fixed-width drag-grip styling.
 - Priority order is stored in SQLite and synced through Supabase.
 - **Known gap:** priority is not yet enforced when starting a task or adding a session.
 - **Known gap:** the automatic planner does not yet consume priority order.
@@ -107,6 +119,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - List create/edit supports multiple weekly availability rows.
 - Each row independently selects any combination of Monday through Sunday.
 - Each row has start and end times.
+- Day controls use explicit pressed buttons, and time edits update immediately while saved
+  schedule changes are applied.
 - End times earlier than start times mean the following day and show a visible “Next day”
   cue.
 - Equal start/end times are rejected as ambiguous.
@@ -119,7 +133,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Task management — Shipped
 
 - Create and edit use the same two-column task-detail layout.
-- The One-time/Daily repeat selector uses compact horizontal pills so it does not compete with
+- The One-time/Repeating selector uses compact horizontal pills so it does not compete with
   the primary task fields.
 - Rename, move, reorder, delete, complete/uncomplete, and group tasks into free-form albums.
 - Add or edit notes (“Lyrics”) inline or from the dedicated overlay.
@@ -129,17 +143,19 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   the configured target; Pomodoro work and break phases fill against their configured block
   lengths. The live clock uses a calm, static tabular readout alongside the mode-appropriate
   progress bar or open-session ruler. One-time task progress uses tracked time against its estimate, while Daily
-  progress is limited to today. Playback remains in the persistent bottom player instead of being
+  repeating-task progress is limited to today when the task is scheduled. Playback remains in the persistent bottom player instead of being
   duplicated, and task editing stays in task detail rather than adding another action here.
 - Mark effort as Deep, Shallow, or None.
 - Set deterministic impact as Low, Medium, High, or untagged.
 - Set impact direction as for/against the list’s life area.
 - Move a task to another list from task detail.
+- New Task and Edit Task group Repeat with its Deadline or weekday schedule in the right-hand
+  planning column, directly above session settings.
 - List detail uses a playlist-style hero with cover art, track/completion counts, recorded time,
   life-area direction, a compact availability summary, and a physical tracked-versus-estimated
   time bar. A top-right Edit List icon stays in the hero while Add Task gets its own row directly
   below it; there is no list-wide Play action, and the sidebar no longer carries edit pencils.
-- Task lists show Daily tasks first and One-time tasks below, with blue section labels.
+- Task lists show Repeating tasks first and One-time tasks below, with blue section labels.
 - Completed tasks live in an animated collapsible section.
 
 ### One-time tasks — Shipped
@@ -152,32 +168,39 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Estimate progress is shown physically as session segments inside a capacity bar.
 - Going over estimate remains visible without punitive color or language.
 
-### Daily tasks — Partially shipped
+### Repeating tasks — Partially shipped
 
-- Repeat can be set to Daily.
+- Repeat can be set to every day or any selected weekdays, including weekend-only schedules.
 - Estimates and deadlines are hidden because they do not describe repeating routines well.
-- Daily rows show today’s session count and tracked time instead of lifetime estimate progress.
-- Daily Jam groups positive daily tasks into a two-column life-area card grid ordered by the
+- Repeating rows show today’s session count and tracked time instead of lifetime estimate progress;
+  off-day rows state that they are not scheduled today.
+- Daily Jam includes only positive repeating tasks scheduled for the current weekday, grouped into
+  a two-column life-area card grid ordered by the
   sidebar's life-area priority. Each card keeps unfinished-today items first, shows today's
   progress and earliest fixed time, reuses the task-list row with play, session, progress, jewel,
   and menu controls, and initially exposes up to four tasks with inline expansion.
 - The five life-area cards remain visible as a stable map; tasks without a life area appear in an
   additional Unsorted card so older or partially synced data is never hidden.
-- Daily rewards are derived from whether a session started on that local calendar day; no
-  streak or missed-day history is stored.
+- Repeating rewards are derived from whether a session started on a scheduled local calendar day;
+  work on an off-day does not create an extra scheduled-day reward. No streak or missed-day
+  history is stored.
 - **Known gap:** the generic list-row checkbox still writes terminal `completed_at`, while
   Daily Jam and rewards use per-day sessions. Daily check/uncheck needs a dedicated per-day
   completion command so it resets correctly and does not remove the routine permanently.
 
-### Daily time windows — Shipped foundation
+### Repeating-task schedule windows — Shipped
 
-- Multiple weekly time rows per daily task.
+- Multiple weekly time rows per repeating task.
 - Any combination of weekdays per row.
+- Existing repeating tasks with no stored windows retain their backward-compatible every-day,
+  no-fixed-time behavior; the editor presents this as an explicit Every day mode.
+- Day controls use explicit pressed buttons, and time controls remain immediately editable while
+  schedule saves are in flight.
 - Overnight rows use one occurrence, selected weekday as the starting day, and a “Next day”
   cue.
 - Equal start/end times are rejected.
 - Stored in SQLite and synced through Supabase.
-- Used by schedule notifications.
+- Used by Daily Jam visibility, per-day rewards, task status, and schedule notifications.
 - **Known gap:** these occurrences are not yet rendered as calendar blocks.
 
 ### Sessions and history — Shipped
@@ -196,9 +219,14 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Persistent player — Shipped
 
 - Bottom player shows the active/last task, list, live elapsed time, and task progress.
+- Its session progress bar is capped at 405px so the central playback state stays compact.
 - Its workflow icon cycles the timer mode immediately without opening Settings; detailed mode
   lengths remain in Settings.
 - Play/pause/stop controls are available from task rows, player, keyboard, and tray.
+- The bottom player omits a separate Lyrics shortcut; notes remain available from task detail and
+  the Now Playing focus page.
+- Its workflow and task-history shortcuts share the same aligned control box; task history uses
+  the standard Lucide History icon in both paused and active work states.
 - Another device’s live task is shown read-only with a “play here” takeover action.
 - Timer state continues while the main window is closed.
 
@@ -235,6 +263,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Active title shows the task name and live time; break state includes a coffee marker.
 - Tray menu exposes the current task, play/pause, focus-music play/pause, next track, Open,
   and Quit.
+- Focus-music tray controls work from idle: Play loads and starts music, Pause keeps the tray
+  label synchronized, and Next loads an empty queue or advances the current queue. Their event
+  listeners remain active across task and music state updates.
 - Shows up to five recently played incomplete tasks, excluding the current task.
 - Selecting a recent task starts it.
 
@@ -312,7 +343,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Low pays 1, Medium pays 2, and High pays 4 jewels.
 - Reward amount is visible before work/completion.
 - One-time tasks pay once on completion.
-- Daily tasks pay per qualifying day/session.
+- Repeating tasks pay once per scheduled qualifying day/session.
 - Against tasks produce explicitly signed negative contribution; rewards are never randomized.
 
 ### Rank — Shipped
@@ -342,11 +373,26 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Audius player — Shipped
 
 - Streams artist-licensed / Creative Commons-compatible tracks from Audius without an API key.
-- Genres: Lo-Fi, Ambient, Classical, Jazz, and Electronic.
-- Uses trending tracks with search fallback and up to 50 shuffled candidates.
+- Eight compact vibes: Noise, Nature, Lo-Fi, Ambient, Coffee House, Game OST, Classical, and
+  Energizing.
+- Noise is a locally generated, predictable white-noise loop and does not depend on the network.
+- Audius-backed vibes combine official genre feeds with focused searches. Nature filters rain,
+  river, and wind results to relevant Ambient tracks; Ambient also includes relevant singing-bowl
+  tracks; Coffee House combines Acoustic, Jazz, and Downtempo; Game OST combines Soundtrack with
+  filtered game-soundtrack results.
+- Audius queues deduplicate candidates, reject unavailable/gated/short tracks, prefer
+  vibe-appropriate moods, and rank by catalog play count with up to 50 candidates.
 - Starts with work, pauses on break/stop, and resumes with work.
-- Play/pause, next, volume, and genre controls.
-- Genre and volume persist locally.
+- Play/pause, next, and vibe controls in the app; volume follows the macOS system volume.
+- The current vibe is named directly in the bottom player; clicking its compact label opens the
+  native genre picker.
+- The bottom music player keeps a fixed 25% width; overflowing track titles move in a seamless
+  marquee and fall back to a static ellipsis when reduced motion is enabled.
+- macOS media keys and Now Playing controls can play, pause, go to the previous/next track while
+  TaskPlayer is unfocused; the system surface shows the current title, artist, and available
+  artwork.
+- The selected vibe persists locally; legacy Jazz and Electronic selections migrate to Coffee
+  House and Energizing respectively.
 - Track detail shows artwork, artist, genre, and an Audius link.
 - Artwork falls back through decentralized mirror URLs when a node fails.
 - Music state is mirrored to the tray for independent tray controls.

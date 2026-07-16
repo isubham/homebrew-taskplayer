@@ -41,35 +41,42 @@ pub fn canonical_life_area(area: Option<&str>) -> Option<String> {
 /// shared value object lets lists describe when their context is available
 /// and daily tasks describe when each occurrence happens without inventing
 /// separate time formats for the two features.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct WeeklyTimeWindow {
+    #[specta(type = i32)]
     pub weekday: i64,
+    #[specta(type = i32)]
     pub start_minute: i64,
+    #[specta(type = i32)]
     pub end_minute: i64,
 }
 
 /// User-controlled planning precedence for one fixed life area. Rank 1 is
 /// highest. The area name/color remain defined by the app; only this order is
 /// persisted and synced.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct LifeAreaPriority {
     pub area_key: String,
+    #[specta(type = i32)]
     pub priority_rank: i64,
+    #[specta(type = f64)]
     pub updated_at: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskList {
     pub id: String,
     pub name: String,
     pub emoji: String,
     pub color: String,
+    #[specta(type = i32)]
     pub order: i64,
     /// ms epoch of last change — drives cross-device sync (last-write-wins).
     #[serde(default)]
+    #[specta(type = f64)]
     pub updated_at: i64,
     /// Life-balance area this list's tracked time counts toward (see the
     /// Home page's radar chart) — one of "career" | "health" |
@@ -94,10 +101,11 @@ pub struct TaskList {
     /// Soft-delete tombstone; never sent to the frontend (deleted rows are
     /// filtered out of every normal query before they'd reach a Snapshot).
     #[serde(skip)]
+    #[specta(type = Option<i32>)]
     pub deleted_at: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
     pub id: String,
@@ -105,9 +113,11 @@ pub struct Task {
     pub name: String,
     /// "deep" | "shallow" | null
     pub depth: Option<String>,
+    #[specta(type = i32)]
     pub order: i64,
     /// Estimated effort in minutes (user enters hours). None = no estimate.
     #[serde(default)]
+    #[specta(type = Option<i32>)]
     pub estimate_min: Option<i64>,
     /// Freeform album/grouping name — related tasks within one list can share
     /// an album, the way songs by one artist group into albums. None = a
@@ -116,12 +126,14 @@ pub struct Task {
     pub album: Option<String>,
     /// When the task was marked complete (ms epoch). None = still to-do.
     #[serde(default)]
+    #[specta(type = Option<f64>)]
     pub completed_at: Option<i64>,
     /// Free-text description (shown as "lyrics" in the UI). None = none.
     #[serde(default)]
     pub description: Option<String>,
     /// ms epoch of last change — drives cross-device sync (last-write-wins).
     #[serde(default)]
+    #[specta(type = f64)]
     pub updated_at: i64,
     /// "low" | "medium" | "high" | None. Independent of
     /// `estimate_min` on purpose — a 5-minute task can be `high` and a
@@ -137,6 +149,7 @@ pub struct Task {
     /// same as `TaskList::life_area`/`life_direction` (see the comment on
     /// those) — not yet part of the Supabase remote schema.
     #[serde(default = "default_impact_sign")]
+    #[specta(type = i32)]
     pub impact_sign: i64,
     /// Optional deadline (ms epoch, date granularity — always midnight local
     /// time of the chosen day). None = no deadline. Independent of
@@ -147,6 +160,7 @@ pub struct Task {
     /// least medium. `#[serde(default)]` keeps tasks saved before this field
     /// existed deserializable.
     #[serde(default)]
+    #[specta(type = Option<f64>)]
     pub deadline_at: Option<i64>,
     /// None = one-time task (default; `completed_at` is the terminal
     /// "done" state, jewelPayout counts once on that date). `Some("daily")`
@@ -169,29 +183,36 @@ pub struct Task {
     /// Both are optional so existing tasks remain valid and can continue to
     /// run without participating in automatic scheduling.
     #[serde(default)]
+    #[specta(type = Option<i32>)]
     pub min_session_min: Option<i64>,
     #[serde(default)]
+    #[specta(type = Option<i32>)]
     pub max_session_min: Option<i64>,
     /// Soft-delete tombstone; never sent to the frontend (deleted rows are
     /// filtered out of every normal query before they'd reach a Snapshot).
     #[serde(skip)]
+    #[specta(type = Option<i32>)]
     pub deleted_at: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
     pub id: String,
     pub task_id: String,
+    #[specta(type = f64)]
     pub start: i64,
     /// None while running
+    #[specta(type = Option<f64>)]
     pub end: Option<i64>,
     /// ms epoch of last change — drives cross-device sync (last-write-wins).
     #[serde(default)]
+    #[specta(type = f64)]
     pub updated_at: i64,
     /// Soft-delete tombstone; never sent to the frontend (deleted rows are
     /// filtered out of every normal query before they'd reach a Snapshot).
     #[serde(skip)]
+    #[specta(type = Option<i32>)]
     pub deleted_at: Option<i64>,
 }
 
@@ -231,13 +252,16 @@ fn default_impact_sign() -> i64 {
     1
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionConfig {
     /// "open" | "target" | "pomodoro"
     pub mode: String,
+    #[specta(type = i32)]
     pub target_min: i64,
+    #[specta(type = i32)]
     pub work_min: i64,
+    #[specta(type = i32)]
     pub break_min: i64,
     /// macOS system sound name (see `SOUND_OPTIONS` in main.rs) played when a
     /// work block ends and a break is ready to start. `#[serde(default)]`
@@ -252,10 +276,12 @@ pub struct SessionConfig {
     /// original technique: every 4th break is longer). `#[serde(default)]`
     /// keeps configs saved before this field existed deserializable.
     #[serde(default = "default_cycles_before_long_break")]
+    #[specta(type = i32)]
     pub cycles_before_long_break: i64,
     /// Length of that long break, in minutes (editable 1–60, same range as
     /// `break_min`).
     #[serde(default = "default_long_break_min")]
+    #[specta(type = i32)]
     pub long_break_min: i64,
     /// Open mode only: fire a gentle check-in notification at each full hour
     /// of continuous work. Device-local preference — deliberately NOT part of
@@ -274,6 +300,7 @@ pub struct SessionConfig {
     /// an old locally-saved config is never mistaken for "newer" than
     /// whatever's already on the server.
     #[serde(default)]
+    #[specta(type = f64)]
     pub updated_at: i64,
 }
 
@@ -294,13 +321,15 @@ impl Default for SessionConfig {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RunState {
     pub active_task_id: Option<String>,
+    #[specta(type = Option<f64>)]
     pub running_start: Option<i64>,
     /// "work" | "break" | null
     pub phase: Option<String>,
+    #[specta(type = Option<f64>)]
     pub break_start: Option<i64>,
     /// Last task that was playing — remembered after stop so the player can
     /// keep showing it and resume (Spotify-style). Mirrors active_task_id while
@@ -316,6 +345,7 @@ pub struct RunState {
     /// a work block that runs to completion does. `#[serde(default)]` keeps
     /// old saved run-state JSON deserializable.
     #[serde(default)]
+    #[specta(type = i32)]
     pub cycles_completed: i64,
     /// True while `phase` is "break" and that break is the long one. Set by
     /// `timer::tick` when the cycle threshold is hit and cleared once the
@@ -348,12 +378,13 @@ pub struct RunState {
     /// to the sync loop. `#[serde(default)]` keeps old saved run-state JSON
     /// deserializable.
     #[serde(default)]
+    #[specta(type = f64)]
     pub updated_at: i64,
 }
 
 /// Signed-in Google/Supabase profile. Durable, rarely-changing state — lives
 /// in `Snapshot` alongside `config`/`run`, not in the ephemeral `Status` tick.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountInfo {
     pub id: String,
@@ -362,7 +393,7 @@ pub struct AccountInfo {
     pub avatar_url: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub lists: Vec<TaskList>,
@@ -385,6 +416,7 @@ pub struct Snapshot {
     /// enough (60s) that a full Snapshot rebuild per transition is cheap.
     pub syncing: bool,
     /// ms epoch of the last successful sync, if any
+    #[specta(type = Option<i32>)]
     pub last_synced_at: Option<i64>,
     /// Error message from the most recent sync attempt, if it failed. Cleared
     /// as soon as a later attempt succeeds. Lets the Settings UI distinguish
@@ -399,16 +431,18 @@ pub struct Snapshot {
 }
 
 /// A completed work segment ready to persist.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionLog {
     pub task_id: String,
+    #[specta(type = f64)]
     pub start: i64,
+    #[specta(type = f64)]
     pub end: i64,
 }
 
 /// Live status used by the menu-bar status item.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub active: bool,
@@ -418,8 +452,11 @@ pub struct Status {
     pub list_name: Option<String>,
     pub list_color: Option<String>,
     /// elapsed ms of the current work segment (or break remaining for break)
+    #[specta(type = f64)]
     pub elapsed_ms: i64,
+    #[specta(type = i32)]
     pub minutes: i64,
     /// total ms logged on the active task (incl. live segment)
+    #[specta(type = f64)]
     pub task_total_ms: i64,
 }

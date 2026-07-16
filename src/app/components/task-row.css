@@ -1,0 +1,129 @@
+/* max-width, not just width:100% — on a very wide window, table-layout:auto
+   hands whichever column has the least content (the Progress/time column,
+   often just "0m") a chunk of the leftover space anyway, stranding it far
+   from the task name it belongs to. Capping the row itself keeps name and
+   time close together regardless of how wide the actual window is. */
+table { width: 100%; max-width: 1120px; border-collapse: collapse; margin-top: 16px; padding: 0 16px; }
+thead th { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; text-align: left; padding: 8px 24px; border-bottom: 1px solid var(--line); font-weight: 600; }
+th.r, td.r { text-align: right; }
+tbody tr:hover { background: var(--bg3); }
+tbody td { padding: 14px 24px; font-size: 14px; }
+
+/* padding-left nudges the row number right of tbody td's usual 24px so it
+   sits roughly under the album tile above it (.albhead's icon starts at
+   32px, table's own left padding + td padding only put the digit at ~40px)
+   — reads as "these rows belong to that album" instead of just happening
+   to share a left edge. */
+.idx { color: var(--muted); width: 44px; position: relative; padding-left: 40px; }
+/* number and play/pause glyph share one fixed-width box so hover doesn't reflow the row */
+.idx .num, .idx .go { display: inline-block; width: 18px; text-align: center; line-height: 1; }
+.task-playing-equalizer { display: inline-flex; width: 18px; align-items: center; justify-content: center; color: var(--green-hi); }
+.task-playing-equalizer svg { display: block; }
+tbody tr:hover .idx .num { display: none; }
+tbody tr:hover .idx .go { display: inline-block; }
+.idx .go { display: none; background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; padding: 0; }
+
+/* drag handle — sits in the cell's own left padding gutter, invisible until
+   the row is hovered so the list reads exactly the same as before at rest.
+   left:12px, not 4 — .idx's padding-left grew to 40px to indent the row
+   number under the album tile above it, and the grip stayed pinned near
+   the table's outer edge, leaving it looking stranded in a cramped sliver
+   of space instead of sitting comfortably in that wider gutter. */
+.grip {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center;
+  color: var(--muted); opacity: 0; cursor: grab; transition: opacity .15s;
+}
+tbody tr:hover .grip { opacity: .55; }
+.grip:hover { opacity: 1; }
+tbody tr:active .grip, tr.dragging .grip { cursor: grabbing; }
+
+/* WebKit doesn't reliably treat a `draggable="true"` <tr> as an HTML5 drag
+   source on its own — table-row-display elements don't automatically pick
+   up -webkit-user-drag:element the way a plain block/inline element would,
+   which is why dragstart silently never fires in Safari/WKWebView even
+   though the same markup works in Chromium. Force it explicitly, and turn
+   drag off + disable text selection on everything inside the row so a
+   click-drag on the task name (etc.) doesn't get treated as a text/element
+   drag of its own and steal the gesture from the row. */
+tbody tr[draggable="true"] { -webkit-user-drag: element; user-select: none; }
+tbody tr[draggable="true"] * { -webkit-user-drag: none; }
+
+/* dragging state + drop-target indicator line */
+tbody tr.dragging { opacity: .4; }
+tbody tr.drag-over-top { box-shadow: inset 0 2px 0 0 var(--green); }
+tbody tr.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--green); }
+
+/* active task: whole row highlighted (incl. sessions + time) */
+tr.playing { background: rgba(29,185,84,.12); }
+tr.playing:hover { background: rgba(29,185,84,.16); }
+tr.playing td, tr.playing .total { color: var(--green); }
+tr.playing .idx .num { font-weight: 700; }
+.tname { font-weight: 600; }
+.task-name-line { display: flex; align-items: center; min-width: 0; }
+.task-attention-cue { display: flex; align-items: center; gap: 8px; margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 400; white-space: nowrap; }
+.task-deadline-track { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: #2c2c2c; overflow: hidden; flex: none; }
+.task-deadline-track > span { display: block; height: 100%; background: var(--attention); }
+
+.rwhen { color: var(--muted); font-size: 12px; white-space: nowrap; text-align: right; width: 110px; }
+tr.playing .rwhen { color: var(--green); }
+.tag { margin-left: 8px; border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.tag.deep { background: rgba(29,185,84,.2); color: var(--green); }
+.tag.shallow { background: rgba(255,255,255,.1); color: var(--muted); }
+.total { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* Task row, capacity-bar column. Total time and the estimate used to be two
+   separate text bits — they're now this one bar (segments = sessions, fill
+   = total time, color/slit = estimate), living in its own right-aligned
+   column same as the old "Total time" column did. Session count is a
+   separate column just before this one (.sess-cell), not squeezed in here. */
+.bar-cell { vertical-align: middle; white-space: nowrap; }
+.rbar-status { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+tr.playing .rbar-status { color: var(--green); }
+
+/* Sessions column — how many sessions a task has logged, at a glance, in
+   its own labeled column instead of a corner badge crammed onto the
+   progress bar. Empty (never-started) tasks get a plain dash, not a "0" —
+   nothing to report yet isn't the same as a zero worth flagging. */
+.sess-cell { vertical-align: middle; width: 64px; }
+.sess-count {
+  display: inline-block; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums;
+  font-size: 12px; font-weight: 600; color: var(--muted); background: var(--bg3); border-radius: 999px; padding: 2px 9px;
+}
+tr.playing .sess-count { color: var(--green); background: rgba(29,185,84,.16); }
+.sess-count.sess-count-empty { background: none; color: #5a5a5a; font-weight: 500; }
+/* A daily row shows today's session count only. It resets tomorrow, so it
+   surfaces completed work without becoming a streak or permanent tally. */
+.sess-count.today-done { color: var(--green); background: rgba(47,158,143,.16); }
+
+/* Capacity bar: individual sessions as chips (the original segmented-bar
+   idea) fill the track, sized to true scale under the estimate — the bar
+   just ends early — and rescaled to keep fitting a fixed width once over,
+   splitting green→blue right at the estimate boundary. The numbers live ON
+   the bar itself, not beside it: a centered white readout reads
+   "spent │ estimate" (a thin tick stands in for the "/") under the
+   estimate, collapsing to just the total plus a small "+Xh over" tag once
+   past it. */
+.capbar {
+  position: relative; width: 160px; height: 22px; border-radius: 6px; background: #2c2c2c; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+}
+.capbar .chips { position: absolute; left: 0; top: 0; bottom: 0; display: flex; overflow: hidden; }
+.capbar .chips .seg { display: block; height: 100%; }
+.capbar .chips .seg.in { background: var(--green); }
+/* Past the estimate — the same calm blue used for breaks elsewhere in the
+   player, not red. Running over an estimate is routine with ADHD time
+   blindness, not an error; it shouldn't read as one (see
+   docs/adhd-design-principles.md, rule 8). */
+.capbar .chips .seg.over { background: var(--blue); }
+.capbar .chips > * + * { box-shadow: -1px 0 0 rgba(0,0,0,.4); }
+.capbar .readout {
+  position: relative; z-index: 1; font-size: 11px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.65); display: flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.capbar .sep { width: 1px; height: 11px; background: rgba(255,255,255,.8); display: inline-block; }
+.capbar .est-part { color: rgba(255,255,255,.75); font-weight: 600; }
+.capbar .over-tag { background: rgba(0,0,0,.35); border-radius: 8px; padding: 1px 6px; font-size: 10px; margin-left: 2px; }
+
+/* mark-as-done button (only on the active/working row) */
+.donebtn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--green); color: var(--green); padding: 5px 13px; border-radius: 16px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.donebtn:hover { background: var(--green); color: #062b14; }

@@ -1,0 +1,132 @@
+.side {
+  grid-area: side;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  & .side-fixed { flex: none; }
+  & .side-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+  & h3 {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  & .brand {
+    display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; padding: 24px 8px 16px; -webkit-app-region: drag;
+    & .brand-name { flex: 1; }
+    & .dot { width: 24px; height: 24px; border-radius: 50%; background: var(--green); display: grid; place-items: center; color: #000; font-size: 12px; }
+  }
+
+  & #pinnedNav { margin-bottom: 18px; }
+
+  & .side-lists-heading {
+    display: flex; align-items: center; width: calc(100% - 20px); margin: 0 10px 10px;
+  }
+
+  & .side-lists-title {
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+  }
+
+  & .side-lists-actions {
+    display: flex; align-items: center; gap: 4px; margin-left: auto; padding-left: 10px; flex: none;
+  }
+
+  & .side-toggle-all {
+    display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); line-height: 1; cursor: pointer; transform: translateX(4px);
+    & svg { display: block; }
+    &:hover { color: #fff; background: var(--bg3); }
+  }
+
+  & .list-item {
+    position: relative; display: flex; align-items: center; gap: 9px; padding: 6px 8px 6px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font-weight: 500; font-size: 14px;
+    transition: background .15s ease, color .15s ease, transform .1s ease;
+
+    &:hover, &.active { color: #fff; background: var(--bg3); }
+    &:active { transform: scale(.985); }
+    &.dragging { opacity: .4; }
+    &.drag-over-top { box-shadow: inset 0 2px 0 0 var(--green); }
+    &.drag-over-bottom { box-shadow: inset 0 -2px 0 0 var(--green); }
+    &.kb-focus { box-shadow: inset 2px 0 0 0 var(--green); }
+
+    & .li-icon { width: 18px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; color: var(--muted); }
+    &:hover .li-icon, &.active .li-icon { color: inherit; }
+    & .li-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    & .count { flex: none; color: var(--muted); font-weight: 500; font-size: 11px; }
+    &[draggable="true"] { -webkit-user-drag: element; user-select: none; }
+    &[draggable="true"] * { -webkit-user-drag: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    & .list-item { transition: none; }
+    & .list-item:active { transform: none; }
+  }
+
+  & .sidebar-track.playing-list .li-label { color: #fff; font-weight: 600; }
+  & .sidebar-attention-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--attention); flex: none; }
+  & .sidebar-equalizer { display: flex; align-items: center; justify-content: center; flex: none; color: var(--green-hi); }
+  & .sidebar-equalizer svg { display: block; }
+
+  & .drag-grip { width: 12px; flex: none; display: flex; align-items: center; color: var(--muted); opacity: 0; cursor: grab; }
+  & .list-item:hover .list-grip { opacity: .55; }
+  & .list-grip:hover { opacity: 1; }
+  & .list-item:active .list-grip, & .list-item.dragging .list-grip { cursor: grabbing; }
+
+  & .list-section { margin-bottom: 8px; }
+
+  & .ls-header {
+    position: relative; display: flex; align-items: center; gap: 7px; min-height: 32px; padding: 5px 8px 5px 10px; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 14px; user-select: none;
+    transition: transform .14s ease, opacity .14s ease, background .14s ease, box-shadow .14s ease;
+
+    &:hover { color: #fff; }
+    &.drop-zone-over { outline: 2px dashed var(--green); outline-offset: -2px; border-radius: 6px; color: #fff; }
+    &.dragging { opacity: .4; cursor: grabbing; }
+    
+    &.priority-drag-over-top::before, &.priority-drag-over-bottom::before {
+      content: ""; position: absolute; z-index: 3; left: 5px; right: 5px; height: 2px; border-radius: 2px; background: var(--green); box-shadow: 0 0 0 1px rgba(29,185,84,.15), 0 0 8px rgba(29,185,84,.5); animation: priority-boundary-pulse .8s ease-in-out infinite alternate;
+    }
+    &.priority-drag-over-top::before { top: -1px; }
+    &.priority-drag-over-bottom::before { bottom: -1px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    & .ls-header { transition: none; }
+    & .ls-header.priority-drag-over-top::before, & .ls-header.priority-drag-over-bottom::before { animation: none; }
+  }
+
+  & .ls-priority-grip:active { cursor: grabbing; }
+  & .ls-header:hover .ls-priority-grip { opacity: .55; }
+  & .ls-priority-grip:hover { opacity: 1 !important; }
+  & .ls-area-icon { flex: none; display: flex; align-items: center; }
+  & .ls-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & .ls-chevron { flex: none; width: 18px; display: grid; place-items: center; opacity: .45; transition: opacity .12s; }
+  & .ls-chevron svg { display: block; }
+  & .ls-header:hover .ls-chevron { opacity: .8; }
+
+  & .ls-body { margin-left: 18px; }
+  & .ls-body .list-item { min-height: 32px; padding: 7px 8px 7px 19px; }
+
+  & .ls-invite {
+    display: block; width: 100%; text-align: left; background: none; border: none; padding: 7px 8px 7px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font-weight: 500; font-size: 13px; opacity: .7;
+    &:hover { opacity: 1; color: #fff; }
+  }
+
+  & .add-btn {
+    flex: none; margin: 12px 8px 0; width: calc(100% - 16px); background: none; border: 1px dashed #444; color: var(--muted); padding: 9px; border-radius: 6px; cursor: pointer; font-weight: 600;
+    &:hover { border-color: #777; color: #fff; }
+  }
+}
+
+.playing-equalizer rect { transform-box: fill-box; transform-origin: center bottom; animation: sidebar-playing-bar 1.05s ease-in-out infinite; }
+.playing-equalizer rect:nth-child(2) { animation-delay: -.72s; }
+.playing-equalizer rect:nth-child(3) { animation-delay: -.38s; }
+
+@keyframes priority-boundary-pulse { to { box-shadow: 0 0 0 2px rgba(29,185,84,.12), 0 0 13px rgba(29,185,84,.75); } }
+@keyframes sidebar-playing-bar { 0%, 100% { transform: scaleY(.48); } 50% { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .playing-equalizer rect { animation: none; } }

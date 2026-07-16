@@ -8,61 +8,8 @@
 </head>
 <body>
   <div id="titlebar" data-tauri-drag-region></div>
-  <div id="app">
-    <div class="topbar" data-tauri-drag-region>
-      <div class="topbar-left">
-        <button id="navback" class="topbar-navbtn" data-action="goBack" title="Back (⌘[)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button id="navfwd" class="topbar-navbtn" data-action="goForward" title="Forward (⌘])">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </div>
-      <div class="topbar-center">
-        <button id="tbhome" class="topbar-navbtn" data-action="goHome" title="Home">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
-        </button>
-        <div class="topbar-search" id="topbarSearchWrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="topbarSearch" type="text" placeholder="Search tasks and lists" autocomplete="off" spellcheck="false">
-          <div class="search-results" id="searchResults"></div>
-        </div>
-      </div>
-      <div class="topbar-right">
-        <div class="topbar-icons" id="topbarIcons"></div>
-      </div>
-    </div>
-    <aside class="side">
-      <div class="side-fixed">
-        <div id="pinnedNav"></div>
-        <div class="side-lists-heading">
-          <h3>Your Lists</h3>
-          <button type="button" class="priority-info" data-action="showLifePriorityInfo" aria-label="How planning priority works" title="How planning priority works">i</button>
-          <button id="sidebarToggleAll" class="side-toggle-all" data-action="toggleAllAreaSections" type="button"></button>
-        </div>
-      </div>
-      <div class="side-scroll"><div id="lists"></div></div>
-      <button class="add-btn" data-action="addList">＋ New list</button>
-    </aside>
-    <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
-    <main class="main" id="main"></main>
-    <footer class="player">
-      <div class="np" id="np"></div>
-      <div class="center" id="center"></div>
-      <div class="right" id="music"></div>
-    </footer>
-  </div>
+  <div id="root"></div>
 
-  <div id="toastHost" class="app-toast-host" role="status" aria-live="polite" aria-atomic="true"></div>
-
-  <div class="overlay" id="overlay" data-action="closeOverlay" data-overlay="detail"><div class="modal" id="modal"></div></div>
-  <div class="overlay" id="trkoverlay" data-action="closeOverlay" data-overlay="track"><div class="modal" id="trkmodal"></div></div>
-  <div class="overlay" id="lyroverlay" data-action="closeOverlay" data-overlay="lyrics"><div class="lyrpanel" id="lyrmodal"></div></div>
-  <div class="overlay" id="doverlay"><div class="modal dlg" id="dmodal"></div></div>
-  <div class="popmenu" id="popmenu"></div>
-  <audio id="audio" preload="none"></audio>
-
-  <script src="music.js"></script>
-  <script type="module" src="main.js"></script>
+  <script type="module" src="index.tsx"></script>
 </body>
 </html>

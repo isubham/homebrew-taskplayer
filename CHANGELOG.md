@@ -10,11 +10,61 @@ move those entries into a dated version section.
 
 ### Added
 
+- Added weekday-specific repeating tasks, including an explicit Every day mode and combinations
+  such as Saturday/Sunday. Daily Jam, task status, Now Playing, and deterministic rewards now
+  respect whether a repeating task is scheduled for the current day.
+- Added Noise, Nature, Coffee House, Game OST, and Energizing focus vibes. Noise is generated
+  locally, Nature covers filtered rain/river/wind soundscapes, and Ambient now includes relevant
+  singing-bowl tracks.
+- Added macOS media-key and Now Playing integration for focus music, including play, pause,
+  previous/next track actions, and current track metadata while TaskPlayer is unfocused.
+- Added an inline, rotating circular sync icon next to “Life Areas” in the sidebar in [App.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/App.tsx) when sync is in progress, replacing detached full-screen toast alerts to minimize distraction and satisfy the ADHD point-of-performance rule.
+- Added a failure toast notification if manual/full database sync fails.
+- Created `<AnimatedModal>`, `<AnimatedPage>`, `<AnimatedToast>`, `<AnimatedContextMenu>`, `<AnimatedSlidePanel>`, and `<AnimatedSpinner>` helper wrapper components in [motion-transitions.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/components/motion-transitions.tsx) to completely abstract and centralize Framer Motion layout transition logic, preventing inline motion.div pollution across UI components.
+- Integrated fluid UI animations via `motion/react` (Framer Motion v12) on page transitions, task/list modals, session logging forms, toast messages, and task option context menus.
 - App-wide zoom controls using `⌘+` and `⌘−`, limited to 80–130%, with `⌘0` resetting to 100%.
 - Insights now starts with quick-glance totals for today and all-time tracked time, completed
   tasks, lists, today's jewels, and lifetime net jewels.
 
 ### Changed
+
+- Increased Life Area icons to 20px and enlarged the sidebar heading, area labels, list names, and
+  list emoji for clearer scanning.
+- Replaced repeated sidebar folder icons with distinct Lucide symbols for Career, Health,
+  Relationships, Finances, and Recreation; Unsorted uses a neutral Inbox icon.
+- Removed the planning-priority info icon from the Life Areas heading, leaving a single compact
+  expand/collapse control.
+- Renamed the sidebar heading from “Your Lists” to “Life Areas” to reflect its actual hierarchy.
+- Removed the redundant three-dot menu trigger from active and completed task-list rows; selecting
+  the row continues to open task detail directly.
+- Increased the left sidebar width from 258px to 280px so list and life-area labels have more room.
+- Reworked Audius loading around per-vibe genre/search sources, relevance filters, mood
+  preferences, deduplication, and deterministic play-count ranking. Legacy Jazz and Electronic
+  selections migrate to Coffee House and Energizing.
+- Replaced the bottom player's unlabeled vibe dot with a compact current-vibe label that opens the
+  native genre picker when clicked.
+- Replaced the bottom player's text-like task-history glyph with Lucide's History icon.
+- Removed the Lyrics icon from the bottom player; task notes remain available in task detail and
+  on the Now Playing focus page.
+- Reduced the bottom player's session progress bar width by 25%, from 540px to 405px.
+- Fixed the bottom music player at 30% width and added an overflow-aware Motion marquee for long
+  track titles, with a static reduced-motion fallback.
+- Removed the focus-music volume and mute controls; playback now follows macOS system volume
+  without a second app-specific volume level.
+- Edit List now opens its emoji picker from the list preview and hides the full grid until needed,
+  reducing visual distraction while retaining enough dialog width for availability details.
+- Unified list-row and life-area drag grips with the same inline alignment, width, hover treatment,
+  and Lucide icon styling.
+- Extracted `ALBUM_PALETTE` color values to [constants.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/constants.tsx) and updated its usage in [utils.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/utils.tsx).
+- Extracted core utility constants (`IMPACT_TIERS`, `IMPACT_TIER_KEYS`, `RANKS`, `RANK_AREA_CAP_RATIO`, and `UNTAGGED_LIST_COLOR`) from [utils.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/utils.tsx) to [constants.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/constants.tsx).
+- Extracted all toast notification message strings (e.g. `List created`, `List saved`, `List deleted`, `Task created`, `Task saved`, `Task renamed`, `Task deleted`, and planning priority titles) to [constants.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/constants.tsx) for central management.
+- Extracted default list styles (`DEFAULT_LIST_COLOR`, `DEFAULT_LIST_EMOJI`) to [constants.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/constants.tsx) and updated list creation/edition modals.
+- Extracted modal assets (`EMOJI_CATEGORIES`, `DEPTH_ICONS`, and `CADENCE_ICONS`) to [constants.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/constants.tsx) and updated task/list modal components to reuse them centrally.
+- Extracted more constants (`ZOOM_MIN`/`MAX`/`STEP`, `TRACK_PX`, and `IMPACT_`/`LIFE_BALANCE_` calculation variables) to [constants.tsx](file:///Users/subham/Desktop/homebrew-taskplayer/src/app/constants.tsx) and updated their usages across context providers and layout pages.
+- Extracted recent tasks size limit to use the central `RECENT_TASKS_SIZE` constant instead of hardcoded values.
+- Migrated the entire frontend application rendering, layout, and control logic layer from lit-html to React + Vite, converting all core JS modules (.js) to JSX (.jsx).
+- Removed all legacy DOM querying, HTML template string helpers, and imperative overlay dialogs in favor of native React state-driven dialogs, list modals, and new task forms.
+- Fixed UI rendering lag by removing the global clock tick listener from the root App component, isolating the ticking updates to local intervals in the Player and Now Playing components.
 
 - The bottom player's workflow icon now changes timer mode in place instead of opening the
   Settings workflow panel; detailed timing controls remain in Settings.
@@ -54,6 +104,26 @@ move those entries into a dated version section.
 
 ### Fixed
 
+- Shifted the complete Life Areas expand/collapse control 4px right so its centered glyph aligns
+  with the folder-row chevrons without creating uneven hover padding.
+- Right-aligned the sidebar's expand/collapse control instead of letting it sit immediately after
+  the Life Areas title.
+- Restored Finder-style life-area folder opening and closing in the React sidebar, with smooth
+  height, reveal, fade, and chevron motion plus an instant reduced-motion fallback.
+- Aligned the bottom player's workflow-mode and History icons inside matching control boxes.
+- Fixed weekly schedule day and time controls remaining at their initial values by using explicit
+  weekday buttons, immediate time-input events, and guarding list-form initialization.
+- Removed the duplicate divider above availability in Edit List.
+- Restored sticky mini-headers on scrolling detail pages and replaced the fixed-height animated
+  page wrapper with a growable minimum-height layout, preventing cropped top spacing.
+- Made life-area reordering match list-row dragging: the full header now starts the drag and uses
+  the same subdued in-drag feedback instead of requiring the small grip target.
+- Fixed menu-bar focus-music Play/Pause and Next Track events being dropped when snapshot updates
+  repeatedly recreated their listeners; controls now route directly to the music provider.
+- Fixed task detail save and inline rename actions not displaying user-visible toast notifications; added "Task saved" and "Task renamed" toasts.
+- Fixed a TypeError crash when clicking on a list item that groups tasks by album.
+- Fixed an infinite render loop causing "Maximum update depth exceeded" when displaying or editing sessions.
+- Fixed components redefining their own legacy/incorrect lists of life areas; restored the centralized LIFE_AREAS definition (Career / Work, Health & Wellbeing, Relationships, Finances, and Recreation) imported from utils.tsx.
 - Lit task pages now render inside a dedicated component host, preventing Home, Insights, or
   Settings markup from surviving or replacing a sidebar navigation result.
 

@@ -1,0 +1,98 @@
+/* Player bar */
+.player { grid-area: player; background: var(--bg2); border-radius: 10px; display: flex; align-items: center; padding: 0 16px; gap: 14px; }
+.np { display: flex; align-items: center; gap: 12px; width: 30%; min-width: 170px; }
+.np .art { width: 40px; height: 40px; border-radius: 6px; display: grid; place-items: center; font-size: 17px; flex: none; }
+.np .t { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np .l { color: var(--muted); font-size: 11px; }
+
+.player-task-link { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 12px; padding: 4px; border: 0; border-radius: 8px; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.player-task-link:hover { background: rgba(255,255,255,.06); }
+.player-task-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.player-task-copy .t, .player-task-copy .l { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.controls { display: flex; align-items: center; gap: 8px; }
+.pbtn { width: var(--player-icon-control-size); height: var(--player-icon-control-size); display: grid; place-items: center; padding: 0; background: none; border: none; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+.pbtn svg { display: block; }
+.pbtn:hover { color: #fff; }
+.pmain { width: 34px; height: 34px; border-radius: 50%; background: var(--green); color: #000; display: grid; place-items: center; font-size: 13px; border: none; cursor: pointer; }
+.pmain:hover { background: var(--green-hi); transform: scale(1.06); }
+
+/* Recovery control for a legacy synced Pomodoro waiting state. New cycles
+   transition automatically and do not render this control. */
+.bigaction { border: none; border-radius: 22px; padding: 10px 20px; font-size: 14px; font-weight: 700; color: #000; cursor: pointer; animation: pulse 1.8s ease-in-out infinite; }
+.bigaction:hover { animation: none; transform: scale(1.03); }
+.badge { background: none; border: 1px solid #555; color: var(--muted); padding: 5px 10px; border-radius: 16px; font-weight: 600; font-size: 12px; cursor: pointer; }
+.badge:hover { border-color: #fff; color: #fff; }
+
+/* mode toggle — compact shuffle-style icon (green when a timed mode is on) */
+.mode-btn { width: var(--player-icon-control-size); height: var(--player-icon-control-size); display: grid; place-items: center; padding: 0; background: none; border: none; color: var(--muted); font-size: 19px; line-height: 1; cursor: pointer; border-radius: 8px; }
+.mode-btn:hover { color: #fff; background: rgba(255,255,255,.08); }
+.mode-btn.on { color: var(--green); }
+
+.timeline { display: flex; align-items: center; gap: 8px; width: 100%; max-width: var(--session-progress-max-width); }
+.clock { font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); min-width: 50px; text-align: center; }
+
+/* overflow:visible (not hidden) so .bar.live's scrubber dot — which sits a
+   few px past the filled span's own right edge — isn't clipped by the
+   track underneath it. */
+.bar { flex: 1; height: 2px; border-radius: 1px; background: #3a3a3a; overflow: visible; }
+.bar > span { display: block; height: 100%; width: 0; background: var(--green); transition: width .3s linear; position: relative; }
+.bar.done > span { background: var(--green-hi); animation: pulse 1.2s ease-in-out infinite; }
+.bar.brk > span { background: var(--blue); }
+
+/* Small scrubber dot at the current playhead — only on bars that are
+   actually ticking live (see the `live` class in render.js), not on the
+   disabled/idle bar or the 100%-filled "waiting" bars, where a floating dot
+   would just look like a stray decoration rather than a real position. */
+.bar.live > span::after { content: ""; position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #fff; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+/* Quiet phase/cycle line under the timeline — replaces what used to be
+   nowhere-shown info (which cycle you're on, whether the next break is
+   long) with a single small dot + line of text instead of a louder pill or
+   row of filled/empty circles. */
+.phaseline { display: flex; align-items: center; gap: 6px; font-size: 10px; line-height: 1; color: #6a6a6a; letter-spacing: .01em; }
+.phaseline .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+
+.right { min-width: 0; flex: 0 0 auto; display: flex; justify-content: flex-end; overflow: hidden; }
+
+/* Music mini-player — ultra-compact: no art tile, just a note glyph, a scrolling
+   title, a genre dot, and icon controls. Static — no hover-triggered effects. */
+.music {
+  display: flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-end;
+  padding: 6px 8px; border-radius: 10px;
+}
+
+/* note glyph — tints to green while playing instead of sitting in an art tile.
+   Swapped for the track's actual cover art (.m-art) whenever Audius gave us
+   one; falls back to this plain glyph otherwise (see renderMusic in render.js). */
+.m-note { flex: none; display: grid; place-items: center; color: var(--muted); }
+.m-note svg { display: block; }
+.music.playing .m-note { color: var(--green); }
+.m-note.m-art { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; background: var(--bg3); cursor: pointer; }
+
+/* Long titles use a measured, seamless Motion marquee inside the fixed-width
+   music region. Short titles remain still; reduced motion falls back to an
+   ellipsis instead of moving text. */
+.music-title { min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--muted); }
+.music-title-track { display: flex; width: max-content; }
+.music-title-copy { display: block; flex: none; overflow: hidden; text-overflow: ellipsis; }
+.music-title.scrolling .music-title-copy { overflow: visible; text-overflow: clip; }
+.music.playing .music-title { color: var(--green); }
+.music.loading .music-title { font-style: italic; }
+
+@media (prefers-reduced-motion: reduce) {
+  .music-title-track { width: 100%; }
+  .music-title-copy { min-width: 0; max-width: 100%; }
+}
+
+/* Current vibe stays visible while the native select remains the compact,
+   keyboard-accessible picker opened by the whole label. */
+.m-genre { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; max-width: var(--music-vibe-max-width); height: var(--player-icon-control-size); padding: 0 var(--music-vibe-padding-x); border-radius: 8px; background: var(--bg3); color: var(--muted); font-size: 11px; font-weight: 600; }
+.m-genre-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-genre select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; -webkit-appearance: none; appearance: none; border: 0; }
+.music.playing .m-genre { color: var(--green); }
+
+/* skip to next track — flat icon, points right */
+.m-next { background: none; border: none; color: var(--muted); cursor: pointer; flex: none; padding: 5px; border-radius: 6px; display: grid; place-items: center; }

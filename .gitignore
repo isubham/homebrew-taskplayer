@@ -37,4 +37,4 @@ session.json
 
 concepts/
 
-dist_verify/
+dist_verify/.env

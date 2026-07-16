@@ -1,0 +1,370 @@
+.app-toast-host{position:fixed;z-index:90;left:50%;bottom:96px;width:min(420px,calc(100vw - 32px));opacity:0;transform:translate(-50%,8px);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+.app-toast-host.show{opacity:1;transform:translate(-50%,0)}
+.app-toast-card{padding:11px 14px;border:1px solid #484848;border-radius:10px;background:#242424;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.app-toast-card.success{border-color:#3d5446;background:#202823}
+.app-toast-card.warning{border-color:#68562f;background:#2b271f}
+.app-toast-card.error{border-color:#683939;background:#2b2020}
+.app-toast-card strong,.app-toast-card span{display:block}
+.app-toast-card strong{color:#fff;font-size:12px;margin-bottom:3px}
+.app-toast-card span{color:var(--muted);font-size:11px;line-height:1.4}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--line);border-radius:12px;width:min(560px,92vw);max-height:82vh;overflow:hidden;display:flex;flex-direction:column}
+.modal.task-detail-two-column{width:min(1080px,94vw);max-height:88vh}
+/* Track-details modal — same component as the task-detail dialog above, just
+   narrower since there's a lot less to show (art, title, artist, one link). */
+.track-modal{width:min(360px,92vw)}
+/* real cover-art <img> (vs. the emoji/gradient fallback tile) needs
+   object-fit — the tile's sizing/radius is otherwise identical */
+.modal .top img.art{object-fit:cover;background:var(--bg3)}
+.modal .top{padding:22px 24px;display:flex;gap:16px;align-items:center;border-bottom:1px solid var(--line)}
+.modal .top .art{width:70px;height:70px;border-radius:8px;display:grid;place-items:center;font-size:30px;flex:none}
+.modal .top h2{margin:0 0 4px;font-size:22px}
+.editbtn{background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 6px;border-radius:5px;display:inline-flex;align-items:center}
+.editbtn:hover{color:#fff;background:var(--bg3)}
+.modal .top .m{color:var(--muted);font-size:13px;margin-top:4px}
+.linkbtn{background:none;border:none;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;padding:2px 4px;border-radius:5px}
+.linkbtn:hover{color:#fff;background:var(--bg3)}
+.linkbtn.sm{font-size:11px;padding:1px 4px}
+/* A plain blue text link (not a bordered/filled button) — for actions that
+   add something without being the main focus of their section, like
+   "+ Add session" sitting next to the "Sessions" heading. */
+.linkbtn.blue{color:var(--blue)}
+.linkbtn.blue:hover{color:#7cb3f5;background:none}
+/* The list name doubles as its own picker (moveTaskInline) — its own
+   section now, styled as a filled chip matching .depth-seg's pill
+   background, with a manual caret since appearance:none drops the native
+   arrow. The caret is a real SVG element (not a CSS ::after text glyph) —
+   a unicode "⌄" character sits inside its own font-metric box that isn't
+   centered on its glyph, so translateY(-50%) alone never lines it up right;
+   an SVG's box is exactly its viewBox, so centering it is just arithmetic. */
+.list-select-wrap{position:relative;display:flex;align-items:center}
+.list-select-caret{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.list-select{appearance:none;-webkit-appearance:none;width:100%;background:var(--bg3);border:1.5px solid transparent;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:10px 34px 10px 14px;border-radius:7px}
+.list-select:hover{border-color:#555}
+.list-select:focus{border-color:var(--green);outline:none}
+/* Deadline field, task panel (see renderDetail in render.js) — same filled-
+   pill look as .list-select just above so the two "plain value" fields in
+   this modal read consistently. color-scheme:dark keeps the native
+   calendar-icon/picker glyph light instead of rendering near-invisible
+   black-on-dark, which browsers otherwise assume by default. */
+.deadline-input{color-scheme:dark;width:100%;background:var(--bg3);border:1.5px solid transparent;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:10px 14px;border-radius:7px;box-sizing:border-box}
+.deadline-input:hover{border-color:#555}
+.deadline-input:focus{border-color:var(--green);outline:none}
+/* Depth's 3-way segmented control, in the consolidated task panel — used to
+   be two separate row-⋯-menu toggle buttons ("Mark deep work"/"Mark
+   shallow"); now one inline control, set-exactly rather than toggled. Same
+   tinted-background + colored-border selected language as .impact-notch/
+   .sign-btn below, so all three pill-groups in this modal read as one
+   family instead of three different button styles. The caption under it
+   exists because "Deep/Shallow/None" alone isn't self-explanatory — it has
+   no effect anywhere else in the app, so the one job left for this control
+   is to be understood at a glance. */
+.depth-seg{display:flex;gap:6px}
+.depth-seg button{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--bg3);color:var(--muted);font-size:11px;font-weight:700;padding:9px 10px;border-radius:7px;cursor:pointer;border:1.5px solid transparent}
+.depth-seg button:hover{color:#fff}
+.depth-seg button.sel{background:rgba(29,185,84,.16);color:var(--green-hi);border-color:var(--green)}
+.cadence-seg{display:inline-flex}
+.cadence-seg button{flex:none;min-width:76px;flex-direction:row;justify-content:center;gap:4px;padding:4px 7px;font-size:9px;border-radius:6px}
+.cadence-seg button svg{width:11px;height:11px}
+.depth-hint{font-size:11px;color:var(--muted);margin-top:8px}
+/* Sessions' own total — replaces the old standalone timer hero, sized to
+   still read as the "big number" on this panel (the timer hero it replaced
+   was 28px/800; this stays close to that) even though it's no longer live.
+   The estimate lives inside this same line as a plain editable number (not
+   a separate "Edit estimate" dialog), since it's just the target this
+   total is measured against, not a live-tracking control. Named .det-total,
+   not .sess-total, to not collide with the Insights page's own
+   .sess-total (day/week/month group totals) — same word, different job. */
+.det-total{display:flex;align-items:center;gap:7px;margin:14px 0 10px;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.det-total .of{font-weight:400;color:var(--muted);font-size:14px}
+.det-total .dot{color:var(--muted);font-weight:400}
+/* Explicit -/+ step buttons flank the field — replaces the field's native
+   spinner arrows (hidden below) and the earlier click-the-field-to-+1h
+   trick, which doubled up awkwardly with those same native arrows. Both
+   buttons share this one class; only their data-action/glyph differ. */
+.est-step{width:24px;height:24px;flex:none;background:var(--bg3);border:1px solid transparent;border-radius:6px;color:var(--muted);font-size:16px;font-weight:700;line-height:1;cursor:pointer;display:grid;place-items:center}
+.est-step:hover{color:#fff;border-color:#555}
+.est-inline{width:114px;background:var(--bg3);border:1px solid transparent;border-radius:6px;color:var(--blue);font:inherit;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right;padding:1px 6px;appearance:textfield;-moz-appearance:textfield}
+.est-inline::-webkit-inner-spin-button,.est-inline::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.est-inline:hover{border-color:#555}
+.est-inline:focus{border-color:var(--blue);outline:none}
+/* Notes, inline — replaces "click to open a Lyrics dialog" with a plain
+   textarea that commits on blur, same immediate-commit contract as every
+   other field in this panel. The Now Playing page uses its own focused
+   textarea; only the standalone Lyrics overlay keeps the dialog. */
+.lyrics-inline{width:100%;background:var(--bg3);border:1px solid transparent;border-radius:10px;padding:13px 15px;font-size:14px;line-height:1.6;color:#e6e6e6;font-family:inherit;resize:vertical;margin-bottom:6px}
+.lyrics-inline::placeholder{color:#7a7a7a}
+.lyrics-inline:hover{border-color:#3a3a3a}
+.lyrics-inline:focus{border-color:var(--green);outline:none}
+.est{color:var(--muted);font-weight:500}
+.modal .body{padding:18px 24px 22px;overflow-y:auto}
+.modal .body h4{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:16px 0 10px}
+.modal .body>h4:first-child{margin-top:0}
+.task-detail-grid{display:grid;grid-template-columns:minmax(300px,.82fr) minmax(430px,1.18fr);gap:30px;align-items:start}
+.task-detail-column{min-width:0}
+.task-detail-column>h4:first-child,.task-detail-column>.sh:first-child h4{margin-top:0}
+.task-detail-sessions{border-left:1px solid var(--line);padding-left:30px}
+.task-detail-sessions .simple-availability-row{flex-wrap:nowrap;gap:8px}
+.task-detail-sessions .weekday-pill-row{flex-wrap:nowrap;gap:4px}
+.task-detail-sessions .weekday-pill span{width:30px;height:30px;font-size:9px}
+.task-detail-sessions .availability-time-row{flex:none;margin-left:auto;gap:6px}
+.task-detail-sessions .availability-time-row input{width:88px;padding-left:7px;padding-right:7px}
+.detail-name-input{width:100%;background:var(--bg3);border:1.5px solid transparent;border-radius:10px;padding:12px 14px;color:#fff;font:inherit;font-size:16px;font-weight:700}
+.detail-name-input:hover{border-color:#3a3a3a}
+.detail-name-input:focus{border-color:var(--green);outline:none}
+.task-detail-error{margin-top:14px}
+.create-task-btn{background:var(--green);border:1px solid var(--green);color:#000;padding:8px 16px;border-radius:20px;cursor:pointer;font-weight:700}
+.create-task-btn:hover{background:var(--green-hi)}
+.entry{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.entry .when{color:var(--muted)}
+.entry .dur{font-variant-numeric:tabular-nums;font-weight:600}
+.entry.live .dur{color:var(--green)}
+.close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;margin-left:auto}
+.close:hover{color:#fff}
+.foot{padding:14px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between}
+.stopbtn{background:none;border:1px solid #555;color:#fff;padding:8px 14px;border-radius:20px;cursor:pointer;font-weight:600}
+.stopbtn:hover{border-color:#fff}
+.danger{background:none;border:1px solid #5a2a2a;color:#ff6b6b;padding:8px 14px;border-radius:20px;cursor:pointer}
+.danger:hover{border-color:#ff6b6b}
+.modes{display:flex;gap:10px;margin:4px 0}
+.modebtn{flex:1;background:var(--bg3);border:1px solid #3a3a3a;color:#fff;border-radius:10px;padding:12px 8px;cursor:pointer;font-weight:700;font-size:13px;display:flex;flex-direction:column;gap:4px;align-items:center}
+.modebtn small{color:var(--muted);font-weight:500;font-size:11px}
+.modebtn.sel{border-color:var(--green);background:rgba(29,185,84,.1)}
+.fld{display:flex;align-items:center;gap:8px;margin:8px 0;color:var(--muted);font-size:13px}
+.fld input{width:70px;background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:7px 9px}
+.fld select{background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:7px 9px;cursor:pointer}
+.hint{color:#6a6a6a;font-size:12px;margin-top:12px;line-height:1.5}
+.hint-error{color:var(--red2,#e5484d)}
+/* in-app dialog (WKWebView has no window.prompt) */
+#doverlay{z-index:70}
+.dlg{width:min(400px,90vw)}
+.dlg{overflow-y:auto}
+/* List forms need room for emoji controls and weekly availability without
+   compressing or cropping their details. Other dialogs remain narrower. */
+.dlg.dlg-emoji{width:min(620px,92vw)}
+.dlg .dtitle{padding:20px 22px 4px;font-size:17px;font-weight:700}
+.dlg .dbody{padding:2px 22px 4px;color:var(--muted);font-size:13px;line-height:1.5}
+.dlg .dbody p{margin:10px 0}
+.dlg .dbody p:first-child{margin-top:6px}
+.dlg .dbody p:last-child{margin-bottom:2px}
+.dlg .dbody strong{color:#fff}
+.dlg .dinput{margin:14px 22px 4px;width:calc(100% - 44px);background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:10px 12px;font-size:14px}
+.dlg .dinput:focus{outline:none;border-color:var(--green)}
+.dlg .dfoot{padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px}
+.dlg .dfoot-delete{margin-right:auto}
+.dlg .btn{border-radius:20px;padding:8px 16px;font-weight:600;cursor:pointer;border:1px solid #555;background:none;color:#fff}
+.dlg .btn:hover{border-color:#fff}
+.dlg .btn.primary{background:var(--green);border-color:var(--green);color:#000}
+.dlg .btn.primary:hover{background:var(--green-hi)}
+.dlg .btn.danger{border-color:#5a2a2a;color:#ff6b6b}
+.dlg .btn.danger:hover{border-color:#ff6b6b}
+.dtextarea{margin:12px 22px 4px;width:calc(100% - 44px);background:var(--bg3);border:1px solid #444;color:#fff;border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.6;font-family:inherit;resize:vertical;box-sizing:border-box}
+.dtextarea:focus{outline:none;border-color:var(--green)}
+.dlg .ffield{display:flex;align-items:center;gap:10px;margin:10px 22px;color:var(--muted);font-size:13px}
+.dlg .ffield label{width:80px;flex:none}
+.dlg .ffield input,.dlg .ffield select{background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:8px 10px;font-size:14px}
+.dlg .ffield select{flex:1;cursor:pointer}
+.dlg .ffield input:focus{outline:none;border-color:var(--green)}
+.dlg .ffield input[type=number]{width:80px}
+.dlg .ffield input[type=date],.dlg .ffield input[type=time]{flex:1}
+.hidden{display:none!important}
+
+/* Weekly availability/schedule editor shared by list forms and the task
+   panel. Rows deliberately use the same filled inputs and quiet blue add
+   link as the existing list/deadline/session controls. */
+.schedule-field{margin:16px 22px 4px;padding-top:14px;border-top:1px solid var(--line)}
+.schedule-field.compact{margin:14px 0 0}
+.schedule-field-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.schedule-field-head strong{display:block;color:#fff;font-size:13px}
+.schedule-field-head span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.weekly-editor{min-width:0}
+.simple-availability{display:block}
+.simple-availability-list{display:flex;flex-direction:column;gap:8px}
+.simple-availability-row{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;padding:7px 0;border-bottom:1px solid var(--line)}
+.simple-availability-row:only-child .weekly-window-remove{visibility:hidden}
+.weekday-pill-row{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.weekday-pill{position:relative;display:flex;align-items:center;border:0;background:none;padding:0;font:inherit;cursor:pointer}
+.weekday-pill span{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:var(--bg3);border:1.5px solid transparent;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase}
+.weekday-pill:hover span{color:#fff}
+.weekday-pill:focus-visible{outline:none}
+.weekday-pill:focus-visible span{outline:2px solid var(--green);outline-offset:2px}
+.weekday-pill[aria-pressed=true] span{background:rgba(29,185,84,.16);border-color:var(--green);color:var(--green-hi)}
+.repeat-every-day{margin:0 0 8px;padding:6px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg3);color:var(--muted);font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.repeat-every-day[aria-pressed=true]{border-color:var(--green);background:rgba(29,185,84,.16);color:var(--green-hi)}
+.repeat-every-day:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.availability-time-row{display:flex;align-items:center;gap:8px;color:var(--muted);margin-left:auto}
+.availability-time-row[hidden],.weekly-window-add[hidden]{display:none}
+.availability-time-row input{width:104px;color-scheme:dark;background:var(--bg3);border:1px solid #444;color:#fff;border-radius:6px;padding:8px 9px;font:inherit;font-size:12px}
+.availability-time-row input:focus{outline:none;border-color:var(--green)}
+.availability-end-field{position:relative;display:flex;flex-direction:column;align-items:flex-end}
+.overnight-indicator{margin-top:4px;border:1px solid rgba(70,150,255,.45);border-radius:999px;background:rgba(70,150,255,.12);color:var(--blue);padding:2px 7px;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;line-height:1.2}
+.overnight-indicator[hidden]{display:none}
+.weekly-window-remove{width:26px;height:26px;border:none;border-radius:6px;background:none;color:var(--muted);font-size:17px;cursor:pointer;display:grid;place-items:center;padding:0}
+.weekly-window-remove:hover{color:#ff6b6b;background:var(--bg3)}
+.weekly-window-add{display:inline-block;margin-top:9px}
+.schedule-error{min-height:16px;color:#ff8a8a;font-size:11px;margin-top:7px}
+
+.session-range-row{display:flex;align-items:flex-end;gap:9px}
+.session-range-row label{flex:1;min-width:0;color:var(--muted);font-size:12px}
+.session-range-row label span{display:block;margin-bottom:5px}
+.session-range-row input{width:86px;background:var(--bg3);border:1.5px solid transparent;border-radius:7px;color:#fff;font:inherit;font-size:13px;font-weight:600;padding:9px 10px;margin-right:5px}
+.session-range-row input:hover{border-color:#555}
+.session-range-row input:focus{border-color:var(--green);outline:none}
+.range-sep{color:var(--muted);padding-bottom:10px}
+
+/* Emoji picker ("Edit list") — a prev/next pager naming the active category
+   above a grid, instead of one long unstyled list of buttons. Plain native
+   <button>s had no styling of their own here (browser-default white
+   squares), the one part of this dialog that didn't look like the rest of
+   the app. */
+.dlg .ffield .emoji-picker{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+
+/* Category pager — a name in the middle (always legible, unlike a single
+   representative emoji per category) with two nav buttons either side.
+   Wraps around at either end (see goToCategory in commands.js), so neither
+   button is ever just disabled dead weight. */
+.emoji-cat-pager{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.emoji-cat-nav{width:26px;height:26px;flex:none;display:grid;place-items:center;font-size:11px;background:var(--bg3);border:1.5px solid transparent;border-radius:7px;color:var(--muted);cursor:pointer;padding:0}
+.emoji-cat-nav:hover{color:#fff;background:#2c2c2c}
+.emoji-cat-label{flex:1;text-align:center;font-size:12px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em}
+
+/* The active category's page of 24 — 12 per row, 2 rows (paired with the
+   wider "dlg-emoji" dialog above so 12 columns still have room to breathe),
+   so switching category never changes the dialog's height. Selection uses
+   the same tinted-background + colored-border language as .impact-notch
+   .sel/.sign-btn.sel/.modebtn.sel elsewhere, so "this one is picked" reads
+   the same everywhere in the app. */
+.dlg .ffield .emoji-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:6px}
+.emoji-opt{aspect-ratio:1;display:grid;place-items:center;font-size:16px;background:var(--bg3);border:1.5px solid transparent;border-radius:8px;cursor:pointer;padding:0}
+.emoji-opt:hover{background:#2c2c2c}
+.emoji-opt.sel{background:rgba(29,185,84,.16);border-color:var(--green)}
+
+/* Edit List keeps the full picker behind its preview to reduce visual noise. */
+.emoji-picker-anchor{position:relative;flex:none}
+.emoji-preview-button{position:relative;width:38px;height:38px;display:grid;place-items:center;background:var(--bg3);border:1.5px solid transparent;border-radius:7px;color:#fff;cursor:pointer;padding:0}
+.emoji-preview-button:hover{border-color:#555}
+.emoji-preview-button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.emoji-preview-button span{font-size:17px}
+.emoji-preview-button svg{position:absolute;right:1px;bottom:1px;width:11px;height:11px;padding:1px;border-radius:50%;background:var(--bg2);color:var(--muted)}
+.emoji-picker-popover{position:absolute;top:calc(100% + 8px);left:0;z-index:20;width:min(280px,calc(90vw - 120px));box-sizing:border-box;padding:10px;background:var(--bg2);border:1px solid #444;border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,.45)}
+.dlg .ffield .emoji-picker-popover .emoji-grid{grid-template-columns:repeat(8,1fr);margin-top:8px}
+.emoji-picker-popover .emoji-cat-nav svg{width:14px;height:14px}
+
+/* Native color swatch, restyled to match every other input's border/radius
+   instead of the browser-default control (which otherwise looks like a
+   plain unstyled rectangle stranded among rounded, bordered fields). */
+.dlg .ffield input[type=color]{-webkit-appearance:none;appearance:none;width:44px;height:34px;padding:3px;flex:none;cursor:pointer}
+.dlg .ffield input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.dlg .ffield input[type=color]::-webkit-color-swatch{border:none;border-radius:4px}
+/* session-history add/remove */
+.modal .body .sh{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.task-detail-sessions .sh{margin-top:18px}
+
+@media (max-width: 840px){
+  .daily-jam-grid{grid-template-columns:minmax(0,1fr)}
+  .list-hero{gap:18px;padding:24px}
+  .list-hero .list-cover{width:126px;height:126px;font-size:48px}
+  .list-hero .info h1{font-size:40px}
+  .list-liner{flex-wrap:wrap;margin-top:14px}
+  .list-availability{max-width:100%}
+  .task-detail-grid{grid-template-columns:minmax(0,1fr);gap:22px}
+  .task-detail-sessions{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:20px}
+  .modal.task-detail-two-column{width:min(620px,94vw)}
+}
+.pill.sm{padding:5px 12px;font-size:12px}
+.entry .when{flex:1}
+.entry-del{background:none;border:none;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px;opacity:.45;width:22px;flex:none}
+.entry-del:hover{color:#ff6b6b;opacity:1}
+.entry-edit{background:none;border:none;color:var(--muted);font-size:13px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px;opacity:.45;width:22px;flex:none}
+.entry-edit:hover{color:#fff;opacity:1}
+/* lyrics — detail-modal block */
+.lyr-h{display:flex;align-items:center;gap:8px}
+.lyr-h .linkbtn{margin-left:auto;text-transform:none;letter-spacing:0}
+.lyrics{background:var(--bg3);border-radius:10px;padding:13px 15px;font-size:14px;line-height:1.7;color:#e6e6e6;white-space:pre-line;margin-bottom:6px}
+.lyrics.empty{background:none;border:1px dashed #444;color:#7a7a7a;cursor:text}
+/* lyrics — immersive in-session panel */
+#lyroverlay .lyrpanel{background:linear-gradient(160deg,#0f6a3d,#0a3a22);border:1px solid #175c39;border-radius:14px;width:min(620px,92vw);max-height:80vh;overflow:auto;padding:24px 26px 30px;display:flex;flex-direction:column}
+.lyr-hd{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.lyr-lab{color:#a7edc4;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lyr-ed{background:none;border:none;color:#cfeede;font-size:13px;font-weight:600;cursor:pointer}
+.lyr-ed:hover{color:#fff}
+.lyr-x{background:none;border:none;color:#cfeede;font-size:22px;line-height:1;cursor:pointer}
+.lyr-x:hover{color:#fff}
+.lyr-body p{margin:0 0 14px;font-size:19px;line-height:1.5;font-weight:600;color:#eafff2}
+.lyr-body p.dim{color:#63a37e;font-weight:500;font-size:15px}
+/* popmenu */
+.popmenu{position:fixed;z-index:60;background:var(--elev);border:1px solid var(--line);border-radius:8px;padding:6px;min-width:190px;box-shadow:0 12px 34px rgba(0,0,0,.55);display:none}
+.popmenu.show{display:block}
+.popmenu button{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;color:#fff;text-align:left;padding:10px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer}
+.popmenu button:hover{background:var(--bg3)}
+.popmenu button.danger{color:#ff6b6b;border:none}
+.popmenu .sep{height:1px;background:var(--line);margin:5px 2px}
+
+/* ---- Impact: tier dial + for/against toggle + payout line ---- */
+/* This used to be a much bigger "gamification" layer (per-task multi-area
+   weighted splits, vitality rings, a daily mana bar, a rank ladder) —
+   distilled down to just the impact tier + sign a task carries; its area
+   comes from its list's existing life-area tag, so there's no per-task area
+   UI left at all. See utils.js's comment on jewelPayout() for why. */
+
+/* Small diamond marking a task row/payout line's jewel amount — one dot per
+   jewel earned (payout weight is 1/2/4, so at most 4 in a row), colored by
+   the task's list's life area inline so the jewel "type" reads at a glance
+   without a hover. `.neg` overrides that to red for a negative payout (the
+   "smoked a cigarette" case) regardless of area. */
+.jewel-dot{display:inline-block;width:8px;height:8px;transform:rotate(45deg);border-radius:2px;flex:none;background:var(--green-hi);vertical-align:middle}
+.jewel-dot.neg{background:#e5484d}
+/* Wraps a task row's repeated jewel-dots — gap between dots, margin against
+   the task name scoped here (not on .jewel-dot itself) so N dots don't each
+   carry their own margin. */
+.jewel-group{display:inline-flex;align-items:center;gap:3px;vertical-align:middle}
+.tname .jewel-group{margin-left:8px}
+/* Explicit "−" ahead of a negative jewel group — color alone (red vs. an
+   area's own color, e.g. Relationships' #e8115b sitting close to the
+   negative red) isn't a reliable signal at 8px, so the sign is spelled out
+   rather than left to hue. Only negative gets this; positive is every
+   task's default sign, so marking it too would flag the common case
+   instead of the exception. */
+.jewel-sign{color:#e5484d;font-weight:700;font-size:11px;line-height:1;margin-right:1px}
+
+/* Impact tier dial (task edit panel) — 4 plain segmented buttons rather
+   than a radio group, so the selected one gets a clear filled state without
+   needing custom radio-button styling. */
+.impact-dial{display:flex;gap:8px;flex-wrap:wrap}
+.impact-notch{flex:1;min-width:64px;text-align:center;padding:10px 12px;border-radius:7px;background:var(--bg3);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid transparent}
+.impact-notch:hover{color:#fff}
+.impact-notch.sel{background:rgba(229,72,77,.14);color:#e5484d;border-color:#e5484d}
+/* Each pill's own weight (1/2/4) — shown before a tier is even picked, so
+   what "High" is actually worth doesn't wait until the payout-preview
+   line below to become visible. */
+.impact-notch small{display:block;font-size:9.5px;font-weight:600;opacity:.65;margin-top:2px}
+
+/* For/Against toggle, next to the tier dial — two plain buttons instead of
+   a native <select>, so it reads as one cohesive control with the tier
+   dial above it rather than a form field that looks unrelated. */
+.sign-toggle{display:flex;gap:8px}
+.sign-btn{flex:1;padding:9px 12px;border-radius:7px;background:var(--bg3);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid transparent}
+.sign-btn:hover{color:#fff}
+.sign-btn.sel{background:rgba(29,185,84,.16);color:var(--green-hi);border-color:var(--green)}
+.sign-btn.sel.neg{background:rgba(229,72,77,.14);color:#e5484d;border-color:#e5484d}
+
+.sign-group > *{margin-bottom:6px}
+.sign-group > *:last-child{margin-bottom:0}
+
+/* Live "what this actually earns" line — reflects the resolved jewel payout
+   as soon as tier/sign change, no Save step. */
+.payout-preview{padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);line-height:1.6}
+.payout-preview.muted{font-style:italic}
+.payout-preview .amt{display:inline-flex;align-items:center;gap:6px}
+.payout-preview b{color:#fff;font-variant-numeric:tabular-nums}
+
+.impact-section{margin:8px 0 26px}
+/* Even vertical rhythm between the dial/toggle/payout blocks — a single
+   rule on the direct children guarantees consistent breathing room
+   regardless of which blocks are present (the sign-toggle only renders
+   once a tier is picked). */
+.impact-section > *{margin-bottom:16px}
+.impact-section > *:last-child{margin-bottom:0}

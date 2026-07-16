@@ -1,0 +1,1480 @@
+src/app/App.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/App.tsx(1,17): error TS6133: 'useState' is declared but its value is never read.
+src/app/App.tsx(26,73): error TS6133: 'setDialogSession' is declared but its value is never read.
+src/app/App.tsx(35,21): error TS2339: Property 'setOnChange' does not exist on type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/app/App.tsx(58,29): error TS2339: Property 'snapshot' does not exist on type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/app/App.tsx(59,30): error TS2554: Expected 1 arguments, but got 0.
+src/app/App.tsx(176,26): error TS6133: 'prev' is declared but its value is never read.
+src/app/App.tsx(219,14): error TS2322: Type '{ id: string; className: string; onClick: () => void; type: "button"; title: string; "aria-label": string; "aria-expanded": string; children: Element; }' is not assignable to type 'DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>'.
+  Type '{ id: string; className: string; onClick: () => void; type: "button"; title: string; "aria-label": string; "aria-expanded": string; children: Element; }' is not assignable to type 'ButtonHTMLAttributes<HTMLButtonElement>'.
+    Types of property '"aria-expanded"' are incompatible.
+      Type 'string' is not assignable to type 'Booleanish'.
+src/app/App.tsx(275,15): error TS2322: Type '{ state: any; setTrackDetailOpen: any; }' is not assignable to type 'IntrinsicAttributes & { setTrackDetailOpen: any; }'.
+  Property 'state' does not exist on type 'IntrinsicAttributes & { setTrackDetailOpen: any; }'.
+src/app/App.tsx(277,9): error TS2322: Type '{ state: any; list: any; findTask: any; taskSessions: any; taskTotal: any; trackDetailOpen: any; dispatch: null; }' is not assignable to type 'IntrinsicAttributes & { trackDetailOpen: any; }'.
+  Property 'state' does not exist on type 'IntrinsicAttributes & { trackDetailOpen: any; }'.
+src/app/App.tsx(293,26): error TS2339: Property 'id' does not exist on type 'EventTarget'.
+src/app/components/HomePage.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/InsightsPage.tsx(3,10): error TS6133: 'esc' is declared but its value is never read.
+src/app/components/InsightsPage.tsx(3,36): error TS6133: 'whenLabel' is declared but its value is never read.
+src/app/components/InsightsPage.tsx(42,32): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/app/components/MainContent.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/MainContent.tsx(20,30): error TS2322: Type '{ state: any; dispatch: any; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'state' does not exist on type 'IntrinsicAttributes'.
+src/app/components/MainContent.tsx(58,38): error TS2322: Type '{ "--accent": any; "--accent-soft": string; "--accent-softer": string; } | { "--accent"?: undefined; "--accent-soft"?: undefined; "--accent-softer"?: undefined; }' is not assignable to type 'CSSProperties'.
+  Type '{ "--accent": any; "--accent-soft": string; "--accent-softer": string; }' has no properties in common with type 'Properties<string | number, string & {}>'.
+src/app/components/NowPlayingPage.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/NowPlayingPage.tsx(13,10): error TS6133: 'tick' is declared but its value is never read.
+src/app/components/NowPlayingPage.tsx(170,48): error TS2353: Object literal may only specify known properties, and '"--accent"' does not exist in type 'Properties<string | number, string & {}>'.
+src/app/components/NowPlayingPage.tsx(173,49): error TS2353: Object literal may only specify known properties, and '"--cover"' does not exist in type 'Properties<string | number, string & {}>'.
+src/app/components/Overlays.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/Overlays.tsx(29,22): error TS2339: Property 'className' does not exist on type 'EventTarget'.
+src/app/components/Overlays.tsx(75,22): error TS2339: Property 'className' does not exist on type 'EventTarget'.
+src/app/components/Player.tsx(2,15): error TS6133: 'esc' is declared but its value is never read.
+src/app/components/Player.tsx(83,10): error TS6133: 'tick' is declared but its value is never read.
+src/app/components/Player.tsx(337,49): error TS2339: Property 'src' does not exist on type 'EventTarget'.
+src/app/components/Player.tsx(339,26): error TS2339: Property 'src' does not exist on type 'EventTarget'.
+src/app/components/Player.tsx(341,26): error TS2339: Property 'style' does not exist on type 'EventTarget'.
+src/app/components/Player.tsx(352,52): error TS2339: Property 'label' does not exist on type 'unknown'.
+src/app/components/SettingsPage.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/add-list-modal.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/add-list-modal.tsx(97,66): error TS2339: Property 'className' does not exist on type 'EventTarget'.
+src/app/components/add-session-modal.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/create-task-modal.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/create-task-modal.tsx(2,10): error TS6133: 'jewelPayout' is declared but its value is never read.
+src/app/components/create-task-modal.tsx(108,22): error TS2339: Property 'className' does not exist on type 'EventTarget'.
+src/app/components/create-task-modal.tsx(138,17): error TS2322: Type 'string' is not assignable to type 'number'.
+src/app/components/daily-jam.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/daily-jam.tsx(9,7): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/app/components/daily-jam.tsx(9,62): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/app/components/daily-jam.tsx(58,50): error TS2353: Object literal may only specify known properties, and '"--daily-area"' does not exist in type 'Properties<string | number, string & {}>'.
+src/app/components/edit-list-modal.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/edit-list-modal.tsx(99,66): error TS2339: Property 'className' does not exist on type 'EventTarget'.
+src/app/components/edit-task-modal.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/edit-task-modal.tsx(2,10): error TS6133: 'esc' is declared but its value is never read.
+src/app/components/edit-task-modal.tsx(90,22): error TS2339: Property 'className' does not exist on type 'EventTarget'.
+src/app/components/edit-task-modal.tsx(118,17): error TS2322: Type 'string' is not assignable to type 'number'.
+src/app/components/jewel-dots.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/pinned-nav.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/playing-equalizer.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/sidebar.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/sidebar.tsx(99,112): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/sidebar.tsx(139,54): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/sidebar.tsx(142,61): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/sidebar.tsx(142,130): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/sidebar.tsx(160,90): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/sidebar.tsx(169,42): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/sidebar.tsx(271,46): error TS2552: Cannot find name 'SidebarToggleIcon'. Did you mean 'sidebarToggleIcon'?
+src/app/components/sticky-header.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/task-list-page.tsx(98,27): error TS2349: This expression is not callable.
+  Type 'any[]' has no call signatures.
+src/app/components/task-row.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/task-row.tsx(181,25): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/components/topbar.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/components/weekly-availability-editor.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/AppContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/CoreProvider.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/CoreProvider.tsx(242,24): error TS2339: Property 'name' does not exist on type 'unknown'.
+src/app/context/CoreProvider.tsx(243,25): error TS2339: Property 'color' does not exist on type 'unknown'.
+src/app/context/CoreProvider.tsx(252,19): error TS2339: Property 'lifeArea' does not exist on type 'unknown'.
+src/app/context/CoreProvider.tsx(253,21): error TS2339: Property 'lifeDirection' does not exist on type 'unknown'.
+src/app/context/DatabaseProvider.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/DatabaseProvider.tsx(229,11): error TS2794: Expected 1 arguments, but got 0. Did you forget to include 'void' in your type argument to 'Promise'?
+src/app/context/DatabaseProvider.tsx(251,11): error TS2794: Expected 1 arguments, but got 0. Did you forget to include 'void' in your type argument to 'Promise'?
+src/app/context/DatabaseProvider.tsx(273,11): error TS2794: Expected 1 arguments, but got 0. Did you forget to include 'void' in your type argument to 'Promise'?
+src/app/context/DatabaseProvider.tsx(292,11): error TS2794: Expected 1 arguments, but got 0. Did you forget to include 'void' in your type argument to 'Promise'?
+src/app/context/DatabaseProvider.tsx(331,11): error TS2339: Property 'value' does not exist on type 'HTMLElement'.
+src/app/context/DatabaseProvider.tsx(333,26): error TS2339: Property 'files' does not exist on type 'HTMLElement'.
+src/app/context/DatabaseProvider.tsx(333,41): error TS2339: Property 'files' does not exist on type 'HTMLElement'.
+src/app/context/KeyboardProvider.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/KeyboardProvider.tsx(16,23): error TS6198: All destructured elements are unused.
+src/app/context/KeyboardProvider.tsx(17,26): error TS6133: 'activeListId' is declared but its value is never read.
+src/app/context/KeyboardProvider.tsx(71,62): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/context/KeyboardProvider.tsx(72,25): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/context/KeyboardProvider.tsx(121,23): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/context/KeyboardProvider.tsx(123,17): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/context/KeyboardProvider.tsx(133,32): error TS2339: Property 'dataset' does not exist on type 'Element'.
+src/app/context/KeyboardProvider.tsx(142,98): error TS2339: Property 'isContentEditable' does not exist on type 'Element'.
+src/app/context/KeyboardProvider.tsx(209,48): error TS2551: Property 'select' does not exist on type 'HTMLElement'. Did you mean 'onselect'?
+src/app/context/PlaybackProvider.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/RouteProvider.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/SettingsProvider.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/app/context/SettingsProvider.tsx(13,7): error TS6133: 'ZOOM_STEP' is declared but its value is never read.
+src/app/utils.tsx(194,30): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/app/utils.tsx(240,49): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '{ month: string; day: string; year?: undefined; } | { month: string; day: string; year: string; }' is not assignable to parameter of type 'DateTimeFormatOptions'.
+      Type '{ month: string; day: string; year?: undefined; }' is not assignable to type 'DateTimeFormatOptions'.
+        Types of property 'month' are incompatible.
+          Type 'string' is not assignable to type '"2-digit" | "long" | "narrow" | "numeric" | "short"'.
+src/index.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/music.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/music.tsx(198,7): error TS2353: Object literal may only specify known properties, and 'GENRES' does not exist in type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/music.tsx(231,22): error TS2339: Property '_onChange' does not exist on type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/music.tsx(231,46): error TS2339: Property '_onChange' does not exist on type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/music.tsx(232,22): error TS2339: Property '_onStateChanged' does not exist on type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/music.tsx(232,52): error TS2339: Property '_onStateChanged' does not exist on type '{ next: () => void; setActive: (active: boolean) => void; play: (taskId: string) => void; pause: () => void; }'.
+src/vendor/motion-hybrid.ts(1,2): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+src/vendor/motion-hybrid.ts(1,33): error TS2304: Cannot find name 'exports'.
+src/vendor/motion-hybrid.ts(1,62): error TS2591: Cannot find name 'module'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/vendor/motion-hybrid.ts(1,71): error TS2304: Cannot find name 'exports'.
+src/vendor/motion-hybrid.ts(1,99): error TS2304: Cannot find name 'define'.
+src/vendor/motion-hybrid.ts(1,107): error TS2304: Cannot find name 'define'.
+src/vendor/motion-hybrid.ts(1,118): error TS2304: Cannot find name 'define'.
+src/vendor/motion-hybrid.ts(1,552): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/vendor/motion-hybrid.ts(1,576): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+src/vendor/motion-hybrid.ts(1,1020): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1058): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1086): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1130): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1170): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1233): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1285): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,1319): error TS2339: Property 'subscriptions' does not exist on type 'p'.
+src/vendor/motion-hybrid.ts(1,3189): error TS2339: Property 'setup' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3197): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3204): error TS2339: Property 'resolveKeyframes' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3223): error TS2339: Property 'preUpdate' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3235): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3244): error TS2339: Property 'preRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3256): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3265): error TS2339: Property 'postRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3298): error TS2339: Property 'useManualTiming' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,3994): error TS2339: Property 'useManualTiming' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,5252): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,10184): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,12162): error TS2339: Property 'restSpeed' does not exist on type '{ visualDuration: number; keyframes: number[]; bounce: number; }'.
+src/vendor/motion-hybrid.ts(1,12174): error TS2339: Property 'restDelta' does not exist on type '{ visualDuration: number; keyframes: number[]; bounce: number; }'.
+src/vendor/motion-hybrid.ts(1,12369): error TS2339: Property 'velocity' does not exist on type '{ visualDuration: number; keyframes: number[]; bounce: number; }'.
+src/vendor/motion-hybrid.ts(1,14257): error TS2345: Argument of type '{ keyframes: any[]; velocity: number; damping: number; stiffness: number; restDelta: number; restSpeed: any; }' is not assignable to parameter of type 'number'.
+src/vendor/motion-hybrid.ts(1,14530): error TS2339: Property 'ease' does not exist on type '{ clamp?: boolean; }'.
+src/vendor/motion-hybrid.ts(1,14537): error TS2339: Property 'mixer' does not exist on type '{ clamp?: boolean; }'.
+src/vendor/motion-hybrid.ts(1,14839): error TS2339: Property 'mix' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,15480): error TS2339: Property 'map' does not exist on type 'string'.
+src/vendor/motion-hybrid.ts(1,15560): error TS2353: Object literal may only specify known properties, and 'ease' does not exist in type '{ clamp?: boolean; }'.
+src/vendor/motion-hybrid.ts(1,16019): error TS2551: Property '_finished' does not exist on type 'Me'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,16051): error TS2551: Property '_finished' does not exist on type 'Me'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,16082): error TS2339: Property 'resolve' does not exist on type 'Me'.
+src/vendor/motion-hybrid.ts(1,16116): error TS2339: Property 'resolve' does not exist on type 'Me'.
+src/vendor/motion-hybrid.ts(1,16234): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16252): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16272): error TS2339: Property 'isStopped' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16290): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16309): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16328): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16349): error TS2339: Property 'delayState' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16388): error TS2339: Property 'stop' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16424): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16482): error TS2339: Property 'isStopped' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16509): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16538): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16564): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16659): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16823): error TS2339: Property 'mixKeyframes' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,16841): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,16917): error TS2339: Property 'mirroredGenerator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17078): error TS2339: Property 'calculatedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17104): error TS2339: Property 'resolvedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17130): error TS2339: Property 'totalDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17149): error TS2339: Property 'resolvedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17179): error TS2339: Property 'generator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17231): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17247): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17273): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17287): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17304): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17318): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17351): error TS2339: Property 'generator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17363): error TS2339: Property 'totalDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17379): error TS2339: Property 'mixKeyframes' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17394): error TS2339: Property 'mirroredGenerator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17414): error TS2339: Property 'resolvedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17433): error TS2339: Property 'calculatedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17475): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17606): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17632): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17656): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17689): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17728): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17747): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17793): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17813): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17843): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17873): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17917): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17936): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17952): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,17980): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18024): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18203): error TS2339: Property 'delayState' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18232): error TS2339: Property 'delayState' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18319): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18341): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18361): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18397): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18426): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18450): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18497): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18623): error TS2339: Property 'calculatedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18689): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18752): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18789): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18815): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18838): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18857): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18876): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18892): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18906): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18921): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18941): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18961): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18973): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,18996): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19013): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19033): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19094): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19126): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19154): error TS2339: Property 'generator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19185): error TS2339: Property 'generator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19225): error TS2339: Property 'generator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19256): error TS2339: Property 'generator' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19305): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19345): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19371): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19409): error TS2339: Property 'playbackSpeed' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19433): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19459): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19488): error TS2339: Property 'isStopped' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19541): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19554): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19568): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19600): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19632): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19663): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19697): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19722): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19736): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19753): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19767): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19784): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19818): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19845): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19861): error TS2339: Property 'calculatedDuration' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19886): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19905): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19926): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19954): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,19999): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20013): error TS2339: Property 'currentTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20053): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20077): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20099): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20165): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20187): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20224): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20243): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20289): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20326): error TS2339: Property 'state' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20362): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20377): error TS2339: Property 'holdTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20409): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20423): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20442): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20479): error TS2339: Property 'startTime' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20537): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20565): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20595): error TS2339: Property 'options' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,20644): error TS2339: Property 'driver' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,22490): error TS6133: 't' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,22522): error TS6133: 't' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,22656): error TS6133: 't' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,22687): error TS6133: 't' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,22719): error TS2339: Property 'translateX' does not exist on type '{ width: ({ x: t }: { x: any; }, { paddingLeft: e, paddingRight: n, boxSizing: i }: { boxSizing: any; paddingLeft?: string; paddingRight?: string; }) => number; height: ({ y: t }: { y: any; }, { paddingTop: e, paddingBottom: n, boxSizing: i }: { boxSizing: any; paddingBottom?: string; paddingTop?: string; }) => numb...'.
+src/vendor/motion-hybrid.ts(1,22738): error TS2339: Property 'translateY' does not exist on type '{ width: ({ x: t }: { x: any; }, { paddingLeft: e, paddingRight: n, boxSizing: i }: { boxSizing: any; paddingLeft?: string; paddingRight?: string; }) => number; height: ({ y: t }: { y: any; }, { paddingTop: e, paddingBottom: n, boxSizing: i }: { boxSizing: any; paddingBottom?: string; paddingTop?: string; }) => numb...'.
+src/vendor/motion-hybrid.ts(1,22849): error TS2339: Property 'needsMeasurement' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,22888): error TS2339: Property 'element' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23123): error TS2339: Property 'measureInitialState' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23252): error TS2339: Property 'measureEndState' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23296): error TS2339: Property 'suspendedScrollY' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23334): error TS2339: Property 'suspendedScrollY' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23382): error TS2339: Property 'complete' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23438): error TS2339: Property 'readKeyframes' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23456): error TS2339: Property 'needsMeasurement' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,23562): error TS2339: Property 'state' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23583): error TS2339: Property 'isAsync' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23599): error TS2339: Property 'needsMeasurement' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23624): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23656): error TS2551: Property 'onComplete' does not exist on type 'en'. Did you mean 'complete'?
+src/vendor/motion-hybrid.ts(1,23674): error TS2339: Property 'name' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23686): error TS2339: Property 'motionValue' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23705): error TS2339: Property 'element' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23720): error TS2339: Property 'isAsync' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23753): error TS2339: Property 'state' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23776): error TS2339: Property 'isAsync' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23811): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,23822): error TS2339: Property 'resolveKeyframes' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,23906): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23928): error TS2339: Property 'name' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23935): error TS2339: Property 'element' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,23945): error TS2339: Property 'motionValue' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,24250): error TS2339: Property 'state' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,24272): error TS2551: Property 'onComplete' does not exist on type 'en'. Did you mean 'complete'?
+src/vendor/motion-hybrid.ts(1,24288): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,24313): error TS2551: Property 'finalKeyframe' does not exist on type 'en'. Did you mean 'setFinalKeyframe'?
+src/vendor/motion-hybrid.ts(1,24374): error TS2339: Property 'state' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,24403): error TS2339: Property 'state' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,24446): error TS2339: Property 'state' does not exist on type 'en'.
+src/vendor/motion-hybrid.ts(1,25382): error TS2339: Property 'times' does not exist on type '{ delay?: number; duration?: number; ease?: string; repeat?: number; repeatType?: string; }'.
+src/vendor/motion-hybrid.ts(1,25426): error TS2339: Property 'offset' does not exist on type '{ [x: number]: any; }'.
+src/vendor/motion-hybrid.ts(1,25473): error TS2339: Property 'easing' does not exist on type '{ [x: number]: any; }'.
+src/vendor/motion-hybrid.ts(1,25632): error TS2339: Property 'pseudoElement' does not exist on type '{ delay: number; duration: number; easing: any; fill: string; iterations: number; direction: string; }'.
+src/vendor/motion-hybrid.ts(1,25905): error TS2551: Property 'finishedTime' does not exist on type 'yn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,25928): error TS2339: Property 'isStopped' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,25946): error TS2339: Property 'manualStartTime' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26083): error TS2339: Property 'isPseudoElement' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26115): error TS2339: Property 'allowFlatten' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26135): error TS2339: Property 'options' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26269): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26315): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26338): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26370): error TS2551: Property 'finishedTime' does not exist on type 'yn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,26415): error TS2339: Property 'options' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26442): error TS2339: Property 'updateMotionValue' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26466): error TS2339: Property 'updateMotionValue' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26502): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26562): error TS2339: Property 'isStopped' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26579): error TS2339: Property 'manualStartTime' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26605): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26683): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26717): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26756): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26801): error TS2339: Property 'isStopped' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26823): error TS2339: Property 'isStopped' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26890): error TS2339: Property 'updateMotionValue' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26913): error TS2339: Property 'updateMotionValue' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,26958): error TS2339: Property 'isPseudoElement' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27018): error TS2339: Property 'options' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27041): error TS2339: Property 'isPseudoElement' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27079): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27134): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27252): error TS2339: Property 'options' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27322): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27381): error TS2551: Property 'finishedTime' does not exist on type 'yn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,27399): error TS2339: Property 'manualStartTime' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27425): error TS2551: Property 'finishedTime' does not exist on type 'yn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,27448): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27483): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27525): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27572): error TS2551: Property 'finishedTime' does not exist on type 'yn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,27596): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27652): error TS2551: Property 'finishedTime' does not exist on type 'yn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,27681): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27729): error TS2339: Property 'manualStartTime' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27758): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27801): error TS2339: Property 'manualStartTime' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27822): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27919): error TS2339: Property 'allowFlatten' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27938): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,27993): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,28031): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,28061): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,28094): error TS2339: Property 'animation' does not exist on type 'yn'.
+src/vendor/motion-hybrid.ts(1,28379): error TS2339: Property 'options' does not exist on type 'xn'.
+src/vendor/motion-hybrid.ts(1,28475): error TS2339: Property 'options' does not exist on type 'xn'.
+src/vendor/motion-hybrid.ts(1,28653): error TS2339: Property 'options' does not exist on type 'xn'.
+src/vendor/motion-hybrid.ts(1,28734): error TS2339: Property 'stop' does not exist on type 'ke'.
+src/vendor/motion-hybrid.ts(1,29893): error TS2339: Property 'stop' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,29908): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,29926): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,29949): error TS2339: Property 'stopTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,29972): error TS2551: Property 'keyframeResolver' does not exist on type 'Mn'. Did you mean 'onKeyframesResolved'?
+src/vendor/motion-hybrid.ts(1,30005): error TS2339: Property 'createdAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,30162): error TS2551: Property 'keyframeResolver' does not exist on type 'Mn'. Did you mean 'onKeyframesResolved'?
+src/vendor/motion-hybrid.ts(1,30243): error TS2551: Property 'keyframeResolver' does not exist on type 'Mn'. Did you mean 'onKeyframesResolved'?
+src/vendor/motion-hybrid.ts(1,30313): error TS2551: Property 'keyframeResolver' does not exist on type 'Mn'. Did you mean 'onKeyframesResolved'?
+src/vendor/motion-hybrid.ts(1,30407): error TS2339: Property 'resolvedAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,30878): error TS2339: Property 'instantAnimations' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,30978): error TS2339: Property 'resolvedAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,30995): error TS2339: Property 'resolvedAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31011): error TS2339: Property 'createdAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31029): error TS2339: Property 'resolvedAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31045): error TS2339: Property 'createdAt' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31279): error TS2339: Property 'pendingTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31302): error TS2339: Property 'stopTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31337): error TS2339: Property 'pendingTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31359): error TS2339: Property 'pendingTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,31388): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,31428): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,31468): error TS2551: Property '_finished' does not exist on type 'Mn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,31485): error TS6133: 'e' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,31561): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,31579): error TS2551: Property 'keyframeResolver' does not exist on type 'Mn'. Did you mean 'onKeyframesResolved'?
+src/vendor/motion-hybrid.ts(1,31617): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,32004): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,32020): error TS2339: Property 'stopTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,32071): error TS2339: Property 'pendingTimeline' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,32098): error TS2339: Property 'stop' does not exist on type 'Mn'.
+src/vendor/motion-hybrid.ts(1,32216): error TS2551: Property '_animation' does not exist on type 'Mn'. Did you mean 'animation'?
+src/vendor/motion-hybrid.ts(1,32257): error TS2551: Property 'keyframeResolver' does not exist on type 'Mn'. Did you mean 'onKeyframesResolved'?
+src/vendor/motion-hybrid.ts(1,32314): error TS2339: Property 'stop' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32348): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32416): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32469): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32517): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32544): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32594): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32674): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,32964): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,33026): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,33073): error TS2339: Property 'animations' does not exist on type 'En'.
+src/vendor/motion-hybrid.ts(1,33352): error TS6133: 'e' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,33436): error TS2554: Expected 1 arguments, but got 0.
+src/vendor/motion-hybrid.ts(1,33449): error TS2339: Property 'animation' does not exist on type 'Cn'.
+src/vendor/motion-hybrid.ts(1,33482): error TS2551: Property 'finishedTime' does not exist on type 'Cn'. Did you mean 'finished'?
+src/vendor/motion-hybrid.ts(1,33705): error TS2339: Property 'sortNodePosition' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,33866): error TS2339: Property 'canTrackVelocity' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,33893): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,33908): error TS2339: Property 'updateAndNotify' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,33952): error TS2339: Property 'updatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,33997): error TS2339: Property 'prev' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34007): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34039): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34054): error TS2339: Property 'prev' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34066): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34093): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34107): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,34139): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,34166): error TS2339: Property 'hasAnimated' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34205): error TS2339: Property 'owner' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34213): error TS2339: Property 'owner' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,34244): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34259): error TS2339: Property 'updatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34289): error TS2339: Property 'canTrackVelocity' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34325): error TS2339: Property 'canTrackVelocity' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34350): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34407): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34421): error TS2551: Property 'prevFrameValue' does not exist on type 'Fn'. Did you mean 'setPrevFrameValue'?
+src/vendor/motion-hybrid.ts(1,34443): error TS2339: Property 'prevUpdatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34462): error TS2339: Property 'updatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34524): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34541): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34571): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34618): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,34633): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34712): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34724): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34759): error TS2339: Property 'passiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34780): error TS2339: Property 'stopPassiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34812): error TS2339: Property 'passiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34831): error TS2339: Property 'passiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34852): error TS2339: Property 'updateAndNotify' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34874): error TS2339: Property 'updateAndNotify' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34933): error TS2339: Property 'prev' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34950): error TS2551: Property 'prevFrameValue' does not exist on type 'Fn'. Did you mean 'setPrevFrameValue'?
+src/vendor/motion-hybrid.ts(1,34972): error TS2339: Property 'prevUpdatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,34991): error TS2339: Property 'updatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35021): error TS2339: Property 'updateAndNotify' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35045): error TS2339: Property 'prev' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35057): error TS2339: Property 'prevUpdatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35076): error TS2551: Property 'prevFrameValue' does not exist on type 'Fn'. Did you mean 'setPrevFrameValue'?
+src/vendor/motion-hybrid.ts(1,35118): error TS2339: Property 'stopPassiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35142): error TS2339: Property 'stopPassiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35175): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35202): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35232): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,35250): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,35275): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,35317): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,35334): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,35407): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35441): error TS2339: Property 'prev' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35485): error TS2339: Property 'canTrackVelocity' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35517): error TS2551: Property 'prevFrameValue' does not exist on type 'Fn'. Did you mean 'setPrevFrameValue'?
+src/vendor/motion-hybrid.ts(1,35540): error TS2339: Property 'updatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35584): error TS2339: Property 'updatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35599): error TS2339: Property 'prevUpdatedAt' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35642): error TS2339: Property 'current' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35667): error TS2551: Property 'prevFrameValue' does not exist on type 'Fn'. Did you mean 'setPrevFrameValue'?
+src/vendor/motion-hybrid.ts(1,35735): error TS2339: Property 'hasAnimated' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35755): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35775): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35803): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35851): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35882): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35952): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35969): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,35991): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,36020): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,36102): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,36141): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,36166): error TS2551: Property 'dependents' does not exist on type 'Fn'. Did you mean 'addDependent'?
+src/vendor/motion-hybrid.ts(1,36191): error TS2339: Property 'events' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,36255): error TS2339: Property 'stopPassiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,36279): error TS2339: Property 'stopPassiveEffect' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,37060): error TS2339: Property 'delay' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,37073): error TS2339: Property 'elapsed' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,37587): error TS2339: Property 'instantAnimations' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,37608): error TS2339: Property 'skipAnimations' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,37756): error TS2554: Expected 3-4 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,37802): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,39267): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,39346): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,39621): error TS2339: Property 'WillChange' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,39647): error TS2339: Property 'WillChange' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,39983): error TS2339: Property 'transitionOverride' does not exist on type '{ delay?: number; }'.
+src/vendor/motion-hybrid.ts(1,40004): error TS2339: Property 'type' does not exist on type '{ delay?: number; }'.
+src/vendor/motion-hybrid.ts(1,40523): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,40572): error TS2339: Property 'MotionHandoffAnimation' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,40631): error TS2339: Property 'MotionHandoffAnimation' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,40834): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,40952): error TS2339: Property 'type' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,41046): error TS2339: Property 'transitionOverride' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,41071): error TS2339: Property 'transitionOverride' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,41650): error TS2322: Type 'Promise<void> | Promise<any[]>' is not assignable to type 'void | PromiseLike<void>'.
+  Type 'Promise<any[]>' is not assignable to type 'void | PromiseLike<void>'.
+    Type 'Promise<any[]>' is not assignable to type 'PromiseLike<void>'.
+      Types of property 'then' are incompatible.
+        Type '<TResult1 = any[], TResult2 = never>(onfulfilled?: (value: any[]) => TResult1 | PromiseLike<TResult1>, onrejected?: (reason: any) => TResult2 | PromiseLike<TResult2>) => Promise<...>' is not assignable to type '<TResult1 = void, TResult2 = never>(onfulfilled?: (value: void) => TResult1 | PromiseLike<TResult1>, onrejected?: (reason: any) => TResult2 | PromiseLike<TResult2>) => PromiseLike<...>'.
+          Types of parameters 'onfulfilled' and 'onfulfilled' are incompatible.
+            Types of parameters 'value' and 'value' are incompatible.
+              Type 'any[]' is not assignable to type 'void'.
+src/vendor/motion-hybrid.ts(1,41683): error TS2339: Property 'delay' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,41897): error TS2339: Property 'custom' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,44382): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,44404): error TS2339: Property 'element' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,44414): error TS2339: Property 'name' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,44622): error TS2551: Property 'finalKeyframe' does not exist on type 'Oi'. Did you mean 'setFinalKeyframe'?
+src/vendor/motion-hybrid.ts(1,44759): error TS2339: Property 'needsMeasurement' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,44909): error TS2339: Property 'needsMeasurement' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,44959): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,44981): error TS2339: Property 'name' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45272): error TS2339: Property 'element' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45282): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45304): error TS2339: Property 'name' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45362): error TS2339: Property 'suspendedScrollY' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45404): error TS2339: Property 'measuredOrigin' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45494): error TS2339: Property 'measuredOrigin' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45594): error TS2339: Property 'element' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45604): error TS2339: Property 'name' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45611): error TS2339: Property 'unresolvedKeyframes' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45701): error TS2339: Property 'measuredOrigin' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45840): error TS2551: Property 'finalKeyframe' does not exist on type 'Oi'. Did you mean 'setFinalKeyframe'?
+src/vendor/motion-hybrid.ts(1,45861): error TS2551: Property 'finalKeyframe' does not exist on type 'Oi'. Did you mean 'setFinalKeyframe'?
+src/vendor/motion-hybrid.ts(1,45883): error TS2339: Property 'removedTransforms' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,45915): error TS2339: Property 'removedTransforms' does not exist on type 'Oi'.
+src/vendor/motion-hybrid.ts(1,47276): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,47447): error TS2339: Property 'latest' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,47462): error TS2339: Property 'values' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,47508): error TS2339: Property 'values' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,47572): error TS2339: Property 'latest' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,47603): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,47694): error TS2339: Property 'values' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,47748): error TS2339: Property 'values' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,47804): error TS2339: Property 'values' does not exist on type 'Ki'.
+src/vendor/motion-hybrid.ts(1,49721): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,50179): error TS6133: 't' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,50370): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,51566): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,51606): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'object'.
+src/vendor/motion-hybrid.ts(1,51630): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'object'.
+src/vendor/motion-hybrid.ts(1,51696): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'object'.
+src/vendor/motion-hybrid.ts(1,51912): error TS2349: This expression is not callable.
+  Type '{}' has no call signatures.
+src/vendor/motion-hybrid.ts(1,52230): error TS2339: Property 'preUpdate' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,52561): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,53154): error TS2339: Property 'postRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,53192): error TS2339: Property 'skipInitialAnimation' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,53498): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,53558): error TS2339: Property 'preRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,54066): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,54157): error TS2339: Property 'style' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,54301): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Element'.
+  Type '{}' is missing the following properties from type 'Element': attributes, classList, className, clientHeight, and 183 more.
+src/vendor/motion-hybrid.ts(1,54524): error TS2339: Property 'style' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,55276): error TS2339: Property 'target' does not exist on type 'AnimationEffect'.
+src/vendor/motion-hybrid.ts(1,55313): error TS2339: Property 'pseudoElement' does not exist on type 'AnimationEffect'.
+src/vendor/motion-hybrid.ts(1,56024): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,57793): error TS2695: Left side of comma operator is unused and has no side effects.
+src/vendor/motion-hybrid.ts(1,57794): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+src/vendor/motion-hybrid.ts(1,58686): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,61183): error TS2339: Property 'finished' does not exist on type 'unknown'.
+src/vendor/motion-hybrid.ts(1,61537): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61564): error TS2339: Property 'targets' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61585): error TS2339: Property 'resolveDefs' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61610): error TS2339: Property 'cropOverride' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61636): error TS2339: Property 'pairs' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61655): error TS2339: Property 'classNames' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61679): error TS2339: Property 'flatGroups' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61703): error TS2339: Property 'notifyReady' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61722): error TS2339: Property 'notifyReject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61742): error TS2339: Property 'readyPromise' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61780): error TS2339: Property 'notifyReady' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61799): error TS2339: Property 'notifyReject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61821): error TS2339: Property 'update' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61835): error TS2339: Property 'options' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61872): error TS2339: Property 'readyPromise' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61915): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,61947): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,61969): error TS2339: Property 'resolveDefs' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62005): error TS2339: Property 'pairs' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62025): error TS2339: Property 'targets' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62046): error TS2339: Property 'targets' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62092): error TS2339: Property 'cropOverride' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62114): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62163): error TS2339: Property 'flatGroups' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62186): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62207): error TS2339: Property 'flatGroups' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62227): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62269): error TS2339: Property 'classNames' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62289): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62605): error TS2339: Property 'currentSubject' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62622): error TS2339: Property 'targets' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,62718): error TS2339: Property 'readyPromise' does not exist on type 'ho'.
+src/vendor/motion-hybrid.ts(1,64162): error TS6133: 't' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,64164): error TS6133: 'e' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,64166): error TS6133: 'n' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,64315): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64333): error TS2339: Property 'children' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64355): error TS2339: Property 'isVariantNode' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64377): error TS2339: Property 'isControllingVariants' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64407): error TS2339: Property 'shouldReduceMotion' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64436): error TS2339: Property 'shouldSkipAnimations' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64465): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64485): error TS2339: Property 'KeyframeResolver' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64510): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64527): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64559): error TS2339: Property 'prevMotionValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64584): error TS2339: Property 'hasBeenMounted' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64607): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64622): error TS2339: Property 'propEventSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64653): error TS2339: Property 'notifyUpdate' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64696): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64715): error TS2339: Property 'render' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64732): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64767): error TS2339: Property 'renderInstance' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64787): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64800): error TS2339: Property 'renderState' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64817): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64834): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64853): error TS2339: Property 'renderScheduledAt' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64878): error TS2339: Property 'scheduleRender' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64919): error TS2339: Property 'renderScheduledAt' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64946): error TS2339: Property 'renderScheduledAt' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,64968): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,64980): error TS2339: Property 'render' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65039): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65059): error TS2551: Property 'baseTarget' does not exist on type 'Co'. Did you mean 'setBaseTarget'?
+src/vendor/motion-hybrid.ts(1,65082): error TS2339: Property 'initialValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65121): error TS2339: Property 'renderState' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65140): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65154): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65167): error TS2339: Property 'presenceContext' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65190): error TS2339: Property 'depth' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65215): error TS2339: Property 'reducedMotionConfig' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65242): error TS2339: Property 'skipAnimationsConfig' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65270): error TS2339: Property 'options' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65285): error TS2339: Property 'blockInitialAnimation' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65323): error TS2339: Property 'isControllingVariants' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65356): error TS2339: Property 'isVariantNode' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65381): error TS2339: Property 'isVariantNode' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65402): error TS2551: Property 'variantChildren' does not exist on type 'Co'. Did you mean 'addVariantChild'?
+src/vendor/motion-hybrid.ts(1,65432): error TS2339: Property 'manuallyAnimateOnMount' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65483): error TS2339: Property 'willChange' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,65629): error TS2339: Property 'hasBeenMounted' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65664): error TS2339: Property 'initialValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65683): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65708): error TS2339: Property 'initialValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65731): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65752): error TS2339: Property 'initialValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65774): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65804): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65822): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65848): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65873): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65886): error TS2339: Property 'isVariantNode' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65907): error TS2339: Property 'isControllingVariants' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65936): error TS2339: Property 'removeFromVariantTree' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65963): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,65998): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66064): error TS2339: Property 'reducedMotionConfig' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66089): error TS2339: Property 'shouldReduceMotion' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66127): error TS2339: Property 'reducedMotionConfig' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66152): error TS2339: Property 'shouldReduceMotion' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66197): error TS2339: Property 'shouldReduceMotion' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66233): error TS2339: Property 'shouldSkipAnimations' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66259): error TS2339: Property 'skipAnimationsConfig' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66289): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66329): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66340): error TS2339: Property 'presenceContext' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66362): error TS2339: Property 'hasBeenMounted' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66395): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66412): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66440): error TS2339: Property 'notifyUpdate' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66461): error TS2339: Property 'render' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66474): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66514): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66546): error TS2339: Property 'removeFromVariantTree' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66574): error TS2339: Property 'removeFromVariantTree' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66603): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66649): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66661): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66699): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66722): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66771): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66801): error TS2339: Property 'children' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66822): error TS2339: Property 'enteringChildren' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66846): error TS2339: Property 'enteringChildren' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66877): error TS2339: Property 'enteringChildren' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66921): error TS2339: Property 'children' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66945): error TS2339: Property 'enteringChildren' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,66968): error TS2339: Property 'enteringChildren' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67026): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67058): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67116): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67239): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67321): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67394): error TS2339: Property 'onBindTransform' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67416): error TS2339: Property 'onBindTransform' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67465): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67488): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67506): error TS2339: Property 'preRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,67521): error TS2339: Property 'notifyUpdate' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67543): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67561): error TS2339: Property 'projection' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67598): error TS2339: Property 'scheduleRender' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67658): error TS2339: Property 'MotionCheckAppearSync' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,67691): error TS2339: Property 'MotionCheckAppearSync' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,67729): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67804): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67818): error TS2551: Property 'sortInstanceNodePosition' does not exist on type 'Co'. Did you mean 'sortNodePosition'?
+src/vendor/motion-hybrid.ts(1,67849): error TS2339: Property 'type' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,67868): error TS2551: Property 'sortInstanceNodePosition' does not exist on type 'Co'. Did you mean 'sortNodePosition'?
+src/vendor/motion-hybrid.ts(1,67898): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68036): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68059): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68073): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68103): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68129): error TS2339: Property 'features' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68213): error TS2339: Property 'build' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68224): error TS2339: Property 'renderState' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68241): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68259): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68299): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68312): error TS2551: Property 'measureInstanceViewportBox' does not exist on type 'Co'. Did you mean 'measureViewportBox'?
+src/vendor/motion-hybrid.ts(1,68344): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68357): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68428): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68469): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68526): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68557): error TS2339: Property 'scheduleRender' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68579): error TS2339: Property 'prevProps' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68594): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68605): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68618): error TS2339: Property 'prevPresenceContext' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68643): error TS2339: Property 'presenceContext' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68664): error TS2339: Property 'presenceContext' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68730): error TS2339: Property 'propEventSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68763): error TS2339: Property 'propEventSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68803): error TS2339: Property 'propEventSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68857): error TS2339: Property 'propEventSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68902): error TS2339: Property 'prevMotionValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68967): error TS2339: Property 'prevProps' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,68992): error TS2339: Property 'prevMotionValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69015): error TS2339: Property 'handleChildMotionValue' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69044): error TS2339: Property 'handleChildMotionValue' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69092): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69124): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69144): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69204): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69257): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69318): error TS2339: Property 'isVariantNode' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69342): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69354): error TS2339: Property 'parent' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69563): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69641): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69662): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69707): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69737): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69776): error TS2339: Property 'valueSubscriptions' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69818): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69839): error TS2339: Property 'removeValueFromRenderState' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69873): error TS2339: Property 'renderState' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69910): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69946): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69965): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,69993): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70020): error TS2339: Property 'values' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70160): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70182): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70195): error TS2339: Property 'getBaseTargetFromProps' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70223): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70238): error TS2339: Property 'readValueFromInstance' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70265): error TS2339: Property 'current' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70280): error TS2339: Property 'options' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70294): error TS2339: Property 'latestValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70487): error TS2551: Property 'baseTarget' does not exist on type 'Co'. Did you mean 'setBaseTarget'?
+src/vendor/motion-hybrid.ts(1,70542): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70605): error TS2554: Expected 4 arguments, but got 3.
+src/vendor/motion-hybrid.ts(1,70613): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70626): error TS2339: Property 'presenceContext' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70702): error TS2339: Property 'getBaseTargetFromProps' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70730): error TS2339: Property 'props' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70778): error TS2339: Property 'initialValues' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70819): error TS2551: Property 'baseTarget' does not exist on type 'Co'. Did you mean 'setBaseTarget'?
+src/vendor/motion-hybrid.ts(1,70855): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70872): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70894): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70931): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70947): error TS2339: Property 'events' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,70999): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,71011): error TS2339: Property 'render' does not exist on type 'Co'.
+src/vendor/motion-hybrid.ts(1,71060): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/vendor/motion-hybrid.ts(1,71079): error TS2339: Property 'KeyframeResolver' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71338): error TS2339: Property 'childSubscription' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71363): error TS2339: Property 'childSubscription' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71395): error TS2339: Property 'childSubscription' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71437): error TS2339: Property 'props' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71456): error TS2339: Property 'childSubscription' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71497): error TS2339: Property 'current' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,71512): error TS2339: Property 'current' does not exist on type 'Bo'.
+src/vendor/motion-hybrid.ts(1,72242): error TS2554: Expected 5 arguments, but got 4.
+src/vendor/motion-hybrid.ts(1,72284): error TS2554: Expected 5 arguments, but got 4.
+src/vendor/motion-hybrid.ts(1,75287): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/vendor/motion-hybrid.ts(1,75306): error TS2339: Property 'type' does not exist on type 'cr'.
+src/vendor/motion-hybrid.ts(1,75323): error TS2339: Property 'renderInstance' does not exist on type 'cr'.
+src/vendor/motion-hybrid.ts(1,75393): error TS2339: Property 'projection' does not exist on type 'cr'.
+src/vendor/motion-hybrid.ts(1,75757): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/vendor/motion-hybrid.ts(1,75776): error TS2339: Property 'type' does not exist on type 'ur'.
+src/vendor/motion-hybrid.ts(1,77531): error TS6133: 'n' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,77824): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/vendor/motion-hybrid.ts(1,77843): error TS2339: Property 'type' does not exist on type 'wr'.
+src/vendor/motion-hybrid.ts(1,77859): error TS2339: Property 'isSVGTag' does not exist on type 'wr'.
+src/vendor/motion-hybrid.ts(1,77876): error TS2551: Property 'measureInstanceViewportBox' does not exist on type 'wr'. Did you mean 'measureViewportBox'?
+src/vendor/motion-hybrid.ts(1,78146): error TS2339: Property 'isSVGTag' does not exist on type 'wr'.
+src/vendor/motion-hybrid.ts(1,78203): error TS6133: 'n' is declared but its value is never read.
+src/vendor/motion-hybrid.ts(1,78234): error TS2339: Property 'isSVGTag' does not exist on type 'wr'.
+src/vendor/motion-hybrid.ts(1,80103): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/vendor/motion-hybrid.ts(1,80405): error TS2345: Argument of type 'string[]' is not assignable to parameter of type '[any, any, any]'.
+  Target requires 3 element(s) but source may have fewer.
+src/vendor/motion-hybrid.ts(1,80444): error TS2345: Argument of type 'string[]' is not assignable to parameter of type '[any, any, any]'.
+  Target requires 3 element(s) but source may have fewer.
+src/vendor/motion-hybrid.ts(1,82284): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,82305): error TS2554: Expected 6 arguments, but got 4.
+src/vendor/motion-hybrid.ts(1,82491): error TS2339: Property 'children' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82508): error TS2339: Property 'isDirty' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82533): error TS2339: Property 'children' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82550): error TS2339: Property 'isDirty' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82578): error TS2339: Property 'children' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82595): error TS2339: Property 'isDirty' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82622): error TS2339: Property 'isDirty' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82636): error TS2339: Property 'children' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82659): error TS2339: Property 'isDirty' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82675): error TS2339: Property 'children' does not exist on type 'pa'.
+src/vendor/motion-hybrid.ts(1,82791): error TS2339: Property 'setup' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,82913): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,82938): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,82964): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83004): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83034): error TS2339: Property 'lead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83049): error TS2339: Property 'prevLead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83129): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83192): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83212): error TS2339: Property 'prevLead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83228): error TS2339: Property 'prevLead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83254): error TS2339: Property 'lead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83273): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83286): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83312): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,83351): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83395): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83468): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,83517): error TS2339: Property 'lead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83538): error TS2339: Property 'prevLead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83554): error TS2339: Property 'lead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,83941): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,84057): error TS2339: Property 'members' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,84136): error TS2339: Property 'lead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,84158): error TS2339: Property 'lead' does not exist on type 'ga'.
+src/vendor/motion-hybrid.ts(1,84561): error TS2339: Property 'MotionHasOptimisedAnimation' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,84649): error TS2339: Property 'MotionCancelOptimisedAnimation' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,84913): error TS2339: Property 'id' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,84926): error TS2339: Property 'animationId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,84945): error TS2339: Property 'animationCommitId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,84970): error TS2339: Property 'children' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,84992): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85008): error TS2339: Property 'isTreeAnimating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85032): error TS2551: Property 'isAnimationBlocked' does not exist on type '(Anonymous class)'. Did you mean 'isTreeAnimationBlocked'?
+src/vendor/motion-hybrid.ts(1,85059): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85081): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85107): error TS2339: Property 'isSharedProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85139): error TS2339: Property 'isTransformDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85164): error TS2339: Property 'updateManuallyBlocked' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85194): error TS2339: Property 'updateBlockedByResize' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85224): error TS2339: Property 'isUpdating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85243): error TS2339: Property 'isSVG' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85257): error TS2339: Property 'needsReset' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85276): error TS2551: Property 'shouldResetTransform' does not exist on type '(Anonymous class)'. Did you mean 'resetTransform'?
+src/vendor/motion-hybrid.ts(1,85305): error TS2339: Property 'hasCheckedOptimisedAppear' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85339): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85364): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85391): error TS2339: Property 'hasTreeAnimated' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85415): error TS2339: Property 'layoutVersion' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85436): error TS2339: Property 'updateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85460): error TS2339: Property 'scheduleUpdate' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85498): error TS2339: Property 'projectionUpdateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85532): error TS2339: Property 'checkUpdateFailed' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85560): error TS2339: Property 'isUpdating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85578): error TS2339: Property 'isUpdating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85624): error TS2339: Property 'updateProjection' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85651): error TS2339: Property 'projectionUpdateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85759): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85782): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85805): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85828): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85905): error TS2551: Property 'resolvedRelativeTargetAt' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,85937): error TS2339: Property 'linkedParentVersion' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85964): error TS2339: Property 'hasProjected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,85985): error TS2339: Property 'isVisible' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86003): error TS2339: Property 'animationProgress' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86028): error TS2339: Property 'sharedNodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86053): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86073): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86100): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86129): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86143): error TS2339: Property 'depth' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86182): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86203): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86240): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86259): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86307): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86334): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86366): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86431): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86498): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86536): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86557): error TS2339: Property 'isSVG' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86582): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86641): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86683): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86709): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86722): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86753): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86789): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86837): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,86869): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,86953): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87064): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87094): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87136): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87312): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87336): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87372): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87497): error TS2339: Property 'targetLayout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87520): error TS2339: Property 'targetLayout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87552): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87577): error TS2339: Property 'resumeFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87605): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87629): error TS2339: Property 'resumeFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87647): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87665): error TS2339: Property 'resumeFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87681): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87793): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87932): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87961): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,87991): error TS2339: Property 'targetLayout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88023): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88064): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88135): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88148): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88182): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88203): error TS2339: Property 'eventHandlers' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88232): error TS2339: Property 'updateProjection' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88269): error TS2339: Property 'updateManuallyBlocked' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88315): error TS2339: Property 'updateManuallyBlocked' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88370): error TS2339: Property 'updateManuallyBlocked' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88398): error TS2339: Property 'updateBlockedByResize' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88457): error TS2551: Property 'isAnimationBlocked' does not exist on type '(Anonymous class)'. Did you mean 'isTreeAnimationBlocked'?
+src/vendor/motion-hybrid.ts(1,88482): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88495): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88575): error TS2339: Property 'isUpdating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88594): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88606): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88629): error TS2339: Property 'animationId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88695): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88769): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88798): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88838): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88867): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88903): error TS2339: Property 'MotionCancelOptimisedAnimation' does not exist on type 'Window & typeof globalThis'.
+src/vendor/motion-hybrid.ts(1,88941): error TS2339: Property 'hasCheckedOptimisedAppear' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,88983): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89005): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89029): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89055): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89091): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89121): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89344): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89418): error TS2551: Property 'prevTransformTemplateValue' does not exist on type '(Anonymous class)'. Did you mean 'getTransformTemplate'?
+src/vendor/motion-hybrid.ts(1,89454): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89552): error TS2339: Property 'updateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89611): error TS2339: Property 'updateBlockedByResize' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89666): error TS2339: Property 'updateBlockedByResize' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89724): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89752): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89778): error TS2339: Property 'animationId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89796): error TS2339: Property 'animationCommitId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89831): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89854): error TS2339: Property 'animationCommitId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89877): error TS2339: Property 'animationId' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89894): error TS2339: Property 'isUpdating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89911): error TS2339: Property 'isUpdating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89930): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89953): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89976): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,89999): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90023): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90150): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,90170): error TS2339: Property 'preRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,90193): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,90246): error TS2339: Property 'updateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90269): error TS2339: Property 'updateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90291): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,90301): error TS2339: Property 'scheduleUpdate' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90343): error TS2339: Property 'nodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90366): error TS2339: Property 'sharedNodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90422): error TS2339: Property 'projectionUpdateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90455): error TS2339: Property 'projectionUpdateScheduled' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90486): error TS2339: Property 'preRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,90501): error TS2339: Property 'updateProjection' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90556): error TS2339: Property 'postRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,90577): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90596): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90618): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90668): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90683): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90699): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90729): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90747): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90780): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90811): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90853): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90899): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90948): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90978): error TS2339: Property 'resumeFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,90996): error TS2339: Property 'resumeFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91035): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91057): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91093): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91105): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91134): error TS2339: Property 'layoutVersion' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91155): error TS2339: Property 'layoutCorrected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91178): error TS2339: Property 'layoutCorrected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91234): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91256): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91315): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91361): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91402): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91486): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91513): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91531): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91544): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91570): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91593): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91626): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91651): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91666): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91691): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91739): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91762): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91774): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91835): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91855): error TS2551: Property 'shouldResetTransform' does not exist on type '(Anonymous class)'. Did you mean 'resetTransform'?
+src/vendor/motion-hybrid.ts(1,91882): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91917): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,91943): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92001): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92036): error TS2551: Property 'prevTransformTemplateValue' does not exist on type '(Anonymous class)'. Did you mean 'getTransformTemplate'?
+src/vendor/motion-hybrid.ts(1,92071): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92093): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92120): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92137): error TS2551: Property 'shouldResetTransform' does not exist on type '(Anonymous class)'. Did you mean 'resetTransform'?
+src/vendor/motion-hybrid.ts(1,92344): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92415): error TS2339: Property 'id' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92464): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92559): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92581): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92618): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92756): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92800): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92830): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,92870): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93060): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93090): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93280): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93305): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93323): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93432): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93462): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93653): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93668): error TS2554: Expected 4 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,93678): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93717): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,93736): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93773): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93813): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93830): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93913): error TS2339: Property 'scroll' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93932): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93951): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,93972): error TS2551: Property 'prevTransformTemplateValue' does not exist on type '(Anonymous class)'. Did you mean 'getTransformTemplate'?
+src/vendor/motion-hybrid.ts(1,94011): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,94035): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94054): error TS2339: Property 'isLayoutDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94113): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94134): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94194): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94285): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94310): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94354): error TS2339: Property 'isTransformDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94378): error TS2339: Property 'isTransformDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94420): error TS2339: Property 'isSharedProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94451): error TS2339: Property 'isSharedProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94523): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94563): error TS2339: Property 'isSharedProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94593): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94617): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94649): error TS2551: Property 'attemptToResolveRelativeTarget' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,94686): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94753): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94770): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94797): error TS2551: Property 'resolvedRelativeTargetAt' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,94884): error TS2339: Property 'linkedParentVersion' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,94979): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,94997): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95024): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95091): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95163): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95184): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,95204): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95218): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95264): error TS2339: Property 'targetWithTransforms' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95325): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95346): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95373): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95394): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95467): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95479): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95499): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95526): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95562): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,95588): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95627): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95652): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95668): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95680): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95706): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95718): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,95740): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95752): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95775): error TS2551: Property 'attemptToResolveRelativeTarget' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,95813): error TS2551: Property 'attemptToResolveRelativeTarget' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,95857): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95921): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,95980): error TS2339: Property 'animationProgress' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96031): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96053): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96073): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96172): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96189): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96220): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96253): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96280): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96292): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96364): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96385): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,96403): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96429): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96470): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96492): error TS2339: Property 'linkedParentVersion' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96575): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96629): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96692): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96722): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96760): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96780): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96830): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96850): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96927): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96969): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,96993): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97037): error TS2339: Property 'isSharedProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97067): error TS2339: Property 'isTransformDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97098): error TS2551: Property 'resolvedRelativeTargetAt' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,97186): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97202): error TS2339: Property 'isTreeAnimating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97231): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97244): error TS2339: Property 'parent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97273): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97296): error TS2339: Property 'pendingAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97319): error TS2339: Property 'isTreeAnimating' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97342): error TS2551: Property 'targetDelta' does not exist on type '(Anonymous class)'. Did you mean 'setTargetDelta'?
+src/vendor/motion-hybrid.ts(1,97359): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97388): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97418): error TS2339: Property 'layoutCorrected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97439): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97470): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97489): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97509): error TS2339: Property 'layoutCorrected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97530): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97545): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97583): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97605): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97731): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97753): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,97782): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,97809): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97836): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,97863): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97921): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97942): error TS2339: Property 'layoutCorrected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97965): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,97984): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98006): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98031): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98054): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,98086): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98109): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,98139): error TS2339: Property 'hasProjected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98264): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,98351): error TS2339: Property 'isVisible' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98376): error TS2339: Property 'isVisible' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98418): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98512): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98532): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98561): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98612): error TS2551: Property 'prevProjectionDelta' does not exist on type '(Anonymous class)'. Did you mean 'createProjectionDeltas'?
+src/vendor/motion-hybrid.ts(1,98733): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,98850): error TS2339: Property 'projectionDeltaWithTransform' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99017): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99059): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99176): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99197): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99238): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99258): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99292): error TS2551: Property 'attemptToResolveRelativeTarget' does not exist on type '(Anonymous class)'. Did you mean 'removeRelativeTarget'?
+src/vendor/motion-hybrid.ts(1,99398): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99410): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99503): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99528): error TS2339: Property 'path' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99554): error TS2339: Property 'animationProgress' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99615): error TS2339: Property 'mixTargetDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99931): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99952): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99979): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,99992): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100013): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100047): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100069): error TS2339: Property 'relativeParent' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100106): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100143): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100165): error TS2339: Property 'relativeTargetOrigin' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100241): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100266): error TS2339: Property 'isProjectionDirty' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100339): error TS2339: Property 'relativeTarget' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100365): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100395): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100444): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100467): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100491): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100535): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100594): error TS2339: Property 'animationProgress' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100620): error TS2339: Property 'mixTargetDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100640): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100728): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100758): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100802): error TS2339: Property 'pendingAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100828): error TS2339: Property 'pendingAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100851): error TS2339: Property 'pendingAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100881): error TS2339: Property 'pendingAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100900): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,100946): error TS2339: Property 'motionValue' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100965): error TS2339: Property 'motionValue' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,100977): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,100989): error TS2339: Property 'motionValue' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101017): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101042): error TS2339: Property 'motionValue' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101107): error TS2339: Property 'mixTargetDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101230): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101250): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101285): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101308): error TS2339: Property 'pendingAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101359): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101379): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101421): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101516): error TS2339: Property 'resumingFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101534): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101556): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101644): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101668): error TS2339: Property 'mixTargetDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101689): error TS2339: Property 'mixTargetDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101714): error TS2339: Property 'currentAnimation' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101906): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101925): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101952): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,101990): error TS2339: Property 'target' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102048): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102125): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102194): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,102210): error TS2339: Property 'projectionDeltaWithTransform' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102244): error TS2339: Property 'layoutCorrected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102295): error TS2339: Property 'sharedNodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102320): error TS2339: Property 'sharedNodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102351): error TS2339: Property 'sharedNodes' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102649): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102732): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102816): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102841): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,102874): error TS2339: Property 'needsReset' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,102887): error TS2339: Property 'transition' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,102900): error TS2339: Property 'preserveFollowOpacity' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,102983): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103011): error TS2339: Property 'needsReset' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103175): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103349): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103423): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103467): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103542): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103565): error TS2339: Property 'animationValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103645): error TS2339: Property 'instance' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103660): error TS2339: Property 'isSVG' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103682): error TS2339: Property 'isVisible' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103771): error TS2339: Property 'needsReset' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103794): error TS2339: Property 'needsReset' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103904): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103961): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,103984): error TS2339: Property 'layout' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104014): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104057): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104083): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104158): error TS2339: Property 'hasProjected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104181): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104232): error TS2339: Property 'hasProjected' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104353): error TS2339: Property 'projectionDeltaWithTransform' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104387): error TS2339: Property 'treeScale' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104448): error TS2339: Property 'projectionDelta' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104573): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104602): error TS2339: Property 'preserveOpacity' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104623): error TS2339: Property 'latestValues' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104935): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,104991): error TS2339: Property 'options' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,105089): error TS2339: Property 'resumeFrom' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,105105): error TS2339: Property 'snapshot' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,105138): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,105193): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,105221): error TS2339: Property 'root' does not exist on type '(Anonymous class)'.
+src/vendor/motion-hybrid.ts(1,106009): error TS2554: Expected 4 arguments, but got 3.
+src/vendor/motion-hybrid.ts(1,106135): error TS2554: Expected 4 arguments, but got 3.
+src/vendor/motion-hybrid.ts(1,106178): error TS2554: Expected 4 arguments, but got 3.
+src/vendor/motion-hybrid.ts(1,108550): error TS2739: Type '{ attachResizeListener: (t: any, e: any) => () => any; measureScroll: () => { x: number; y: number; }; checkIsScrollRoot: () => boolean; }' is missing the following properties from type '{ attachResizeListener: any; checkIsScrollRoot: any; defaultParent: any; measureScroll: any; resetTransform: any; }': defaultParent, resetTransform
+src/vendor/motion-hybrid.ts(1,108852): error TS2741: Property 'attachResizeListener' is missing in type '{ measureScroll: (t: any) => { x: any; y: any; }; defaultParent: () => any; resetTransform: (t: any, e: any) => void; checkIsScrollRoot: (t: any) => boolean; }' but required in type '{ attachResizeListener: any; checkIsScrollRoot: any; defaultParent: any; measureScroll: any; resetTransform: any; }'.
+src/vendor/motion-hybrid.ts(1,109675): error TS2554: Expected 0 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,110479): error TS2339: Property 'update' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,110499): error TS2339: Property 'preRender' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,110522): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,111217): error TS2339: Property 'render' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,111815): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+src/vendor/motion-hybrid.ts(1,112575): error TS2554: Expected 0 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,112585): error TS2554: Expected 0 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,112641): error TS2554: Expected 0 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,112950): error TS2554: Expected 4 arguments, but got 3.
+src/vendor/motion-hybrid.ts(1,115566): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,115749): error TS2554: Expected 4 arguments, but got 3.
+src/vendor/motion-hybrid.ts(1,115788): error TS2339: Property 'scope' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,115796): error TS2339: Property 'reduceMotion' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,115811): error TS2339: Property 'skipAnimations' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,115894): error TS2339: Property 'reduceMotion' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,115925): error TS2339: Property 'skipAnimations' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,116382): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,117266): error TS2554: Expected 1 arguments, but got 0.
+src/vendor/motion-hybrid.ts(1,118890): error TS2339: Property 'tagName' does not exist on type 'ParentNode'.
+src/vendor/motion-hybrid.ts(1,119519): error TS2695: Left side of comma operator is unused and has no side effects.
+src/vendor/motion-hybrid.ts(1,119520): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+src/vendor/motion-hybrid.ts(1,119865): error TS2339: Property 'target' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,119939): error TS2339: Property 'offset' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,119949): error TS2339: Property 'target' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,120579): error TS2339: Property 'preUpdate' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,120637): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,120995): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,121045): error TS2339: Property 'read' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,122482): error TS2554: Expected 1 arguments, but got 0.
+src/vendor/motion-hybrid.ts(1,122767): error TS2339: Property 'isMounted' does not exist on type 'Feature'.
+src/vendor/motion-hybrid.ts(1,122785): error TS2339: Property 'node' does not exist on type 'Feature'.
+src/vendor/motion-hybrid.ts(1,123007): error TS2339: Property 'scope' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123020): error TS2339: Property 'updateDom' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123037): error TS2339: Property 'defaultOptions' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123059): error TS2339: Property 'sharedTransitions' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123090): error TS2339: Property 'notifyReady' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123114): error TS2339: Property 'rejectReady' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123138): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123159): error TS2339: Property 'restorePoints' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123186): error TS2339: Property 'readyPromise' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123224): error TS2339: Property 'notifyReady' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123243): error TS2339: Property 'rejectReady' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123328): error TS2339: Property 'sharedTransitions' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123382): error TS2339: Property 'readyPromise' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123478): error TS2339: Property 'sharedTransitions' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123509): error TS2339: Property 'defaultOptions' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123540): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123562): error TS2339: Property 'restorePoints' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123659): error TS2339: Property 'scope' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123695): error TS2339: Property 'updateDom' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123769): error TS2339: Property 'updateError' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123799): error TS2339: Property 'updateError' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123859): error TS2339: Property 'scope' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,123875): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124024): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124085): error TS2339: Property 'restorePoints' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124111): error TS2339: Property 'restorePoints' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124482): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124530): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124585): error TS2339: Property 'updateError' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124614): error TS2339: Property 'rejectReady' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124631): error TS2339: Property 'updateError' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124665): error TS2339: Property 'tracked' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,124750): error TS2339: Property 'notifyReady' does not exist on type 'LayoutAnimationBuilder'.
+src/vendor/motion-hybrid.ts(1,125722): error TS2339: Property 'strength' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,125736): error TS2339: Property 'peak' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,125746): error TS2339: Property 'direction' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,125758): error TS2339: Property 'rotate' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,126352): error TS2339: Property 'rotate' does not exist on type '{ x: number; y: number; }'.
+src/vendor/motion-hybrid.ts(1,126893): error TS2339: Property 'rotate' does not exist on type '{ x: number; y: number; }'.
+src/vendor/motion-hybrid.ts(1,126987): error TS2554: Expected 2 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,127001): error TS2554: Expected 6 arguments, but got 4.
+src/vendor/motion-hybrid.ts(1,127112): error TS2339: Property 'rotate' does not exist on type '{ x: number; y: number; }'.
+src/vendor/motion-hybrid.ts(1,127128): error TS2339: Property 'rotate' does not exist on type '{ x: number; y: number; }'.
+src/vendor/motion-hybrid.ts(1,127233): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,127253): error TS2339: Property 'animation' does not exist on type 'Fn'.
+src/vendor/motion-hybrid.ts(1,129909): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,129985): error TS2339: Property 'delay' does not exist on type '{ type: string; }'.
+src/vendor/motion-hybrid.ts(1,130114): error TS2554: Expected 3 arguments, but got 2.
+src/vendor/motion-hybrid.ts(1,130188): error TS2339: Property 'transition' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,130292): error TS2538: Type 'unknown' cannot be used as an index type.
+src/vendor/motion-hybrid.ts(1,132776): error TS2339: Property 'root' does not exist on type '{ amount?: string; }'.
+src/vendor/motion-hybrid.ts(1,132783): error TS2339: Property 'margin' does not exist on type '{ amount?: string; }'.
+src/vendor/motion-hybrid.ts(1,132821): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,133192): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Element'.
+  Type '{}' is missing the following properties from type 'Element': attributes, classList, className, clientHeight, and 183 more.
+src/vendor/motion-hybrid.ts(1,135306): error TS2554: Expected 3 arguments, but got 1.
+src/vendor/motion-hybrid.ts(1,135623): error TS2339: Property 'stopPropagation' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,135896): error TS2339: Property 'useGlobalTarget' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,136056): error TS2339: Property 'useGlobalTarget' does not exist on type '{}'.
+src/vendor/motion-hybrid.ts(1,137759): error TS2339: Property 'target' does not exist on type '{ axis: string; container: Element; }'.
+src/vendor/motion-hybrid.ts(1,137769): error TS2339: Property 'offset' does not exist on type '{ axis: string; container: Element; }'.
+src/vendor/motion-hybrid.ts(1,137824): error TS2741: Property 'source' is missing in type '{ axis: string; container: Element; }' but required in type '{ [x: string]: any; container: any; source: any; }'.
+src/vendor/motion-hybrid.ts(1,137859): error TS2741: Property 'source' is missing in type '{ axis: string; container: Element; }' but required in type '{ [x: string]: any; container: any; source: any; }'.
+src/vendor/motion-hybrid.ts(1,137866): error TS2339: Property 'target' does not exist on type '{ axis: string; container: Element; }'.
+src/vendor/motion-hybrid.ts(1,137878): error TS2339: Property 'offset' does not exist on type '{ axis: string; container: Element; }'.
+src/vendor/motion-hybrid.ts(1,137897): error TS2339: Property 'target' does not exist on type '{ axis: string; container: Element; }'.
+src/vendor/motion-hybrid.ts(1,137909): error TS2339: Property 'target' does not exist on type '{ axis: string; container: Element; }'.
+src/vendor/motion-hybrid.ts(1,137922): error TS2554: Expected 1 arguments, but got 0.
+src/vendor/motion-hybrid.ts(1,138473): error TS2339: Property 'ease' does not exist on type '{ from?: number; startDelay?: number; }'.

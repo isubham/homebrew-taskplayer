@@ -1,0 +1,48 @@
+.topbar {
+  grid-area: topbar;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 16px;
+  padding: 0 20px 0 80px;
+  background: #000;
+  border-radius: 10px;
+  -webkit-app-region: drag;
+
+  & .topbar-left { display: flex; align-items: center; gap: 6px; justify-self: start; }
+  & .topbar-center { display: flex; align-items: center; gap: 12px; justify-self: center; }
+  & .topbar-right { display: flex; align-items: center; justify-self: end; }
+
+  & .topbar-navbtn {
+    flex: none; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,.07); color: var(--muted); cursor: pointer; display: grid; place-items: center; -webkit-app-region: no-drag;
+    & svg { display: block; }
+    &:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,.14); }
+    &:disabled { opacity: .3; cursor: default; }
+    &.active { color: var(--green); background: rgba(29,185,84,.16); }
+  }
+
+  & .topbar-search {
+    position: relative; display: flex; align-items: center; gap: 8px; color: #5a5a5a; width: 360px; background: var(--bg3); border-radius: 20px; padding: 7px 14px; transition: background .15s ease; cursor: text;
+    &:focus-within { background: var(--elev); }
+    & svg { flex: none; }
+    & input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: #fff; font-size: 13px; padding: 2px 0; }
+    & input::placeholder { color: #5a5a5a; }
+  }
+
+  & .search-results {
+    position: absolute; top: 100%; left: 0; right: 0; margin-top: 10px; background: #1c1c1c; border-radius: 8px; padding: 6px; max-height: 280px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.4); display: none; z-index: 50;
+    &.show { display: block; }
+    & .sr-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    & .sr-item:hover { background: rgba(255,255,255,.08); }
+    & .sr-item .sr-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+    & .sr-item .sr-meta { flex: none; font-size: 10px; color: #7a7a7a; }
+    & .sr-empty { padding: 10px 8px; font-size: 12px; color: #7a7a7a; }
+  }
+
+  & .topbar-icons {
+    display: flex; align-items: center; gap: 16px;
+    & button { background: none; border: none; color: #5a5a5a; cursor: pointer; display: flex; padding: 4px; border-radius: 6px; }
+    & button:hover { color: #fff; background: rgba(255,255,255,.08); }
+    & button.active { color: var(--green); }
+  }
+}

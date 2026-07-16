@@ -193,6 +193,22 @@ move those entries into a dated version section.
 ### Fixed
 - N/A
 
+## 0.9.1 - 2026-07-16
+
+### Added
+
+- Music curation increased
+- Added repetition as extension of daily
+
+### Changed
+
+- cleanup
+
+
+### Fixed
+- N/A
+
+
 
 ## Historical releases
 

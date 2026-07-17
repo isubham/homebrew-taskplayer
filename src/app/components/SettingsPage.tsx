@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { whenLabel } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
+import { KEYBOARD_SETTINGS_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
+import { SettingsNavigation } from "./settings-navigation";
 
 function SettingsAlbum({ icon, color, title, subtitle, children }) {
   return (
@@ -20,9 +22,22 @@ function SettingsAlbum({ icon, color, title, subtitle, children }) {
 
 export function SettingsPage() {
   const { state, actions } = useApp();
+  const [workflowConfigMode, setWorkflowConfigMode] = useState(() => state.S?.config?.mode || "open");
+  const [activeSettingsSection, setActiveSettingsSection] = useState(() => {
+    const saved = localStorage.getItem(SETTINGS_SECTION_STORAGE_KEY);
+    return saved && SETTINGS_SECTIONS.some((section) => section.key === saved) ? saved : SETTINGS_SECTIONS[0].key;
+  });
   if (!state.S) return null;
   const config = state.S.config;
   const account = state.S.account;
+  const syncFailed = !state.S.syncing && !!state.S.lastSyncError;
+  const syncLabel = state.S.syncing
+    ? "Syncing…"
+    : syncFailed
+      ? `Sync failed: ${state.S.lastSyncError}`
+      : state.S.lastSyncedAt
+        ? `Synced ${whenLabel(state.S.lastSyncedAt)}`
+        : "Not synced yet";
 
   const acctSubtitle = account ? `Signed in as ${account.name || account.email}` : "Sign in to sync across devices";
 
@@ -43,15 +58,6 @@ export function SettingsPage() {
     ) : (
       <div className="acct-avatar acct-avatar-fallback">{(account.name || account.email || "?")[0].toUpperCase()}</div>
     );
-    const syncFailed = !state.S.syncing && !!state.S.lastSyncError;
-    const syncLabel = state.S.syncing
-      ? "Syncing…"
-      : syncFailed
-        ? `Sync failed: ${state.S.lastSyncError}`
-        : state.S.lastSyncedAt
-          ? `Synced ${whenLabel(state.S.lastSyncedAt)}`
-          : "Not synced yet";
-
     return (
       <>
         <div className="acct-row">
@@ -63,15 +69,25 @@ export function SettingsPage() {
         </div>
         <div className="setrow">
           <button className="pill" onClick={actions.signOut}>Sign out</button>
-          <button className="pill" onClick={actions.syncNow} disabled={!!state.S.syncing}>{state.S.syncing ? "⟳ Syncing…" : "⟳ Sync now"}</button>
-          <button className="pill" onClick={actions.fullSync} disabled={!!state.S.syncing} title="Re-checks every list, task, and session against your account instead of just what's changed recently — use this if something synced on another device isn't showing up here">
-            {state.S.syncing ? "⟳ Syncing…" : "⟳ Full sync"}
-          </button>
         </div>
-        <p className={`hint${syncFailed ? " hint-error" : ""}`}>{syncLabel}</p>
       </>
     );
   };
+
+  const renderDataSection = () => (
+    <>
+      <h4>{SETTINGS_DATA_COPY.heading}</h4>
+      <p className="hint" style={{ marginTop: 0 }}>
+        {account ? SETTINGS_DATA_COPY.description : SETTINGS_DATA_COPY.signInHint}
+      </p>
+      <div className="setrow">
+        <button className="pill" onClick={actions.fullSync} disabled={!account || !!state.S.syncing}>
+          {state.S.syncing ? SETTINGS_DATA_COPY.repairingLabel : SETTINGS_DATA_COPY.repairLabel}
+        </button>
+      </div>
+      {account ? <p className={`hint${syncFailed ? " hint-error" : ""}`}>{syncLabel}</p> : null}
+    </>
+  );
 
   // Sound Pickers Section
   const renderSoundPickers = () => {
@@ -159,27 +175,28 @@ export function SettingsPage() {
   const renderSessionControls = () => {
     return (
       <>
+        <p className="hint" style={{ marginTop: 0 }}>{WORKFLOW_SETTINGS_COPY.configurationHint}</p>
         <div className="modes">
           <button
-            className={`modebtn ${config.mode === "open" ? "sel" : ""}`}
-            onClick={() => actions.setMode("open")}
+            className={`modebtn ${workflowConfigMode === "open" ? "sel" : ""}`}
+            onClick={() => setWorkflowConfigMode("open")}
           >
             ∞ Open<small>Track time</small>
           </button>
           <button
-            className={`modebtn ${config.mode === "target" ? "sel" : ""}`}
-            onClick={() => actions.setMode("target")}
+            className={`modebtn ${workflowConfigMode === "target" ? "sel" : ""}`}
+            onClick={() => setWorkflowConfigMode("target")}
           >
             🎯 Target<small>Aim for a length</small>
           </button>
           <button
-            className={`modebtn ${config.mode === "pomodoro" ? "sel" : ""}`}
-            onClick={() => actions.setMode("pomodoro")}
+            className={`modebtn ${workflowConfigMode === "pomodoro" ? "sel" : ""}`}
+            onClick={() => setWorkflowConfigMode("pomodoro")}
           >
             🍅 Pomodoro<small>Work / break</small>
           </button>
         </div>
-        {config.mode === "target" && (
+        {workflowConfigMode === "target" && (
           <>
             <h4>Target length</h4>
             <div className="fld">
@@ -195,7 +212,7 @@ export function SettingsPage() {
             <p className="hint">The bar fills toward your target and pulses when reached — you'll also get a notification. It keeps counting if you go over.</p>
           </>
         )}
-        {config.mode === "pomodoro" && (
+        {workflowConfigMode === "pomodoro" && (
           <>
             <h4>Work / break lengths</h4>
             <div className="fld">
@@ -243,7 +260,7 @@ export function SettingsPage() {
             <p className="hint">Every Nth break is longer, so a full set of work blocks ends in real recovery. Classic is every 4th, 20 min.</p>
           </>
         )}
-        {config.mode === "open" && (
+        {workflowConfigMode === "open" && (
           <p className="hint">The classic stopwatch — runs until you press stop. An hourly check-in nudge can be toggled in Notifications below.</p>
         )}
       </>
@@ -256,20 +273,29 @@ export function SettingsPage() {
     return (
       <>
         <p className="hint" style={{ marginTop: 0 }}>Drive the app from the keyboard — jump between views, move through lists and tasks, and play/pause without the mouse.</p>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "10px 0 4px" }}>
+        <div className="settings-keyboard-toggle-row">
           <span>Keyboard shortcuts</span>
           <button
-            className={`switch${on ? " on" : ""}`}
+            type="button"
+            className={`settings-switch${on ? " on" : ""}`}
             role="switch"
             aria-checked={on}
-            aria-label="Toggle keyboard shortcuts"
+            aria-label={KEYBOARD_SETTINGS_COPY.toggleLabel}
+            title={on ? KEYBOARD_SETTINGS_COPY.disableTitle : KEYBOARD_SETTINGS_COPY.enableTitle}
             onClick={actions.toggleKeybindings}
           >
-            <span className="switch-knob" />
+            <span className="settings-switch-knob" />
           </button>
         </div>
         <div className="setrow">
-          <button className="pill" onClick={actions.showShortcuts}>⌨ View shortcuts</button>
+          <button
+            className="pill"
+            onClick={() => actions.uiNote(
+              KEYBOARD_SETTINGS_COPY.shortcutsTitle,
+              KEYBOARD_SETTINGS_COPY.shortcutsHtml,
+              KEYBOARD_SETTINGS_COPY.shortcutsConfirmLabel,
+            )}
+          >⌨ View shortcuts</button>
         </div>
         <p className="hint">When off, single-key shortcuts are disabled. ⌘[ / ⌘] history navigation always works.</p>
       </>
@@ -318,6 +344,24 @@ export function SettingsPage() {
     );
   };
 
+  const settingsSections = SETTINGS_SECTIONS.map((section) => (
+    section.key === "account" ? { ...section, subtitle: acctSubtitle } : { ...section }
+  ));
+  const activeSection = settingsSections.find((section) => section.key === activeSettingsSection) || settingsSections[0];
+  const sectionContent = {
+    account: renderAccountSection(),
+    workflow: renderSessionControls(),
+    notifications: renderNotificationsSection(),
+    keyboard: renderKeyboardSection(),
+    data: renderDataSection(),
+    diagnostics: renderDiagnosticsSection(),
+    about: renderAboutSection(),
+  };
+  const selectSettingsSection = (key) => {
+    setActiveSettingsSection(key);
+    localStorage.setItem(SETTINGS_SECTION_STORAGE_KEY, key);
+  };
+
   return (
     <>
       <StickyHeader icon="⚙" name="Settings" />
@@ -329,25 +373,13 @@ export function SettingsPage() {
           <div className="sub">Account, workflow, notifications &amp; more</div>
         </div>
       </div>
-      <div className="settings-page">
-        <SettingsAlbum icon="👤" color="#509bf5" title="Account" subtitle={acctSubtitle}>
-          {renderAccountSection()}
-        </SettingsAlbum>
-        <SettingsAlbum icon="⏱️" color="#2f9e8f" title="Workflow" subtitle="How the timer runs">
-          {renderSessionControls()}
-        </SettingsAlbum>
-        <SettingsAlbum icon="🔔" color="#f5a623" title="Notifications" subtitle="Sounds & alerts">
-          {renderNotificationsSection()}
-        </SettingsAlbum>
-        <SettingsAlbum icon="⌨️" color="#8d67ab" title="Keyboard" subtitle="Shortcuts">
-          {renderKeyboardSection()}
-        </SettingsAlbum>
-        <SettingsAlbum icon="🛠️" color="#9aa0a6" title="Diagnostics" subtitle="Backups & logs">
-          {renderDiagnosticsSection()}
-        </SettingsAlbum>
-        <SettingsAlbum icon="ℹ️" color="#6a6a6a" title="About" subtitle="Version & updates">
-          {renderAboutSection()}
-        </SettingsAlbum>
+      <div className="settings-shell">
+        <SettingsNavigation sections={settingsSections} activeKey={activeSection.key} onSelect={selectSettingsSection} />
+        <div className="settings-page">
+          <SettingsAlbum icon={activeSection.icon} color={activeSection.color} title={activeSection.title} subtitle={activeSection.subtitle}>
+            {sectionContent[activeSection.key]}
+          </SettingsAlbum>
+        </div>
       </div>
     </>
   );

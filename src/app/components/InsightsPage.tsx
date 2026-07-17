@@ -3,8 +3,8 @@ import _ from "lodash";
 import { esc, fmt, fmtLong, fmtHM, whenLabel, LIFE_AREAS } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { TRACK_PX, UNTAGGED_LIST_COLOR } from "../constants.jsx";
-import { ChartAreaIcon } from "lucide-react";
+import { INSIGHTS_ICON_SIZE, TRACK_PX, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { BarChart2 } from "lucide-react";
 
 const INSIGHTS_SVG = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -508,7 +508,7 @@ export function InsightsPage() {
 
   return (
     <>
-      <StickyHeader icon={<ChartAreaIcon />} name="Insights hello" />
+      <StickyHeader icon={<BarChart2 size={INSIGHTS_ICON_SIZE} />} name="Insights" />
       <div className="hdr" data-tauri-drag-region>
         <div className="cover" style={{ background: "linear-gradient(135deg,#2e7d4f,#0c3f26)" }}>{INSIGHTS_SVG_HERO}</div>
         <div className="info">

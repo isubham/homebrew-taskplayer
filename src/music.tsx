@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { MUSIC_COPY, MUSIC_DEFAULTS, MUSIC_STORAGE_KEYS } from "./app/constants.jsx";
+import { MUSIC_COPY, MUSIC_DEFAULTS, MUSIC_FAVORITES_VIBE_KEY, MUSIC_STORAGE_KEYS } from "./app/constants.jsx";
 import { useMediaSession } from "./app/hooks/use-media-session.jsx";
 import { useMusicBridge } from "./app/hooks/use-music-bridge.jsx";
 import { audiusStreamUrl, fetchVibeTracks, type MusicTrack } from "./app/music-catalog.ts";
 import { createWhiteNoiseUrl } from "./app/music-noise.ts";
 import { LEGACY_MUSIC_VIBE_KEYS, MUSIC_VIBES } from "./app/music-vibes.ts";
+import { useMusicFavorites } from "./app/hooks/use-music-favorites";
 
 export const GENRES = MUSIC_VIBES;
 
@@ -28,19 +29,24 @@ export function MusicProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const currentTrack = tracks[trackIdx] || null;
+  const { favorites, isFavorite, toggleFavorite } = useMusicFavorites();
 
   const fetchAndLoadTracks = async (gKey) => {
     setLoading(true);
-    const list = await fetchVibeTracks(gKey);
+    const list = gKey === MUSIC_FAVORITES_VIBE_KEY
+      ? favorites
+      : await fetchVibeTracks(gKey);
     setTracks(list);
     setTrackIdx(0);
     setLoading(false);
+    return list;
   };
 
   const play = async () => {
     setEnabled(true);
     if (!tracks.length) {
-      await fetchAndLoadTracks(genre);
+      const list = await fetchAndLoadTracks(genre);
+      if (!list.length) setEnabled(false);
     } else {
       await audioRef.current?.play().catch(console.error);
     }
@@ -54,7 +60,8 @@ export function MusicProvider({ children }) {
   const next = async () => {
     if (!tracks.length) {
       setEnabled(true);
-      await fetchAndLoadTracks(genre);
+      const list = await fetchAndLoadTracks(genre);
+      if (!list.length) setEnabled(false);
       return;
     }
     setTrackIdx((prev) => (prev + 1) % tracks.length);
@@ -63,7 +70,8 @@ export function MusicProvider({ children }) {
   const previous = async () => {
     if (!tracks.length) {
       setEnabled(true);
-      await fetchAndLoadTracks(genre);
+      const list = await fetchAndLoadTracks(genre);
+      if (!list.length) setEnabled(false);
       return;
     }
     setTrackIdx((prev) => (prev - 1 + tracks.length) % tracks.length);
@@ -73,13 +81,17 @@ export function MusicProvider({ children }) {
     if (!GENRES[newGenre]) return;
     setGenreState(newGenre);
     localStorage.setItem(MUSIC_STORAGE_KEYS.genre, newGenre);
+    audioRef.current?.pause();
     setTracks([]);
     setTrackIdx(0);
     setLoading(true);
-    const list = await fetchVibeTracks(newGenre);
+    const list = newGenre === MUSIC_FAVORITES_VIBE_KEY
+      ? favorites
+      : await fetchVibeTracks(newGenre);
     setTracks(list);
     setTrackIdx(0);
     setLoading(false);
+    if (!list.length) setEnabled(false);
   };
 
   const setActive = (on) => {
@@ -95,16 +107,27 @@ export function MusicProvider({ children }) {
       audioRef.current.src = isNoise ? noiseUrlRef.current : audiusStreamUrl(currentTrack);
       if (enabled) {
         audioRef.current.play().catch((err) => {
-          console.warn("Playback failed, trying next track", err);
-          next();
+          console.warn("Playback failed", err);
         });
       }
     }
-  }, [currentTrack]);
+  }, [currentTrack?.id, currentTrack?.sourceType]);
 
   useEffect(() => () => {
     if (noiseUrlRef.current) URL.revokeObjectURL(noiseUrlRef.current);
   }, []);
+
+  useEffect(() => {
+    if (genre !== MUSIC_FAVORITES_VIBE_KEY) return;
+    const activeTrackId = tracks[trackIdx]?.id;
+    const nextIndex = favorites.findIndex((track) => track.id === activeTrackId);
+    setTracks(favorites);
+    setTrackIdx(nextIndex >= 0 ? nextIndex : 0);
+    if (!favorites.length) {
+      setEnabled(false);
+      audioRef.current?.pause();
+    }
+  }, [favorites, genre]);
 
   // When enabled status changes
   useEffect(() => {
@@ -140,6 +163,7 @@ export function MusicProvider({ children }) {
   // Derive music state snapshot
   const musicState = {
     playing,
+    enabled,
     loading,
     genre,
     genreLabel: GENRES[genre].label,
@@ -148,6 +172,8 @@ export function MusicProvider({ children }) {
     artist: currentTrack ? currentTrack.artist : null,
     artworkUrls: currentTrack ? currentTrack.artworkUrls : [],
     permalink: currentTrack ? currentTrack.permalink : null,
+    favoriteCount: favorites.length,
+    isFavorite: isFavorite(currentTrack),
   };
 
   useMediaSession(currentTrack, playing, { play, pause, next, previous });
@@ -160,6 +186,7 @@ export function MusicProvider({ children }) {
       pause,
       next,
       previous,
+      toggleFavorite: () => toggleFavorite(currentTrack),
       setGenre: changeGenre,
       setActive,
       GENRES

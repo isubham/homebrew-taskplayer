@@ -24,6 +24,11 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
             .into_iter()
             .map(RemoteLifeAreaPriority::into_local)
             .collect();
+    let music_favorites: Vec<MusicFavorite> =
+        fetch_since::<RemoteMusicFavorite>(access_token, "music_favorites", cursor)?
+            .into_iter()
+            .map(RemoteMusicFavorite::into_local)
+            .collect();
     // At most one row ever comes back — `run_state` is a singleton keyed by
     // `user_id` (see docs/session-sync-design.md) — but `fetch_since` still
     // returns a `Vec` since it's a generic PostgREST GET.
@@ -39,7 +44,8 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
         .collect();
 
     let collection_rows_changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
-    let mut changed = collection_rows_changed || !priorities.is_empty();
+    let mut changed =
+        collection_rows_changed || !priorities.is_empty() || !music_favorites.is_empty();
     if collection_rows_changed {
         if force {
             db.upsert_from_remote_force(&lists, &tasks, &sessions)
@@ -51,6 +57,10 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
     }
     if !priorities.is_empty() {
         db.upsert_life_area_priorities_from_remote(&priorities, force)
+            .map_err(|e| e.to_string())?;
+    }
+    if !music_favorites.is_empty() {
+        db.upsert_music_favorites_from_remote(&music_favorites, force)
             .map_err(|e| e.to_string())?;
     }
     // Applied separately from the three above: `upsert_run_from_remote`
@@ -95,6 +105,13 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
 /// local rows. The durable marker is cleared only after every fetch and local
 /// write succeeds, so a transient failure retries on the next sync.
 pub(super) fn backfill_planner_schema(db: &Db, access_token: &str) -> Result<bool, String> {
+    let changed = backfill_planner_fields(db, access_token)?;
+    db.clear_sync_schema_backfill()
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
+}
+
+fn backfill_planner_fields(db: &Db, access_token: &str) -> Result<bool, String> {
     let lists = fetch_since::<RemoteList>(access_token, "lists", 0)?
         .into_iter()
         .map(RemoteList::into_local)
@@ -109,10 +126,35 @@ pub(super) fn backfill_planner_schema(db: &Db, access_token: &str) -> Result<boo
             .map(RemoteLifeAreaPriority::into_local)
             .collect::<Vec<_>>();
 
-    let changed = db
-        .backfill_planner_fields_from_remote(&lists, &tasks, &priorities)
-        .map_err(|error| error.to_string())?;
+    db.backfill_planner_fields_from_remote(&lists, &tasks, &priorities)
+        .map_err(|error| error.to_string())
+}
+
+pub(super) fn backfill_music_favorites_schema(db: &Db, access_token: &str) -> Result<bool, String> {
+    let changed = backfill_music_favorites(db, access_token)?;
     db.clear_sync_schema_backfill()
         .map_err(|error| error.to_string())?;
     Ok(changed)
+}
+
+fn backfill_music_favorites(db: &Db, access_token: &str) -> Result<bool, String> {
+    let favorites = fetch_since::<RemoteMusicFavorite>(access_token, "music_favorites", 0)?
+        .into_iter()
+        .map(RemoteMusicFavorite::into_local)
+        .collect::<Vec<_>>();
+    let changed = !favorites.is_empty();
+    db.upsert_music_favorites_from_remote(&favorites, false)
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
+}
+
+pub(super) fn backfill_planner_and_music_schema(
+    db: &Db,
+    access_token: &str,
+) -> Result<bool, String> {
+    let planner_changed = backfill_planner_fields(db, access_token)?;
+    let favorites_changed = backfill_music_favorites(db, access_token)?;
+    db.clear_sync_schema_backfill()
+        .map_err(|error| error.to_string())?;
+    Ok(planner_changed || favorites_changed)
 }

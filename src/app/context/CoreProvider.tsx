@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, repeatingTaskOccursOn, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
+import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
 import { ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS } from "../constants.jsx";
+import { buildDailyJamAttentionEntries } from "../daily-jam-attention";
 
 const CoreContext = createContext(null);
 
@@ -384,21 +385,13 @@ export function CoreProvider({ children }) {
 
   const dailyJamTasks = useCallback(() => {
     if (!S) return [];
-    const run = S.run;
-    const liveTaskId = run.activeTaskId && run.phase === "work" && run.runningStart ? run.activeTaskId : null;
-    const todayStartMs = new Date().setHours(0, 0, 0, 0);
-    const entries = S.tasks
-      .filter((task) => task.cadence === "daily"
-        && !task.completedAt
-        && !isAgainstTask(task)
-        && (task.id === liveTaskId || repeatingTaskOccursOn(task, todayStartMs)))
-      .map((task) => {
-        const working = task.id === liveTaskId;
-        const doneToday = working || dailyPayoutOn(task, S.sessions, todayStartMs);
-        return { task, listItem: list(task.listId), working, doneToday };
-      });
-    entries.sort((a, b) => (a.doneToday === b.doneToday ? 0 : a.doneToday ? 1 : -1));
-    return entries;
+    return buildDailyJamAttentionEntries({
+      tasks: S.tasks,
+      sessions: S.sessions,
+      run: S.run,
+      list,
+      isAgainstTask,
+    });
   }, [S, list, isAgainstTask]);
 
   const attentionTasks = useCallback((limit = ATTENTION_TASKS_SIZE) => {

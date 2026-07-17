@@ -8,6 +8,9 @@ import { AddListModal } from "./add-list-modal.jsx";
 import { EditListModal } from "./edit-list-modal.jsx";
 import { motion, AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSlidePanel } from "./motion-transitions.jsx";
+import { useMusic } from "../../music.jsx";
+import { Heart } from "lucide-react";
+import { MUSIC_COPY, MUSIC_MINI_CONTROL_ICON_SIZE } from "../constants.jsx";
 
 // Lyrics Panel Component
 export function LyricsPanel() {
@@ -58,8 +61,8 @@ export function LyricsPanel() {
 
 // Track Detail Modal Component
 export function TrackDetailModal() {
-  const { state, actions } = useApp();
-  const m = state.lastMusic;
+  const { actions } = useApp();
+  const { musicState: m, toggleFavorite } = useMusic();
   const urls = (m && m.artworkUrls) || [];
   const hasTrack = m && (m.title || urls.length || m.permalink);
 
@@ -87,6 +90,19 @@ export function TrackDetailModal() {
           <button className="close" onClick={() => actions.setOpenTrackDetail(false)}>×</button>
         </div>
         <div className="body">
+          {hasTrack ? (
+            <button
+              className="pill track-favorite"
+              onClick={toggleFavorite}
+              aria-pressed={m.isFavorite}
+            >
+              <Heart
+                size={MUSIC_MINI_CONTROL_ICON_SIZE}
+                fill={m.isFavorite ? "currentColor" : "none"}
+              />
+              {m.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
+            </button>
+          ) : null}
           {hasTrack && m.permalink ? (
             <button className="pill" onClick={() => actions.openTrackLink(m.permalink)}>↗ View on Audius</button>
           ) : (

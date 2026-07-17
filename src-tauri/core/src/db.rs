@@ -1,5 +1,5 @@
 use crate::models::*;
-use rusqlite::{params, types::Type, Connection, Row};
+use rusqlite::{params, types::Type, Connection, OptionalExtension, Row};
 
 const PALETTE: [&str; 8] = [
     "#2f9e8f", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
@@ -628,6 +628,123 @@ impl Db {
 
     // ---- Sync support (Phase 3 will call these; pure DB logic, no network) ----
 
+    pub fn music_favorites(&self) -> rusqlite::Result<Vec<MusicFavorite>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT track_id,title,artist,artwork_urls,permalink,source_type,updated_at
+             FROM music_favorites WHERE deleted_at IS NULL ORDER BY updated_at",
+        )?;
+        let favorites = stmt
+            .query_map([], |r| {
+                let artwork_json: String = r.get(3)?;
+                Ok(MusicFavorite {
+                    track_id: r.get(0)?,
+                    title: r.get(1)?,
+                    artist: r.get(2)?,
+                    artwork_urls: serde_json::from_str(&artwork_json).unwrap_or_default(),
+                    permalink: r.get(4)?,
+                    source_type: r.get(5)?,
+                    updated_at: r.get(6)?,
+                    deleted_at: None,
+                })
+            })?
+            .collect();
+        favorites
+    }
+
+    pub fn toggle_music_favorite(&self, track: &MusicFavoriteInput) -> rusqlite::Result<()> {
+        let existing: Option<Option<i64>> = self
+            .conn
+            .query_row(
+                "SELECT deleted_at FROM music_favorites WHERE track_id=?1",
+                params![track.track_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let now = now_ms();
+        if matches!(existing, Some(None)) {
+            self.conn.execute(
+                "UPDATE music_favorites SET deleted_at=?1,updated_at=?1 WHERE track_id=?2",
+                params![now, track.track_id],
+            )?;
+        } else {
+            self.save_music_favorite(track, now)?;
+        }
+        Ok(())
+    }
+
+    pub fn import_music_favorites(&self, tracks: &[MusicFavoriteInput]) -> rusqlite::Result<()> {
+        let now = now_ms();
+        for (offset, track) in tracks.iter().enumerate() {
+            let exists: bool = self.conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM music_favorites WHERE track_id=?1)",
+                params![track.track_id],
+                |r| r.get(0),
+            )?;
+            if !exists {
+                self.save_music_favorite(track, now + offset as i64)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn save_music_favorite(
+        &self,
+        track: &MusicFavoriteInput,
+        updated_at: i64,
+    ) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO music_favorites(track_id,title,artist,artwork_urls,permalink,source_type,updated_at,deleted_at)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,NULL)
+             ON CONFLICT(track_id) DO UPDATE SET title=excluded.title,artist=excluded.artist,
+               artwork_urls=excluded.artwork_urls,permalink=excluded.permalink,
+               source_type=excluded.source_type,updated_at=excluded.updated_at,deleted_at=NULL",
+            params![track.track_id, track.title, track.artist, serde_json::to_string(&track.artwork_urls).unwrap_or_else(|_| "[]".into()), track.permalink, track.source_type, updated_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn music_favorites_dirty_since(&self, ts: i64) -> rusqlite::Result<Vec<MusicFavorite>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT track_id,title,artist,artwork_urls,permalink,source_type,updated_at,deleted_at
+             FROM music_favorites WHERE updated_at>?1",
+        )?;
+        let favorites = stmt
+            .query_map(params![ts], |r| {
+                let artwork_json: String = r.get(3)?;
+                Ok(MusicFavorite {
+                    track_id: r.get(0)?,
+                    title: r.get(1)?,
+                    artist: r.get(2)?,
+                    artwork_urls: serde_json::from_str(&artwork_json).unwrap_or_default(),
+                    permalink: r.get(4)?,
+                    source_type: r.get(5)?,
+                    updated_at: r.get(6)?,
+                    deleted_at: r.get(7)?,
+                })
+            })?
+            .collect();
+        favorites
+    }
+
+    pub fn upsert_music_favorites_from_remote(
+        &self,
+        favorites: &[MusicFavorite],
+        force: bool,
+    ) -> rusqlite::Result<()> {
+        for favorite in favorites {
+            self.conn.execute(
+                &format!("INSERT INTO music_favorites(track_id,title,artist,artwork_urls,permalink,source_type,updated_at,deleted_at)
+                  VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
+                  ON CONFLICT(track_id) DO UPDATE SET title=excluded.title,artist=excluded.artist,
+                    artwork_urls=excluded.artwork_urls,permalink=excluded.permalink,source_type=excluded.source_type,
+                    updated_at=excluded.updated_at,deleted_at=excluded.deleted_at{}",
+                    if force { "" } else { " WHERE excluded.updated_at > music_favorites.updated_at" }),
+                params![favorite.track_id, favorite.title, favorite.artist, serde_json::to_string(&favorite.artwork_urls).unwrap_or_else(|_| "[]".into()), favorite.permalink, favorite.source_type, favorite.updated_at, favorite.deleted_at],
+            )?;
+        }
+        Ok(())
+    }
+
     /// All rows (including soft-deleted tombstones) changed since `ts`, for
     /// pushing to the remote. Unlike `lists()`/`tasks()`/`sessions()`, this
     /// intentionally does not filter `deleted_at` — a delete has to reach the
@@ -1045,6 +1162,7 @@ impl Db {
             life_area_priorities: self.life_area_priorities()?,
             tasks: self.tasks()?,
             sessions: self.sessions()?,
+            music_favorites: self.music_favorites()?,
             config: self.get_config(),
             run: self.get_run(),
             device_id: self.get_device_id(),
@@ -1126,6 +1244,46 @@ mod tests {
         assert_eq!(snap.lists.len(), 2);
         assert_eq!(snap.tasks.len(), 5);
         assert_eq!(snap.sessions.len(), 3);
+    }
+
+    #[test]
+    fn music_favorites_toggle_import_and_remote_lww() {
+        let db = Db::open_in_memory().unwrap();
+        let input = MusicFavoriteInput {
+            track_id: "track-1".into(),
+            title: "Focus".into(),
+            artist: "Artist".into(),
+            artwork_urls: vec!["https://example.test/art.jpg".into()],
+            permalink: Some("https://example.test/track".into()),
+            source_type: "audius".into(),
+        };
+
+        db.import_music_favorites(std::slice::from_ref(&input))
+            .unwrap();
+        db.import_music_favorites(std::slice::from_ref(&input))
+            .unwrap();
+        assert_eq!(db.music_favorites().unwrap().len(), 1);
+
+        let local_updated_at = db.music_favorites().unwrap()[0].updated_at;
+        db.upsert_music_favorites_from_remote(
+            &[MusicFavorite {
+                track_id: input.track_id.clone(),
+                title: "Stale title".into(),
+                artist: input.artist.clone(),
+                artwork_urls: Vec::new(),
+                permalink: None,
+                source_type: input.source_type.clone(),
+                updated_at: local_updated_at - 1,
+                deleted_at: None,
+            }],
+            false,
+        )
+        .unwrap();
+        assert_eq!(db.music_favorites().unwrap()[0].title, input.title);
+
+        db.toggle_music_favorite(&input).unwrap();
+        assert!(db.music_favorites().unwrap().is_empty());
+        assert_eq!(db.music_favorites_dirty_since(0).unwrap().len(), 1);
     }
 
     #[test]
@@ -1420,7 +1578,10 @@ mod tests {
             "relationships"
         );
 
-        assert_eq!(db.sync_schema_backfill().as_deref(), Some("planner_v1"));
+        assert_eq!(
+            db.sync_schema_backfill().as_deref(),
+            Some("planner_music_v1")
+        );
         db.clear_sync_schema_backfill().unwrap();
         assert_eq!(db.sync_schema_backfill(), None);
     }

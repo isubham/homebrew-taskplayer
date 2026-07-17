@@ -396,14 +396,6 @@ export function DatabaseProvider({ children }) {
     apply(await invoke("sign_out"));
   }, [apply]);
 
-  const syncNow = useCallback(async () => {
-    try {
-      await invoke("sync_now");
-    } catch (err) {
-      showToast({ message: `Sync failed: ${err}`, tone: "danger" });
-    }
-  }, [showToast]);
-
   const fullSync = useCallback(async () => {
     try {
       await invoke("full_sync");
@@ -476,7 +468,7 @@ export function DatabaseProvider({ children }) {
         toggleDone, moveTaskInline, reorderTasks, reorderLists, reorderLifeAreas,
         setAlbum, moveTaskToAlbum, editLyrics, setLyricsInline, addSession, editSession,
         deleteSession, openTrackLink, openNotificationSettings, exportData, importData,
-        revealLogs, signInGoogle, signOut, syncNow, fullSync, checkForUpdates,
+        revealLogs, signInGoogle, signOut, fullSync, checkForUpdates,
         setMode, setConfigField, setConfigSound, cycleMode
       }
     }}>

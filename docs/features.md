@@ -57,13 +57,14 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Keyboard control — Shipped
 
-- Optional single-key shortcut mode in Settings.
+- Optional single-key shortcut mode uses a persisted, accessible switch in Settings; its shortcut
+  reference remains available there even while single-key controls are disabled.
 - `⌘+` and `⌘−` zoom the full app interface in 10% steps from 80% to 130%; `⌘0` resets to 100%.
 - Tab and Shift+Tab cycle the visible sidebar, main content, and player regions.
 - `j` / `k` move through list or task rows; Enter activates the focused row.
 - Space plays or pauses the active, focused, or last-played task.
 - `n` creates a list, task, or session according to the focused region.
-- `i` opens Insights, `s` opens Settings, `/` focuses search, and `?` shows help.
+- `o` opens Home, `i` opens Insights, `s` opens Settings, `/` focuses search, and `?` shows help.
 - Shortcuts are suppressed while typing, while overlays are open, or when modifier keys are
   held.
 
@@ -174,11 +175,14 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Estimates and deadlines are hidden because they do not describe repeating routines well.
 - Repeating rows show today’s session count and tracked time instead of lifetime estimate progress;
   off-day rows state that they are not scheduled today.
-- Daily Jam includes only positive repeating tasks scheduled for the current weekday, grouped into
-  a two-column life-area card grid ordered by the
-  sidebar's life-area priority. Each card keeps unfinished-today items first, shows today's
-  progress and earliest fixed time, reuses the task-list row with play, session, progress, jewel,
-  and menu controls, and initially exposes up to four tasks with inline expansion.
+- Daily Jam is a quick-glance attention queue grouped by the sidebar's life-area priority. It
+  considers positive unfinished tasks that are active, scheduled today, deadline-bearing, or
+  impact-tagged, then ranks them by active/scheduled-now state, deadline proximity, today's
+  repeating schedule, impact, and least-recent touch. Each card shows at most three unfinished
+  tasks with a quiet reason such as a scheduled time, deadline, or impact tier; completed daily
+  work leaves the queue but remains represented in today's progress.
+- Daily Jam uses three life-area columns on larger windows and two on smaller windows. Cards reuse
+  the task-list row with play, session, progress, and deterministic jewel controls.
 - The five life-area cards remain visible as a stable map; tasks without a life area appear in an
   additional Unsorted card so older or partially synced data is never hidden.
 - Repeating rewards are derived from whether a session started on a scheduled local calendar day;
@@ -220,6 +224,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 - Bottom player shows the active/last task, list, live elapsed time, and task progress.
 - Its session progress bar is capped at 405px so the central playback state stays compact.
+- Live session and break progress interpolate continuously between timer updates, with an instant
+  reduced-motion fallback.
 - Its workflow icon cycles the timer mode immediately without opening Settings; detailed mode
   lengths remain in Settings.
 - Play/pause/stop controls are available from task rows, player, keyboard, and tray.
@@ -252,6 +258,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   forcing the main window forward.
 - Separate system sounds for break time and return-to-work.
 - Focus music pauses on breaks and resumes with work.
+- A session owned by another device never starts or continues focus music on this device.
 
 ## 5. Menu-bar tray
 
@@ -384,10 +391,14 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   vibe-appropriate moods, and rank by catalog play count with up to 50 candidates.
 - Starts with work, pauses on break/stop, and resumes with work.
 - Play/pause, next, and vibe controls in the app; volume follows the macOS system volume.
-- The current vibe is named directly in the bottom player; clicking its compact label opens the
-  native genre picker.
-- The bottom music player keeps a fixed 25% width; overflowing track titles move in a seamless
-  marquee and fall back to a static ellipsis when reduced motion is enabled.
+- The right-side mini-player uses an outlined vibe pill above a static, ellipsized title, followed
+  by a prominent play/pause control, next-track control, and artwork on the far right. Favorite is
+  overlaid in the artwork corner; previous remains available through system media controls.
+- A heart control in the mini-player and track detail saves or removes the current song. Saved
+  songs persist offline, sync through the signed-in account, and appear on every device in a
+  Favorites vibe that replays the queue later in saved order.
+- The bottom music player keeps a fixed 25% width; overflowing track titles use a quiet static
+  ellipsis, with the full title available through its native hover tooltip.
 - macOS media keys and Now Playing controls can play, pause, go to the previous/next track while
   TaskPlayer is unfocused; the system surface shows the current title, artist, and available
   artwork.
@@ -412,7 +423,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Google OAuth through Supabase Auth using PKCE and an app deep-link callback.
 - Account avatar/name/email in Settings.
 - Incremental push/pull sync approximately every 60 seconds while signed in.
-- Manual Sync now and Full sync controls.
+- A single manual Repair data control performs a full account resync when remote data is missing.
 - Hourly full-resync safety net.
 - Last-write-wins timestamps for lists, tasks, sessions, priorities, configuration, and run state.
 - Explicit sign-in performs an authoritative pull before normal push/pull, preventing signed-out
@@ -432,6 +443,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 - One active session per account, Spotify-style.
 - Remote active sessions mirror read-only on other devices.
+- Mirroring a remote session also silences this device's focus music, preventing two devices from
+  playing the soundtrack for one work session.
 - Playing on another device takes ownership; taking over the same task can continue its current
   position.
 - Session ownership prevents duplicate timer transitions and most duplicate notifications.
@@ -440,10 +453,15 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Settings albums — Shipped
 
+- Settings uses a two-pane layout with persistent section navigation on the left and the selected
+  section's controls on the right; narrow windows stack navigation above the detail pane.
 - Account.
-- Workflow / timer mode.
+- Workflow configuration.
+- Workflow cards in Settings are configuration tabs only; the active workflow changes exclusively
+  from the player control.
 - Notifications.
 - Keyboard.
+- Data, with a single Repair data action that performs a full account resync.
 - Diagnostics.
 - About / updates.
 

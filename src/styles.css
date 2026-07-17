@@ -8,9 +8,24 @@
   --green:#2f9e8f; --green-hi:#3dbfac; --blue:#509bf5; --amber:#e8b923; --attention:#7fa9c9;
   --text:#fff; --muted:#b3b3b3; --line:#2e2e2e;
   --session-progress-max-width:405px;
+  --session-progress-tick-duration:1s;
   --player-icon-control-size:30px;
+  --task-player-main-icon-offset:2px;
   --music-vibe-max-width:100px;
-  --music-vibe-padding-x:8px;
+  --music-vibe-padding-x:5px;
+  --music-mini-height:74px;
+  --music-mini-art-size:60px;
+  --music-primary-control-size:32px;
+  --music-track-title-size:13px;
+  --music-track-title-weight:400;
+  --music-label-center-offset:4px;
+  --daily-jam-card-padding:12px;
+  --daily-jam-card-tint-strength:10%;
+  --settings-switch-width:38px;
+  --settings-switch-height:22px;
+  --settings-switch-knob-size:16px;
+  --settings-switch-knob-offset:2px;
+  --settings-switch-knob-travel:18px;
   --sidebar-width:280px;
 }
 *{box-sizing:border-box}

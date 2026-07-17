@@ -15,12 +15,13 @@ use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, OnceLock};
 use taskplayer_core::{
-    canonical_life_area, now_ms, Db, LifeAreaPriority, RunState, Session, SessionConfig, Task,
-    TaskList, WeeklyTimeWindow,
+    canonical_life_area, now_ms, Db, LifeAreaPriority, MusicFavorite, RunState, Session,
+    SessionConfig, Task, TaskList, WeeklyTimeWindow,
 };
 
 mod compatibility;
 mod content_models;
+mod music_models;
 mod pull;
 mod push;
 mod runtime_models;
@@ -28,6 +29,7 @@ mod transport;
 
 use compatibility::*;
 use content_models::*;
+use music_models::*;
 use pull::*;
 use push::*;
 use runtime_models::*;
@@ -39,6 +41,8 @@ pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, Str
     if let Some(backfill) = db.sync_schema_backfill() {
         return match backfill.as_str() {
             "planner_v1" => backfill_planner_schema(db, access_token),
+            "music_favorites_v1" => backfill_music_favorites_schema(db, access_token),
+            "planner_music_v1" => backfill_planner_and_music_schema(db, access_token),
             unknown => Err(format!(
                 "Sync paused: this client does not understand schema backfill {unknown}."
             )),

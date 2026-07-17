@@ -8,8 +8,18 @@ move those entries into a dated version section.
 
 ## Unreleased
 
+### Changed
+
+- Daily Jam is now a per–Life Area attention queue. It shows up to three unfinished tasks ranked
+  by active/scheduled-now state, deadline proximity, today's repeating schedule, impact, and
+  least-recent touch, with a quiet reason for each selection. Completed routines leave the queue
+  while remaining reflected in today's progress. The grid uses three columns on larger windows
+  and two on smaller windows.
+
 ### Added
 
+- Added favorite songs with heart controls in the mini-player and track detail. Favorites persist
+  offline, sync across signed-in devices, and can be replayed later through the Favorites vibe.
 - Added weekday-specific repeating tasks, including an explicit Every day mode and combinations
   such as Saturday/Sunday. Daily Jam, task status, Now Playing, and deterministic rewards now
   respect whether a repeating task is scheduled for the current day.
@@ -104,6 +114,9 @@ move those entries into a dated version section.
 
 ### Fixed
 
+- Fixed the malformed Keyboard Settings switch and its missing action wiring. The toggle now
+  updates immediately, persists across launches, and the View shortcuts button opens the shared
+  shortcut reference.
 - Shifted the complete Life Areas expand/collapse control 4px right so its centered glyph aligns
   with the folder-row chevrons without creating uneven hover padding.
 - Right-aligned the sidebar's expand/collapse control instead of letting it sit immediately after

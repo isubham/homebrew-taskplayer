@@ -21,8 +21,14 @@ export function PlaybackProvider({ children }) {
     const run = S.run;
     const musicPhase = run.activeTaskId && run.phase ? run.phase : null;
     const musicTaskId = run.activeTaskId || null;
+    const isForeignSession = Boolean(
+      musicTaskId
+      && musicPhase
+      && run.deviceId
+      && run.deviceId !== S.deviceId,
+    );
 
-    if (run.deviceId === S.deviceId) {
+    if (!isForeignSession) {
       if (musicPhase === "work" && lastMusicPhaseRef.current === "work" && musicTaskId !== lastMusicTaskIdRef.current) {
         window.Music.next();
       } else if (musicPhase !== lastMusicPhaseRef.current) {
@@ -31,6 +37,7 @@ export function PlaybackProvider({ children }) {
       lastMusicPhaseRef.current = musicPhase;
       lastMusicTaskIdRef.current = musicTaskId;
     } else {
+      window.Music.pause();
       lastMusicPhaseRef.current = null;
       lastMusicTaskIdRef.current = null;
     }

@@ -49,10 +49,11 @@ persistence logic remains in `src-tauri/core`.
 |---|---|
 | `sync/compatibility.rs` | Backend capability/version contract validation. |
 | `sync/content_models.rs` | List, task, priority, and session wire models. |
+| `sync/music_models.rs` | Focus-music favorite wire model. |
 | `sync/runtime_models.rs` | Run-state and configuration wire models. |
 | `sync/transport.rs` | Generic Supabase REST fetch/upsert helpers. |
 | `sync/push.rs` | Local-to-remote serialization and cursor advancement. |
-| `sync/pull.rs` | Remote-to-local application and planner backfill. |
+| `sync/pull.rs` | Remote-to-local application plus planner and music-favorite backfills. |
 | `sync/compatibility_tests.rs` | Old-client payload and backend-window tests. |
 
 ## Tray
@@ -77,6 +78,7 @@ persistence logic remains in `src-tauri/core`.
 | `commands/playback.rs` | Timer play, stop, break, and resume commands. |
 | `commands/settings.rs` | Timer settings, auth, sync, zoom, and sound commands. |
 | `commands/schedule.rs` | Computes deduplicated daily/list schedule notices. |
+| `commands/music.rs` | Saves and imports synced focus-music favorites. |
 | `commands/system.rs` | Music state, URL opening, and updater commands. |
 
 ## Boundaries

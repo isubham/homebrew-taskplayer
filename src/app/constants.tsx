@@ -3,6 +3,19 @@ import React from "react";
 export const ATTENTION_TASKS_SIZE = 6;
 export const RECENT_TASKS_SIZE = 6;
 export const RECENT_LISTS_SIZE = 3;
+export const DAILY_JAM_TASK_LIMIT = 3;
+export const DAILY_JAM_DUE_SOON_DAYS = 7;
+export const DAILY_JAM_SCHEDULE_LEAD_MINUTES = 60;
+export const DAILY_JAM_COPY = {
+  heading: "Daily Jam",
+  subtitle: "What needs attention next",
+  inProgress: "In progress",
+  scheduledToday: "Scheduled today",
+  scheduledAt: (timeLabel) => `Today at ${timeLabel}`,
+  impact: (label) => `${label} impact`,
+  taskCount: (count) => `${count} task${count === 1 ? "" : "s"}`,
+  allClear: "All clear for today.",
+};
 
 // Zoom Levels
 export const ZOOM_MIN = 0.8;
@@ -11,6 +24,7 @@ export const ZOOM_STEP = 0.1;
 
 // Insights Page Timeline
 export const TRACK_PX = 640;
+export const INSIGHTS_ICON_SIZE = 15;
 
 // Sticky page header selectors
 export const STICKY_SCROLL_ROOT_SELECTOR = ".main";
@@ -26,6 +40,7 @@ export const MUSIC_APP_NAME = "TaskPlayer";
 export const MUSIC_API_BASE = "https://api.audius.co";
 export const MUSIC_STORAGE_KEYS = {
   genre: "tp.genre",
+  favorites: "tp.musicFavorites",
 };
 export const MUSIC_DEFAULTS = {
   genre: "lofi",
@@ -35,18 +50,29 @@ export const MUSIC_COPY = {
   fallbackTitle: "Focus music",
   loadingTitle: "finding tracks…",
   changeVibeTitle: "Change vibe",
+  playTitle: "Play focus music",
+  pauseTitle: "Pause focus music",
+  previousTitle: "Previous track",
+  nextTitle: "Next track",
+  remoteSessionTitle: "Focus music is playing on the session-owning device",
+  favoriteTitle: "Add to favorite songs",
+  unfavoriteTitle: "Remove from favorite songs",
+  noFavoritesTitle: "No favorite songs yet",
 };
+export const MUSIC_FAVORITES_VIBE_KEY = "favorites";
 export const MEDIA_SESSION_ACTIONS = {
   play: "play",
   pause: "pause",
   next: "nexttrack",
   previous: "previoustrack",
 } as const;
-export const MUSIC_PLAYER_WIDTH = "25%";
+export const MUSIC_PLAYER_WIDTH = "20%";
 export const MUSIC_MARQUEE_GAP_PX = 32;
 export const MUSIC_MARQUEE_MIN_DURATION_SECONDS = 8;
 export const MUSIC_MARQUEE_PIXELS_PER_SECOND = 24;
 export const PLAYER_HISTORY_ICON_SIZE = 18;
+export const MUSIC_MINI_CONTROL_ICON_SIZE = 16;
+export const MUSIC_PRIMARY_CONTROL_ICON_SIZE = 16;
 
 // Finder-style sidebar folder disclosure
 export const SIDEBAR_FOLDER_MOTION = {
@@ -79,7 +105,57 @@ export const TASK_REPEAT_COPY = {
   rewardTitleSuffix: " per scheduled day",
   offDayStatus: "Not scheduled today",
   offDayNote: "This task returns on its selected days.",
-  dailyJamEmpty: "No tasks scheduled here today.",
+  dailyJamEmpty: DAILY_JAM_COPY.allClear,
+};
+
+export const SETTINGS_DATA_COPY = {
+  icon: "🗄️",
+  color: "#509bf5",
+  title: "Data",
+  subtitle: "Account sync recovery",
+  heading: "Sync repair",
+  description: "Re-check every list, task, session, and favorite against your account. Use this when data from another device is missing.",
+  repairLabel: "⟳ Repair data",
+  repairingLabel: "⟳ Repairing…",
+  signInHint: "Sign in to repair synced account data.",
+};
+
+export const SETTINGS_SECTION_STORAGE_KEY = "tp.settingsSection";
+export const SETTINGS_NAV_LABEL = "Settings sections";
+export const KEYBINDINGS_STORAGE_KEY = "tp.keybindings";
+export const KEYBOARD_SETTINGS_COPY = {
+  enableTitle: "Enable keyboard shortcuts",
+  disableTitle: "Disable keyboard shortcuts",
+  toggleLabel: "Toggle keyboard shortcuts",
+  shortcutsTitle: "Shortcuts",
+  shortcutsConfirmLabel: "Done",
+  shortcutsHtml: `
+    <div style="display:grid;grid-template-columns:auto auto;gap:6px 16px;font-size:13px">
+      <div><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd></div><div>Cycle focused region (Sidebar, main list, player)</div>
+      <div><kbd>j</kbd> / <kbd>k</kbd></div><div>Move highlight down / up</div>
+      <div><kbd>Enter</kbd></div><div>Select list / Play task</div>
+      <div><kbd>Space</kbd></div><div>Play/Pause active track</div>
+      <div><kbd>n</kbd></div><div>New task / New list / New session</div>
+      <div><kbd>/</kbd></div><div>Focus search</div>
+      <div><kbd>Escape</kbd></div><div>Clear focus / close modals</div>
+      <div><kbd>o</kbd></div><div>Go to Home</div>
+      <div><kbd>i</kbd></div><div>Go to Insights</div>
+      <div><kbd>s</kbd></div><div>Go to Settings</div>
+    </div>
+  `,
+};
+export const SETTINGS_SECTIONS = [
+  { key: "account", icon: "👤", color: "#509bf5", title: "Account", subtitle: "Sign-in & account" },
+  { key: "workflow", icon: "⏱️", color: "#2f9e8f", title: "Workflow", subtitle: "Timer configuration" },
+  { key: "notifications", icon: "🔔", color: "#f5a623", title: "Notifications", subtitle: "Sounds & alerts" },
+  { key: "keyboard", icon: "⌨️", color: "#8d67ab", title: "Keyboard", subtitle: "Shortcuts" },
+  { key: "data", icon: SETTINGS_DATA_COPY.icon, color: SETTINGS_DATA_COPY.color, title: SETTINGS_DATA_COPY.title, subtitle: SETTINGS_DATA_COPY.subtitle },
+  { key: "diagnostics", icon: "🛠️", color: "#9aa0a6", title: "Diagnostics", subtitle: "Backups & logs" },
+  { key: "about", icon: "ℹ️", color: "#6a6a6a", title: "About", subtitle: "Version & updates" },
+] as const;
+
+export const WORKFLOW_SETTINGS_COPY = {
+  configurationHint: "Choose a workflow below to configure it. Your active workflow only changes from the player.",
 };
 
 // Impact and Life Balance Calculations

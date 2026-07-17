@@ -25,8 +25,8 @@ use tauri_plugin_updater::UpdaterExt;
 use taskplayer_core::models::now_ms;
 use taskplayer_core::schedule::{due_schedule_events, ScheduleEvent, ScheduleEventKind};
 use taskplayer_core::{
-    task_total_ms, timer, AccountInfo, Db, RunState, Session, SessionConfig, Snapshot, Status,
-    Task, TaskList,
+    task_total_ms, timer, AccountInfo, Db, MusicFavoriteInput, RunState, Session, SessionConfig,
+    Snapshot, Status, Task, TaskList,
 };
 
 use constants::*;
@@ -130,6 +130,8 @@ pub fn run() {
             full_sync,
             open_main,
             set_music_playing,
+            toggle_music_favorite,
+            import_music_favorites,
             open_url,
             check_for_update,
             install_update

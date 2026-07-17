@@ -8,7 +8,7 @@ import { Overlays } from "./components/Overlays.jsx";
 import { AddSessionModal } from "./components/add-session-modal.jsx";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { SIDEBAR_COPY } from "./constants.jsx";
+import { INSIGHTS_ICON_SIZE, SIDEBAR_COPY } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
@@ -74,7 +74,7 @@ export function App() {
           <div className="side-fixed">
             <div id="pinnedNav">
               <div className={`list-item ${state.view === "insights" ? "active" : ""}`} onClick={() => actions.navigate({ view: "insights" })} title="Session history & analytics">
-                <span className="li-icon"><BarChart2 size={15} /></span>
+                <span className="li-icon"><BarChart2 size={INSIGHTS_ICON_SIZE} /></span>
                 <span className="li-label">Insights</span>
               </div>
             </div>
@@ -127,7 +127,7 @@ export function App() {
           LIFE_BALANCE_DAILY_CAP_MS={8 * 60 * 60 * 1000}
           dispatch={null}
         />
-        <Player state={state} setTrackDetailOpen={actions.setOpenTrackDetail} />
+        <Player />
         <Overlays
           state={state}
           list={helpers.list}

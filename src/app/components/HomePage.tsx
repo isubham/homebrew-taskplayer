@@ -3,7 +3,8 @@ import { fmtLong, fmtHM, LIFE_AREAS, timeAgo, IMPACT_TIERS } from "../utils.jsx"
 import { StickyHeader } from "./sticky-header.jsx";
 import { DailyJam } from "./daily-jam.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { RECENT_TASKS_SIZE } from "../constants.jsx";
+import { DAILY_JAM_COPY, RECENT_TASKS_SIZE } from "../constants.jsx";
+import { visibleDailyJamAttentionCount } from "../daily-jam-attention";
 
 const HOME_SVG = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -240,8 +241,10 @@ export function HomePage() {
   const hasAgainst = radarScores.some((s) => s.negPct > 0);
   const againstOn = state.lifeBalanceAgainst;
   const dailyEntries = helpers.dailyJamTasks();
-  const dailyDoneCount = dailyEntries.filter((entry) => entry.doneToday).length;
-  const dailyPct = dailyEntries.length ? Math.round((dailyDoneCount / dailyEntries.length) * 100) : 0;
+  const scheduledDailyEntries = dailyEntries.filter((entry) => entry.scheduledToday);
+  const dailyDoneCount = scheduledDailyEntries.filter((entry) => entry.doneToday).length;
+  const dailyPct = scheduledDailyEntries.length ? Math.round((dailyDoneCount / scheduledDailyEntries.length) * 100) : 0;
+  const dailyAttentionCount = visibleDailyJamAttentionCount(dailyEntries);
   const jump = helpers.recentTasks(RECENT_TASKS_SIZE);
 
   const todayMs = helpers.todayTotalMs();
@@ -338,12 +341,16 @@ export function HomePage() {
           </div>
         </section>
         <section className="home-section">
-          <h4>Daily Jam{dailyEntries.length ? <span className="home-sub-note">· {dailyDoneCount} of {dailyEntries.length} today</span> : ""}</h4>
+          <h4>
+            {DAILY_JAM_COPY.heading}
+            <span className="home-sub-note">· {DAILY_JAM_COPY.subtitle} · {DAILY_JAM_COPY.taskCount(dailyAttentionCount)}</span>
+          </h4>
           <div id="dailyJamRoot">
             <DailyJam
               state={state}
               entries={dailyEntries}
               doneCount={dailyDoneCount}
+              dailyTotal={scheduledDailyEntries.length}
               percent={dailyPct}
               taskSessions={helpers.taskSessions}
               taskTotal={helpers.taskTotal}

@@ -67,6 +67,7 @@ async function fetchSource(source: AudiusVibeSource) {
 
 export async function fetchVibeTracks(vibeKey: string): Promise<MusicTrack[]> {
   const vibe = MUSIC_VIBES[vibeKey] || MUSIC_VIBES.lofi;
+  if (vibe.sourceType === "favorites") return [];
   if (vibe.sourceType === "noise") return [LOCAL_NOISE_TRACK];
 
   try {

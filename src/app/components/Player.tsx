@@ -1,29 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { History } from "lucide-react";
+import { Heart, History, Music2, Pause, Play, SkipForward } from "lucide-react";
 import "./player.css";
 import { fmt, esc } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { useMusic } from "../../music.jsx";
-import { MUSIC_COPY, MUSIC_PLAYER_WIDTH, PLAYER_HISTORY_ICON_SIZE } from "../constants.jsx";
-import { MusicMarquee } from "./music-marquee.jsx";
+import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE } from "../constants.jsx";
 
-const M_NOTE_SVG = (
-  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M9 18V5l12-2v13" />
-    <circle cx="6" cy="18" r="3" />
-    <circle cx="18" cy="16" r="3" />
-  </svg>
-);
-
-const M_SKIP_SVG = (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
-    <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z" />
-  </svg>
-);
-
-export function Player({ setTrackDetailOpen }) {
+export function Player() {
   const { state, helpers, actions } = useApp();
-  const { musicState, next: musicNext, setGenre: musicSetGenre, GENRES } = useMusic();
+  const { musicState, play: musicPlay, pause: musicPause, next: musicNext, toggleFavorite: musicToggleFavorite, setGenre: musicSetGenre, GENRES } = useMusic();
 
   const [tick, setTick] = useState(0);
   const isTimerTicking = !!(state.S?.run?.activeTaskId && state.S?.run?.phase);
@@ -40,6 +25,12 @@ export function Player({ setTrackDetailOpen }) {
 
   const run = state.S.run;
   const config = state.S.config;
+  const musicBlockedByRemoteSession = Boolean(
+    run.activeTaskId
+    && run.phase
+    && run.deviceId
+    && run.deviceId !== state.S.deviceId,
+  );
   const running = run.activeTaskId && run.phase ? helpers.findTask(run.activeTaskId) : null;
   let task = running || (run.lastTaskId ? helpers.findTask(run.lastTaskId) : null);
   if (!running && task && task.completedAt) task = null;
@@ -131,7 +122,7 @@ export function Player({ setTrackDetailOpen }) {
         <>
           <div className="controls">
             {badge}
-            <button className="pmain" disabled style={{ opacity: 0.4 }}>▶</button>
+            <button className="pmain timer-toggle" disabled style={{ opacity: 0.4 }}>▶</button>
           </div>
           <div className="timeline">
             <span className="clock">0:00</span>
@@ -148,7 +139,7 @@ export function Player({ setTrackDetailOpen }) {
         <>
           <div className="controls">
             {badge}
-            <button className="pmain" onClick={() => actions.play(task.id)} title="Resume timer">▶</button>
+            <button className="pmain timer-toggle" onClick={() => actions.play(task.id)} title="Resume timer">▶</button>
             {historyButton(task.id)}
           </div>
           <div className="timeline">
@@ -232,7 +223,7 @@ export function Player({ setTrackDetailOpen }) {
       <>
         <div className="controls">
           {badge}
-          <button className="pmain" onClick={() => actions.play(task.id)} title="Stop &amp; log">⏸</button>
+          <button className="pmain timer-toggle" onClick={() => actions.play(task.id)} title="Stop &amp; log">⏸</button>
           {historyButton(task.id)}
         </div>
         <div className="timeline">
@@ -250,45 +241,72 @@ export function Player({ setTrackDetailOpen }) {
   const renderMusicPanel = () => {
     if (!musicState) return null;
     const stateName = musicState.loading ? "loading" : musicState.playing ? "playing" : "idle";
-    const name = musicState.loading ? "Finding tracks…" : (musicState.playing || (musicState.name && musicState.name !== "Focus music")) ? musicState.name : "Not playing";
+    const musicActive = musicState.enabled || musicState.playing;
+    const emptyFavorites = musicState.genre === MUSIC_FAVORITES_VIBE_KEY && !musicState.favoriteCount;
+    const toggleTitle = musicActive
+      ? MUSIC_COPY.pauseTitle
+      : musicBlockedByRemoteSession
+        ? MUSIC_COPY.remoteSessionTitle
+        : emptyFavorites ? MUSIC_COPY.noFavoritesTitle : MUSIC_COPY.playTitle;
+    const name = emptyFavorites
+      ? MUSIC_COPY.noFavoritesTitle
+      : musicState.loading ? "Finding tracks…" : (musicState.playing || (musicState.name && musicState.name !== "Focus music")) ? musicState.name : "Not playing";
     const urls = musicState.artworkUrls || [];
-
-    const handleGenreChange = (e) => {
-      musicSetGenre(e.target.value);
-    };
 
     return (
       <div className={`music ${stateName}`}>
-        {urls.length ? (
-          <img
-            className="m-note m-art"
-            src={urls[0]}
-            onClick={() => setTrackDetailOpen(true)}
-            title="Track details"
-            alt=""
-            style={{ cursor: "pointer" }}
-            onError={(e) => {
-              const idx = urls.indexOf(e.target.src);
-              if (idx !== -1 && idx + 1 < urls.length) {
-                e.target.src = urls[idx + 1];
-              } else {
-                e.target.style.display = "none";
-              }
-            }}
-          />
-        ) : (
-          <span className="m-note" onClick={() => setTrackDetailOpen(true)} title="Track details" style={{ cursor: "pointer" }}>{M_NOTE_SVG}</span>
-        )}
-        <MusicMarquee text={name} />
         <label className="m-genre" title={MUSIC_COPY.changeVibeTitle}>
           <span className="m-genre-current">{musicState.genreLabel}</span>
-          <select value={musicState.genre || ""} onChange={handleGenreChange} aria-label={MUSIC_COPY.changeVibeTitle}>
+          <select value={musicState.genre || ""} onChange={(event) => musicSetGenre(event.target.value)} aria-label={MUSIC_COPY.changeVibeTitle}>
             {Object.entries(GENRES).map(([key, value]) => (
               <option key={key} value={key}>{value.label}</option>
             ))}
           </select>
         </label>
-        <button className="m-next" title="Next track" onClick={musicNext}>{M_SKIP_SVG}</button>
+        <span className="m-track-title" title={musicState.title || name}>{musicState.title || name}</span>
+        <button
+          className="m-primary-toggle"
+          title={toggleTitle}
+          aria-label={toggleTitle}
+          onClick={musicActive ? musicPause : musicPlay}
+          disabled={!musicActive && (musicBlockedByRemoteSession || emptyFavorites)}
+        >
+          {musicActive
+            ? <Pause size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
+            : <Play size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />}
+        </button>
+        <button className="m-next" title={MUSIC_COPY.nextTitle} aria-label={MUSIC_COPY.nextTitle} onClick={musicNext}>
+          <SkipForward size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
+        </button>
+        <div className="m-artwork-control">
+          {urls.length ? (
+            <img
+              className="m-art"
+              src={urls[0]}
+              alt=""
+              onError={(e) => {
+                const idx = urls.indexOf(e.target.src);
+                if (idx !== -1 && idx + 1 < urls.length) {
+                  e.target.src = urls[idx + 1];
+                } else {
+                  e.target.style.display = "none";
+                }
+              }}
+            />
+          ) : (
+            <span className="m-art m-art-fallback"><Music2 size={MUSIC_MINI_CONTROL_ICON_SIZE} /></span>
+          )}
+          <button
+            className={`m-art-favorite${musicState.isFavorite ? " on" : ""}`}
+            title={musicState.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
+            aria-label={musicState.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
+            aria-pressed={musicState.isFavorite}
+            onClick={musicToggleFavorite}
+            disabled={!musicState.title}
+          >
+            <Heart size={MUSIC_MINI_CONTROL_ICON_SIZE} fill={musicState.isFavorite ? "currentColor" : "none"} />
+          </button>
+        </div>
       </div>
     );
   };

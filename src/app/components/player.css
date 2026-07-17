@@ -16,6 +16,7 @@
 .pbtn svg { display: block; }
 .pbtn:hover { color: #fff; }
 .pmain { width: 34px; height: 34px; border-radius: 50%; background: var(--green); color: #000; display: grid; place-items: center; font-size: 13px; border: none; cursor: pointer; }
+.pmain.timer-toggle{padding:var(--task-player-main-icon-offset) 0 0}
 .pmain:hover { background: var(--green-hi); transform: scale(1.06); }
 
 /* Recovery control for a legacy synced Pomodoro waiting state. New cycles
@@ -37,7 +38,8 @@
    few px past the filled span's own right edge — isn't clipped by the
    track underneath it. */
 .bar { flex: 1; height: 2px; border-radius: 1px; background: #3a3a3a; overflow: visible; }
-.bar > span { display: block; height: 100%; width: 0; background: var(--green); transition: width .3s linear; position: relative; }
+.bar > span { display: block; height: 100%; width: 0; background: var(--green); position: relative; }
+.bar.live > span { transition: width var(--session-progress-tick-duration) linear; }
 .bar.done > span { background: var(--green-hi); animation: pulse 1.2s ease-in-out infinite; }
 .bar.brk > span { background: var(--blue); }
 
@@ -57,42 +59,34 @@
 
 .right { min-width: 0; flex: 0 0 auto; display: flex; justify-content: flex-end; overflow: hidden; }
 
-/* Music mini-player — ultra-compact: no art tile, just a note glyph, a scrolling
-   title, a genre dot, and icon controls. Static — no hover-triggered effects. */
+/* Reference-style player: vibe above title, prominent play/pause and next,
+   then artwork with its favorite control overlaid in the corner. */
 .music {
-  display: flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-end;
-  padding: 6px 8px; border-radius: 10px;
+  display: grid; grid-template-columns: minmax(0,1fr) var(--music-primary-control-size) 24px var(--music-mini-art-size); grid-template-rows: 1fr 1fr;
+  grid-template-areas: "vibe toggle next art" "title toggle next art"; align-items: center; column-gap: 10px; width: 100%; min-width: 0;
+  height: var(--music-mini-height); padding: 4px 8px; border-radius: 10px;
 }
-
-/* note glyph — tints to green while playing instead of sitting in an art tile.
-   Swapped for the track's actual cover art (.m-art) whenever Audius gave us
-   one; falls back to this plain glyph otherwise (see renderMusic in render.js). */
-.m-note { flex: none; display: grid; place-items: center; color: var(--muted); }
-.m-note svg { display: block; }
-.music.playing .m-note { color: var(--green); }
-.m-note.m-art { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; background: var(--bg3); cursor: pointer; }
-
-/* Long titles use a measured, seamless Motion marquee inside the fixed-width
-   music region. Short titles remain still; reduced motion falls back to an
-   ellipsis instead of moving text. */
-.music-title { min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--muted); }
-.music-title-track { display: flex; width: max-content; }
-.music-title-copy { display: block; flex: none; overflow: hidden; text-overflow: ellipsis; }
-.music-title.scrolling .music-title-copy { overflow: visible; text-overflow: clip; }
-.music.playing .music-title { color: var(--green); }
-.music.loading .music-title { font-style: italic; }
+.m-artwork-control { grid-area: art; position: relative; width: var(--music-mini-art-size); height: var(--music-mini-art-size); overflow: hidden; border-radius: 7px; background: var(--bg3); }
+.m-art { width: 100%; height: 100%; display: block; object-fit: cover; }
+.m-art-fallback { display: grid; place-items: center; color: var(--muted); }
+.m-track-title { grid-area: title; align-self: start; margin-top: var(--music-label-center-offset); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--music-track-title-size); font-weight: var(--music-track-title-weight); color: var(--text); }
+.music.loading .m-track-title { font-style: italic; }
 
 @media (prefers-reduced-motion: reduce) {
-  .music-title-track { width: 100%; }
-  .music-title-copy { min-width: 0; max-width: 100%; }
+  .bar.live > span { transition: none; }
 }
 
-/* Current vibe stays visible while the native select remains the compact,
-   keyboard-accessible picker opened by the whole label. */
-.m-genre { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; max-width: var(--music-vibe-max-width); height: var(--player-icon-control-size); padding: 0 var(--music-vibe-padding-x); border-radius: 8px; background: var(--bg3); color: var(--muted); font-size: 11px; font-weight: 600; }
+/* Outlined vibe pill anchors the upper-left like the reference. */
+.m-genre { grid-area: vibe; position: relative; align-self: end; justify-self: start; margin-bottom: var(--music-label-center-offset); min-width: 0; max-width: var(--music-vibe-max-width); height: 19px; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--music-vibe-padding-x); border: .5px solid var(--green); border-radius: 10px; background: transparent; color: var(--green-hi); font-size: 9px; font-weight: 600; }
 .m-genre-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.m-genre select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; -webkit-appearance: none; appearance: none; border: 0; }
-.music.playing .m-genre { color: var(--green); }
+.m-genre select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; appearance: none; border: 0; }
 
-/* skip to next track — flat icon, points right */
-.m-next { background: none; border: none; color: var(--muted); cursor: pointer; flex: none; padding: 5px; border-radius: 6px; display: grid; place-items: center; }
+.m-primary-toggle { grid-area: toggle; width: var(--music-primary-control-size); height: var(--music-primary-control-size); display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--bg3); color: var(--text); cursor: pointer; }
+.m-primary-toggle:hover { background: var(--elev); }
+.m-primary-toggle:disabled { color: #666; cursor: default; }
+.m-primary-toggle svg, .m-next svg, .m-art-favorite svg { display: block; }
+.m-next { grid-area: next; width: 24px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; }
+.m-next:hover { background: rgba(255,255,255,.08); }
+.m-art-favorite { position: absolute; top: 4px; right: 4px; width: 25px; height: 25px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.68); color: var(--text); cursor: pointer; }
+.m-art-favorite:hover, .m-art-favorite.on { color: var(--green-hi); background: rgba(0,0,0,.82); }
+.m-art-favorite:disabled { color: #666; cursor: default; }

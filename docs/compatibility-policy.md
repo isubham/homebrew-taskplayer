@@ -45,6 +45,7 @@ Current capabilities:
 - `planner_windows_v1`
 - `life_area_priorities_v1`
 - `run_state_v1`
+- `music_favorites_v1`
 
 ## Serialization rules
 

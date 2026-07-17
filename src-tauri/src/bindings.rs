@@ -52,6 +52,8 @@ pub(crate) fn export_debug_bindings() {
                 full_sync,
                 open_main,
                 set_music_playing,
+                toggle_music_favorite,
+                import_music_favorites,
                 open_url,
                 check_for_update,
                 install_update
@@ -123,6 +125,8 @@ mod tests {
                 full_sync,
                 open_main,
                 set_music_playing,
+                toggle_music_favorite,
+                import_music_favorites,
                 open_url,
                 check_for_update,
                 install_update

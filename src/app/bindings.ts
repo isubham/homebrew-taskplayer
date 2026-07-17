@@ -113,6 +113,13 @@ export const commands = {
 	 *  The frontend calls this every time window.Music's own state changes.
 	 */
 	setMusicPlaying: (playing: boolean) => __TAURI_INVOKE<Snapshot>("set_music_playing", { playing }),
+	toggleMusicFavorite: (track: MusicFavoriteInput) => __TAURI_INVOKE<Snapshot>("toggle_music_favorite", { track }),
+	/**
+	 *  One-time bridge from the localStorage implementation. Existing SQLite
+	 *  rows, including tombstones synced from another device, always win so an
+	 *  old browser cache cannot resurrect a deliberately removed favorite.
+	 */
+	importMusicFavorites: (tracks: MusicFavoriteInput[]) => __TAURI_INVOKE<Snapshot>("import_music_favorites", { tracks }),
 	/**
 	 *  Opens a URL in the system's default browser — used by the in-app "View on
 	 *  Audius" button (a plain `<a href>` would just navigate the app's own
@@ -162,6 +169,34 @@ export type LifeAreaPriority = {
 	areaKey: string,
 	priorityRank: number,
 	updatedAt: number | null,
+};
+
+/**
+ *  A saved focus-music track. The complete playback metadata is stored so a
+ *  favorite remains playable without re-running an Audius search on another
+ *  device. Deletes are tombstoned for cross-device propagation.
+ */
+export type MusicFavorite = {
+	trackId: string,
+	title: string,
+	artist: string,
+	artworkUrls?: string[],
+	permalink: string | null,
+	sourceType: string,
+	updatedAt: number | null,
+};
+
+/**
+ *  Frontend payload for saving/importing a track; sync timestamps are always
+ *  assigned by the database boundary rather than accepted from the webview.
+ */
+export type MusicFavoriteInput = {
+	trackId: string,
+	title: string,
+	artist: string,
+	artworkUrls?: string[],
+	permalink: string | null,
+	sourceType: string,
 };
 
 export type RunState = {
@@ -290,6 +325,7 @@ export type Snapshot = {
 	lifeAreaPriorities?: LifeAreaPriority[],
 	tasks: Task[],
 	sessions: Session[],
+	musicFavorites?: MusicFavorite[],
 	config: SessionConfig,
 	run: RunState,
 	/**

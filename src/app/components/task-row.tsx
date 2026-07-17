@@ -82,7 +82,7 @@ export function TaskTableHead() {
   );
 }
 
-export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal, attentionTaskIds, context = "list", isDragDisabled = false }) {
+export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal, attentionTaskIds, attentionReason, context = "list", isDragDisabled = false }) {
   const { actions } = useApp();
   const run = state.S.run;
   const owner = listItem || { id: task.listId, name: "Unsorted", lifeArea: null };
@@ -181,8 +181,8 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
           {task.name}{task.depth ? <span className={`tag ${task.depth}`}>{task.depth}</span> : null}
           <JewelPayoutTemplate payout={payout} areaColor={areaColor} daily={daily} />
         </div>
-        {inDailyJam ? <div className="task-row-list-name">{owner.name}</div> : null}
-        {attention ? (
+        {inDailyJam ? <div className="task-row-list-name">{attentionReason || owner.name}</div> : null}
+        {attention && !inDailyJam ? (
           <div className="task-attention-cue" title="Deadline cue; derived from deadline, impact, and recent activity">
             <span className="task-deadline-track" role="img" aria-label={`${deadlinePct}% of the final week elapsed`}>
               <span style={{ width: `${deadlinePct}%` }} />

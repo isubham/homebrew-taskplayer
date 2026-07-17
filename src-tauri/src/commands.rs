@@ -1,6 +1,7 @@
 use super::*;
 
 mod lists;
+mod music;
 mod playback;
 mod schedule;
 mod sessions;
@@ -9,6 +10,7 @@ mod system;
 mod tasks;
 
 pub(crate) use lists::*;
+pub(crate) use music::*;
 pub(crate) use playback::*;
 pub(crate) use schedule::*;
 pub(crate) use sessions::*;

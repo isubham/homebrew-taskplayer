@@ -16,6 +16,8 @@
 /* Track-details modal — same component as the task-detail dialog above, just
    narrower since there's a lot less to show (art, title, artist, one link). */
 .track-modal{width:min(360px,92vw)}
+.track-modal .body{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.track-favorite{display:inline-flex;align-items:center;gap:7px}
 /* real cover-art <img> (vs. the emoji/gradient fallback tile) needs
    object-fit — the tile's sizing/radius is otherwise identical */
 .modal .top img.art{object-fit:cover;background:var(--bg3)}
@@ -264,7 +266,6 @@
 .task-detail-sessions .sh{margin-top:18px}
 
 @media (max-width: 840px){
-  .daily-jam-grid{grid-template-columns:minmax(0,1fr)}
   .list-hero{gap:18px;padding:24px}
   .list-hero .list-cover{width:126px;height:126px;font-size:48px}
   .list-hero .info h1{font-size:40px}

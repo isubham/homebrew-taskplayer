@@ -8,7 +8,7 @@ export type AudiusVibeSource = {
 
 export type MusicVibe = {
   label: string;
-  sourceType: "audius" | "noise";
+  sourceType: "audius" | "noise" | "favorites";
   sources: AudiusVibeSource[];
   preferredMoods?: string[];
 };
@@ -16,6 +16,11 @@ export type MusicVibe = {
 const VOCAL_EXCLUSIONS = [" vocal", "feat.", " feat "];
 
 export const MUSIC_VIBES: Record<string, MusicVibe> = {
+  favorites: {
+    label: "♥ Favorites",
+    sourceType: "favorites",
+    sources: [],
+  },
   noise: {
     label: "📻 Noise",
     sourceType: "noise",

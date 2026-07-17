@@ -1,6 +1,16 @@
-/* Settings page (rendered in main area) */
-.settings-page{padding:16px 32px 48px;max-width:640px}
-.settings-page section{margin-bottom:28px}
+/* Settings page: persistent section index beside one focused detail pane. */
+.settings-shell{display:grid;grid-template-columns:210px minmax(0,640px);align-items:start;gap:32px;padding:20px 32px 48px}
+.settings-nav{position:sticky;top:60px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.settings-nav-item{width:100%;min-width:0;display:flex;align-items:center;gap:10px;padding:8px;border:0;border-radius:9px;background:transparent;color:var(--muted);text-align:left;cursor:pointer}
+.settings-nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.settings-nav-item.active{background:var(--bg3);color:var(--text)}
+.settings-nav-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:7px;font-size:15px}
+.settings-nav-copy{min-width:0;display:flex;flex-direction:column;gap:1px}
+.settings-nav-copy strong,.settings-nav-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-nav-copy strong{font-size:13px;font-weight:650;color:inherit}
+.settings-nav-copy small{font-size:10px;color:var(--muted)}
+.settings-page{min-width:0;max-width:640px}
+.settings-page section{margin:0}
 .settings-page h4{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
 /* Settings-as-albums: each top-level section gets an icon-tile + name +
    subtitle header, the same visual language as a task list's album grouping
@@ -13,7 +23,19 @@
 .settings-page .salb-meta{flex:1;min-width:0}
 .settings-page .salb-name{font-weight:700;font-size:15px;color:#fff}
 .settings-page .salb-sub{color:var(--muted);font-size:12px;margin-top:1px}
+@media (max-width:850px){
+  .settings-shell{grid-template-columns:minmax(0,1fr);gap:20px;padding:16px 24px 48px}
+  .settings-nav{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .settings-nav-item{width:auto;min-width:150px;flex:none}
+}
 .setrow{display:flex;gap:12px;margin:10px 0 4px;flex-wrap:wrap}
+.settings-keyboard-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:10px 0 4px}
+.settings-switch{position:relative;width:var(--settings-switch-width);height:var(--settings-switch-height);flex:none;padding:0;border:1px solid #555;border-radius:999px;background:var(--bg3);cursor:pointer;transition:background .16s ease,border-color .16s ease}
+.settings-switch:hover{border-color:var(--muted)}
+.settings-switch:focus-visible{outline:2px solid var(--green-hi);outline-offset:2px}
+.settings-switch.on{border-color:var(--green);background:var(--green)}
+.settings-switch-knob{position:absolute;top:var(--settings-switch-knob-offset);left:var(--settings-switch-knob-offset);width:var(--settings-switch-knob-size);height:var(--settings-switch-knob-size);border-radius:50%;background:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .16s ease}
+.settings-switch.on .settings-switch-knob{transform:translateX(var(--settings-switch-knob-travel))}
 .acct-row{display:flex;align-items:center;gap:12px}
 .acct-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none}
 .acct-avatar-fallback{display:flex;align-items:center;justify-content:center;background:var(--green);color:#fff;font-weight:700}
@@ -221,13 +243,15 @@
 .daily-jam-bar{position:relative;height:6px;border-radius:3px;background:#2c2c2c;overflow:hidden;margin:0 0 14px}
 .daily-jam-bar-fill{display:block;height:100%;background:var(--green-hi)}
 .daily-jam-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.daily-jam-card{min-height:244px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--bg2);border-radius:8px;overflow:hidden}
+@media (min-width:1320px){.daily-jam-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.daily-jam-card{min-height:244px;box-sizing:border-box;display:flex;flex-direction:column;padding:var(--daily-jam-card-padding);background:var(--bg2);background:color-mix(in srgb,var(--daily-area) var(--daily-jam-card-tint-strength),var(--bg2));border-radius:8px;overflow:hidden}
 .daily-jam-card-head{display:flex;align-items:center;gap:7px;min-height:38px;padding:8px 12px 5px;color:var(--muted)}
 .daily-jam-card-head h5{min-width:0;margin:0;flex:1;color:inherit;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .daily-jam-area-icon{display:flex;align-items:center;color:var(--daily-area);flex:none}
 .daily-jam-count{font-size:10px;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
 .daily-jam-area-bar{height:3px;margin:0 12px 5px;background:#2c2c2c;border-radius:2px;overflow:hidden}
 .daily-jam-area-bar span{display:block;height:100%;background:var(--daily-area);transition:width .25s ease}
+.daily-jam-area-bar-empty{visibility:hidden}
 .daily-jam-task-list{padding:0 0 7px;overflow:hidden}
 table.daily-jam-rows{width:100%;max-width:none;margin:0;table-layout:fixed}
 .daily-jam-rows thead th{padding:6px 9px;font-size:9px}
@@ -241,12 +265,6 @@ table.daily-jam-rows{width:100%;max-width:none;margin:0;table-layout:fixed}
 .daily-jam-rows tr.daily-done:hover,.daily-jam-rows tr.playing{opacity:1}
 .task-row-list-name{margin-top:2px;color:var(--muted);font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .daily-jam-card-empty{padding:14px 12px;color:#666;font-size:12px}
-.daily-jam-more{border-top:1px solid var(--line);margin:4px 12px 0}
-.daily-jam-more summary{padding:8px 0 3px;color:var(--blue);font-size:11px;cursor:pointer;list-style:none}
-.daily-jam-more summary::-webkit-details-marker{display:none}
-.daily-jam-more .more-open{display:none}
-.daily-jam-more[open] .more-closed{display:none}
-.daily-jam-more[open] .more-open{display:inline}
 .pill{background:none;border:1px solid #555;color:#fff;padding:8px 15px;border-radius:20px;font-weight:600;cursor:pointer}
 .pill:hover{border-color:#fff}
 .pill.muted{color:var(--muted)}

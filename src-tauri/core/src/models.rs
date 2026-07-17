@@ -65,6 +65,40 @@ pub struct LifeAreaPriority {
     pub updated_at: i64,
 }
 
+/// A saved focus-music track. The complete playback metadata is stored so a
+/// favorite remains playable without re-running an Audius search on another
+/// device. Deletes are tombstoned for cross-device propagation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MusicFavorite {
+    pub track_id: String,
+    pub title: String,
+    pub artist: String,
+    #[serde(default)]
+    pub artwork_urls: Vec<String>,
+    pub permalink: Option<String>,
+    pub source_type: String,
+    #[specta(type = f64)]
+    pub updated_at: i64,
+    #[serde(skip)]
+    #[specta(type = Option<i32>)]
+    pub deleted_at: Option<i64>,
+}
+
+/// Frontend payload for saving/importing a track; sync timestamps are always
+/// assigned by the database boundary rather than accepted from the webview.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MusicFavoriteInput {
+    pub track_id: String,
+    pub title: String,
+    pub artist: String,
+    #[serde(default)]
+    pub artwork_urls: Vec<String>,
+    pub permalink: Option<String>,
+    pub source_type: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskList {
@@ -401,6 +435,8 @@ pub struct Snapshot {
     pub life_area_priorities: Vec<LifeAreaPriority>,
     pub tasks: Vec<Task>,
     pub sessions: Vec<Session>,
+    #[serde(default)]
+    pub music_favorites: Vec<MusicFavorite>,
     pub config: SessionConfig,
     pub run: RunState,
     /// This device's own stable id (`Db::get_device_id()`) — the frontend

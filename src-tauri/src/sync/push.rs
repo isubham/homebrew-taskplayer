@@ -6,6 +6,9 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
     let priorities = db
         .life_area_priorities_dirty_since(cursor)
         .map_err(|e| e.to_string())?;
+    let music_favorites = db
+        .music_favorites_dirty_since(cursor)
+        .map_err(|e| e.to_string())?;
     let now = now_ms();
 
     upsert(
@@ -38,6 +41,14 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
         &priorities
             .iter()
             .map(|p| RemoteLifeAreaPriority::from_local(p, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "music_favorites",
+        &music_favorites
+            .iter()
+            .map(|favorite| RemoteMusicFavorite::from_local(favorite, user_id))
             .collect::<Vec<_>>(),
     )?;
 

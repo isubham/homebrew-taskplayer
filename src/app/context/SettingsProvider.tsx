@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 
-import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from "../constants.jsx";
+import { KEYBINDINGS_STORAGE_KEY, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from "../constants.jsx";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -18,8 +18,8 @@ export function SettingsProvider({ children }) {
   const [lifeBalanceAgainst, setLifeBalanceAgainst] = useState(() => {
     return (localStorage.getItem("tp.lifeAgainst") ?? "0") === "1";
   });
-  const [keybindings, setKeybindings] = useState(() => {
-    return (localStorage.getItem("tp.keybindings") ?? "1") === "1";
+  const [keybindings, setKeybindingsState] = useState(() => {
+    return (localStorage.getItem(KEYBINDINGS_STORAGE_KEY) ?? "1") === "1";
   });
   const [insightsPeriod, setInsightsPeriod] = useState("7d");
   const [sessionGroupsCollapsed, setSessionGroupsCollapsed] = useState({});
@@ -47,6 +47,16 @@ export function SettingsProvider({ children }) {
     }).catch(console.error);
   }, []);
 
+  const setKeybindings = useCallback((nextValue) => {
+    setKeybindingsState((current) => {
+      const next = typeof nextValue === "function" ? !!nextValue(current) : !!nextValue;
+      localStorage.setItem(KEYBINDINGS_STORAGE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }, []);
+
+  const toggleKeybindings = useCallback(() => setKeybindings((current) => !current), [setKeybindings]);
+
   // Load sound options once
   useEffect(() => {
     invoke("sound_options").then((res) => {
@@ -61,7 +71,7 @@ export function SettingsProvider({ children }) {
         sessionGroupsCollapsed, zoomLevel, soundOptions
       },
       actions: {
-        setSidebarCollapsed, setLifeBalanceAgainst, setKeybindings,
+        setSidebarCollapsed, setLifeBalanceAgainst, setKeybindings, toggleKeybindings,
         setInsightsPeriod, setSessionGroupsCollapsed, setZoom
       }
     }}>

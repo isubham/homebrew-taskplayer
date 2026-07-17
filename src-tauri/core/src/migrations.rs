@@ -294,6 +294,37 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "016_music_favorites",
+        run: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS music_favorites(
+                   track_id TEXT PRIMARY KEY,
+                   title TEXT NOT NULL,
+                   artist TEXT NOT NULL,
+                   artwork_urls TEXT NOT NULL DEFAULT '[]',
+                   permalink TEXT,
+                   source_type TEXT NOT NULL,
+                   updated_at INTEGER NOT NULL,
+                   deleted_at INTEGER
+                 );
+                 CREATE INDEX IF NOT EXISTS idx_music_favorites_updated
+                   ON music_favorites(updated_at);",
+            )?;
+            // An older client may have moved its pull cursor past favorites
+            // created remotely by a newer device. Preserve a still-pending
+            // planner backfill when upgrading several schema versions at once.
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES('sync_schema_backfill','music_favorites_v1')
+                 ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN value='planner_v1' THEN 'planner_music_v1'
+                   ELSE 'music_favorites_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -397,7 +428,7 @@ mod compatibility_tests {
                 |row| row.get::<_, String>(0)
             )
             .unwrap(),
-            "planner_v1"
+            "planner_music_v1"
         );
     }
 

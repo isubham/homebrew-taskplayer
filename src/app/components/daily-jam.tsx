@@ -1,7 +1,8 @@
 import React from "react";
 import { LIFE_AREAS } from "../utils.jsx";
 import { TaskRow, TaskTableHead } from "./task-row.jsx";
-import { TASK_REPEAT_COPY, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { DAILY_JAM_COPY, DAILY_JAM_TASK_LIMIT, TASK_REPEAT_COPY, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { LifeAreaIcon } from "./life-area-icon";
 
 const getGroups = (state, entries) => {
   const rankByArea = new Map((state.S.lifeAreaPriorities || []).map((item) => [item.areaKey, item.priorityRank]));
@@ -35,6 +36,7 @@ const TaskTable = ({ entries, startIndex, context, withHead = false }) => (
           taskSessions={context.taskSessions}
           taskTotal={context.taskTotal}
           attentionTaskIds={context.attentionTaskIds}
+          attentionReason={entry.attentionReason}
           context="dailyJam"
         />
       ))}
@@ -42,56 +44,46 @@ const TaskTable = ({ entries, startIndex, context, withHead = false }) => (
   </table>
 );
 
-const folderIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-  </svg>
-);
-
 const Card = ({ group, context }) => {
-  const done = group.entries.filter((entry) => entry.doneToday).length;
-  const total = group.entries.length;
+  const pending = group.entries.filter((entry) => !entry.doneToday || entry.active);
+  const dailyEntries = group.entries.filter((entry) => entry.scheduledToday);
+  const done = dailyEntries.filter((entry) => entry.doneToday).length;
+  const total = dailyEntries.length;
   const percent = total ? Math.round((done / total) * 100) : 0;
-  const visible = group.entries.slice(0, 4);
-  const remaining = group.entries.slice(4);
+  const visible = pending.slice(0, DAILY_JAM_TASK_LIMIT);
 
   return (
     <article className="daily-jam-card" style={{ "--daily-area": group.color }}>
       <header className="daily-jam-card-head">
-        <span className="daily-jam-area-icon">{folderIcon()}</span>
+        <span className="daily-jam-area-icon"><LifeAreaIcon areaKey={group.key} /></span>
         <h5>{group.label}</h5>
-        <span className="daily-jam-count">{total ? `${done} of ${total}` : "No tasks"}</span>
+        <span className="daily-jam-count">{DAILY_JAM_COPY.taskCount(visible.length)}</span>
       </header>
-      <div className="daily-jam-area-bar" aria-label={`${done} of ${total} complete today`}>
-        <span style={{ width: `${percent}%` }} />
-      </div>
+      {total ? (
+        <div className="daily-jam-area-bar" aria-label={`${done} of ${total} scheduled tasks complete today`}>
+          <span style={{ width: `${percent}%` }} />
+        </div>
+      ) : <div className="daily-jam-area-bar daily-jam-area-bar-empty" aria-hidden="true" />}
       <div className="daily-jam-task-list">
         {visible.length ? (
           <TaskTable entries={visible} startIndex={0} context={context} withHead={true} />
         ) : (
           <div className="daily-jam-card-empty">{TASK_REPEAT_COPY.dailyJamEmpty}</div>
         )}
-        {remaining.length ? (
-          <details className="daily-jam-more">
-            <summary>
-              <span className="more-closed">Show {remaining.length} more</span>
-              <span className="more-open">Show fewer</span>
-            </summary>
-            <TaskTable entries={remaining} startIndex={visible.length} context={context} />
-          </details>
-        ) : null}
       </div>
     </article>
   );
 };
 
-export function DailyJam({ state, entries, doneCount, percent, taskSessions, taskTotal, attentionTaskIds }) {
+export function DailyJam({ state, entries, doneCount, dailyTotal, percent, taskSessions, taskTotal, attentionTaskIds }) {
   const context = { state, taskSessions, taskTotal, attentionTaskIds };
   return (
     <>
-      <div className="daily-jam-bar" aria-label={`${doneCount} of ${entries.length} complete today`}>
-        <div className="daily-jam-bar-fill" style={{ width: `${percent}%` }} />
-      </div>
+      {dailyTotal ? (
+        <div className="daily-jam-bar" aria-label={`${doneCount} of ${dailyTotal} scheduled tasks complete today`}>
+          <div className="daily-jam-bar-fill" style={{ width: `${percent}%` }} />
+        </div>
+      ) : null}
       <div className="daily-jam-grid">
         {getGroups(state, entries).map((group) => (
           <Card key={group.key} group={group} context={context} />

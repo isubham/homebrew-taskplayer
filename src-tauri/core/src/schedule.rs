@@ -101,7 +101,10 @@ pub fn due_schedule_events(
     }
     let mut events = Vec::new();
 
-    for task in tasks.iter().filter(|task| task.cadence.as_deref() == Some("daily")) {
+    for task in tasks
+        .iter()
+        .filter(|task| task.cadence.as_deref() == Some("daily"))
+    {
         for window in &task.daily_windows {
             let (start, end) = window_event_minutes(window);
             if let Some(event) = event_for_window(

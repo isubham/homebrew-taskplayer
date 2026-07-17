@@ -5,7 +5,7 @@ import { useSettings } from "./SettingsProvider.jsx";
 import { useUI } from "./UIProvider.jsx";
 import { usePlayback } from "./PlaybackProvider.jsx";
 import { useDatabase } from "./DatabaseProvider.jsx";
-import { ZOOM_STEP } from "../constants.jsx";
+import { KEYBOARD_SETTINGS_COPY, ZOOM_STEP } from "../constants.jsx";
 
 const KeyboardContext = createContext(null);
 
@@ -15,7 +15,7 @@ export function useKeyboard() {
 
 export function KeyboardProvider({ children }) {
   const { S, helpers: { list, findTask } } = useCore();
-  const { state: { view, activeListId }, actions: { navigate, goBack, goForward, selectList } } = useRoute();
+  const { state: { view, activeListId }, actions: { navigate, goBack, goForward, goHome, selectList } } = useRoute();
   const { state: { keybindings, zoomLevel }, actions: { setSidebarCollapsed, setZoom } } = useSettings();
   const { state: { dialog, lyricsId }, actions: { setLyricsId, uiNote } } = useUI();
   const { actions: { play } } = usePlayback();
@@ -186,6 +186,7 @@ export function KeyboardProvider({ children }) {
       }
 
       switch (event.key) {
+        case "o": event.preventDefault(); clearFocus(); return goHome();
         case "i": event.preventDefault(); clearFocus(); return navigate({ view: "insights" });
         case "s": event.preventDefault(); clearFocus(); return navigate({ view: "settings" });
         case "j": event.preventDefault(); return moveRowFocus(1);
@@ -209,19 +210,13 @@ export function KeyboardProvider({ children }) {
           if (search) { search.focus(); search.select?.(); }
           return;
         }
-        case "?": event.preventDefault(); return uiNote("Shortcuts", `
-          <div style="display:grid;grid-template-columns:auto auto;gap:6px 16px;font-size:13px">
-            <div><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd></div><div>Cycle focused region (Sidebar, main list, player)</div>
-            <div><kbd>j</kbd> / <kbd>k</kbd></div><div>Move highlight down / up</div>
-            <div><kbd>Enter</kbd></div><div>Select list / Play task</div>
-            <div><kbd>Space</kbd></div><div>Play/Pause active track</div>
-            <div><kbd>n</kbd></div><div>New task / New list / New session</div>
-            <div><kbd>/</kbd></div><div>Focus search</div>
-            <div><kbd>Escape</kbd></div><div>Clear focus / close modals</div>
-            <div><kbd>i</kbd></div><div>Go to Insights</div>
-            <div><kbd>s</kbd></div><div>Go to Settings</div>
-          </div>
-        `);
+        case "?":
+          event.preventDefault();
+          return uiNote(
+            KEYBOARD_SETTINGS_COPY.shortcutsTitle,
+            KEYBOARD_SETTINGS_COPY.shortcutsHtml,
+            KEYBOARD_SETTINGS_COPY.shortcutsConfirmLabel,
+          );
         default: return;
       }
     };
@@ -230,7 +225,7 @@ export function KeyboardProvider({ children }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [
     keybindings, kbRegion, kbIdx, S, lyricsId, dialog, view, zoomLevel, 
-    goBack, goForward, setZoom, navigate, play, addList, addTask, addSession, uiNote,
+    goBack, goForward, goHome, setZoom, navigate, play, addList, addTask, addSession, uiNote,
     setSidebarCollapsed, selectList
   ]);
 

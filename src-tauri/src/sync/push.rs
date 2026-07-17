@@ -79,5 +79,14 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
         )?;
     }
 
+    let user_settings = db.get_user_settings();
+    if user_settings.updated_at > cursor {
+        upsert(
+            access_token,
+            "user_settings",
+            &[RemoteUserSettings::from_local(&user_settings, user_id)],
+        )?;
+    }
+
     db.set_push_cursor(now).map_err(|e| e.to_string())
 }

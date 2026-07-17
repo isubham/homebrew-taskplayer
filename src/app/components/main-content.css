@@ -36,6 +36,8 @@
 .settings-switch.on{border-color:var(--green);background:var(--green)}
 .settings-switch-knob{position:absolute;top:var(--settings-switch-knob-offset);left:var(--settings-switch-knob-offset);width:var(--settings-switch-knob-size);height:var(--settings-switch-knob-size);border-radius:50%;background:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .16s ease}
 .settings-switch.on .settings-switch-knob{transform:translateX(var(--settings-switch-knob-travel))}
+.settings-switch:disabled{opacity:.45;cursor:not-allowed}
+.audio-interruption-setting{margin-top:28px}
 .acct-row{display:flex;align-items:center;gap:12px}
 .acct-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none}
 .acct-avatar-fallback{display:flex;align-items:center;justify-content:center;background:var(--green);color:#fff;font-weight:700}

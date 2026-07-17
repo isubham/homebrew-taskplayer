@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { esc, fmt, toDateInputValue, jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { DEPTH_ICONS, CADENCE_ICONS, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { DEPTH_ICONS, CADENCE_ICONS, SESSION_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { JewelDots } from "./jewel-dots.jsx";
 import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
+import { sessionRangeLabel } from "../session-time";
 
 const DETAIL_PENCIL_ICON = (
   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -201,9 +202,9 @@ export function TaskDetailModal() {
               )}
 
               {entries.length ? (
-                entries.map((entry, idx) => (
-                  <div key={idx} className={`entry ${entry.live ? "live" : ""}`}>
-                    <span className="when">{helpers.todayTotalMs ? whenLabel(entry.start) : ""}{entry.live ? " · recording…" : ""}</span>
+                entries.map((entry) => (
+                  <div key={entry.id || "live-session"} className={`entry ${entry.live ? "live" : ""}`}>
+                    <span className="when">{sessionRangeLabel(entry.start, entry.end)}{entry.live ? ` · ${SESSION_COPY.recordingLabel}` : ""}</span>
                     <span className="dur">{fmt((entry.end ?? now) - entry.start)}</span>
                     {entry.live ? (
                       <span className="entry-del" />
@@ -230,14 +231,4 @@ export function TaskDetailModal() {
         </div>
     </AnimatedModal>
   );
-}
-
-function whenLabel(timeMs) {
-  const diff = Date.now() - timeMs;
-  if (diff < 60000) return "Just now";
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return new Date(timeMs).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }

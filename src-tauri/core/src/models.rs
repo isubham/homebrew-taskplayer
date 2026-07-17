@@ -99,6 +99,37 @@ pub struct MusicFavoriteInput {
     pub source_type: String,
 }
 
+/// Cross-device preferences that are not part of timer/session configuration.
+/// The singleton row is last-write-wins, matching `SessionConfig`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UserSettings {
+    #[serde(default = "default_pause_for_other_audio")]
+    pub pause_for_other_audio: bool,
+    #[serde(default)]
+    pub take_over_apple_music: bool,
+    #[serde(default)]
+    pub take_over_music_players: bool,
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub updated_at: i64,
+}
+
+fn default_pause_for_other_audio() -> bool {
+    true
+}
+
+impl Default for UserSettings {
+    fn default() -> Self {
+        Self {
+            pause_for_other_audio: default_pause_for_other_audio(),
+            take_over_apple_music: false,
+            take_over_music_players: false,
+            updated_at: 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskList {
@@ -437,6 +468,8 @@ pub struct Snapshot {
     pub sessions: Vec<Session>,
     #[serde(default)]
     pub music_favorites: Vec<MusicFavorite>,
+    #[serde(default)]
+    pub user_settings: UserSettings,
     pub config: SessionConfig,
     pub run: RunState,
     /// This device's own stable id (`Db::get_device_id()`) — the frontend

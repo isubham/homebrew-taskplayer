@@ -242,9 +242,12 @@ export function Player() {
     if (!musicState) return null;
     const stateName = musicState.loading ? "loading" : musicState.playing ? "playing" : "idle";
     const musicActive = musicState.enabled || musicState.playing;
+    const showPause = musicActive && !musicState.interruptionActive;
     const emptyFavorites = musicState.genre === MUSIC_FAVORITES_VIBE_KEY && !musicState.favoriteCount;
-    const toggleTitle = musicActive
+    const toggleTitle = showPause
       ? MUSIC_COPY.pauseTitle
+      : musicState.interruptionActive
+        ? MUSIC_COPY.resumeOverInterruptionTitle
       : musicBlockedByRemoteSession
         ? MUSIC_COPY.remoteSessionTitle
         : emptyFavorites ? MUSIC_COPY.noFavoritesTitle : MUSIC_COPY.playTitle;
@@ -252,6 +255,10 @@ export function Player() {
       ? MUSIC_COPY.noFavoritesTitle
       : musicState.loading ? "Finding tracks…" : (musicState.playing || (musicState.name && musicState.name !== "Focus music")) ? musicState.name : "Not playing";
     const urls = musicState.artworkUrls || [];
+    const interruptionLabel = musicState.interruptionKind === "meeting"
+      ? MUSIC_COPY.pausedForMeeting
+      : MUSIC_COPY.pausedForMedia;
+    const title = musicState.interruptionActive ? interruptionLabel : (musicState.title || name);
 
     return (
       <div className={`music ${stateName}`}>
@@ -263,15 +270,15 @@ export function Player() {
             ))}
           </select>
         </label>
-        <span className="m-track-title" title={musicState.title || name}>{musicState.title || name}</span>
+        <span className={`m-track-title${musicState.interruptionActive ? " interrupted" : ""}`} title={title}>{title}</span>
         <button
           className="m-primary-toggle"
           title={toggleTitle}
           aria-label={toggleTitle}
-          onClick={musicActive ? musicPause : musicPlay}
+          onClick={showPause ? musicPause : musicPlay}
           disabled={!musicActive && (musicBlockedByRemoteSession || emptyFavorites)}
         >
-          {musicActive
+          {showPause
             ? <Pause size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
             : <Play size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />}
         </button>

@@ -35,6 +35,8 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
         sync_status: Mutex::new(SyncStatus::default()),
         tray_state: Mutex::new(TrayState::default()),
         music_playing: Mutex::new(false),
+        audio_interruption_monitor: Mutex::new(AudioInterruptionMonitor::default()),
+        media_takeover: Mutex::new(MediaTakeover::default()),
         pending_update: Mutex::new(None),
         last_notified_update_version: Mutex::new(None),
         data_dir: dir.clone(),

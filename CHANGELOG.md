@@ -6,10 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 [Semantic Versioning](https://semver.org/). Add new work under **Unreleased**; during a release,
 move those entries into a dated version section.
 
-## Unreleased
+## 0.9.2 - 2026-07-17
 
 ### Changed
 
+- Fixed Add/Edit Session crashing during its closing animation after Save or Cancel cleared the
+  active dialog state.
+- Task detail session rows now show explicit start and end times. Add Session and Edit Session use
+  validated 24-hour `HH:mm` fields on one row beneath the date, reject equal times, and support
+  overnight ranges by treating an earlier end time as the next day.
+- Focus music now fades between silence and full app volume over two seconds when normally
+  starting or stopping. Detected external-media and meeting interruptions stop without fading,
+  and macOS system volume is unchanged.
+- External audio detection now uses a reliable 500 ms Core Audio process-state scan after native
+  process-property events proved inconsistent across media apps. Focus music pauses on the first
+  detected scan and waits for one quiet second before resuming.
+- Fixed a Spotify takeover loop where Spotify's paused-but-still-active Core Audio stream could
+  make TaskPlayer restore Spotify, briefly resume focus music, and repeat. Already-paused player
+  state now preserves an existing ownership lease without issuing Play.
 - Daily Jam is now a per–Life Area attention queue. It shows up to three unfinished tasks ranked
   by active/scheduled-now state, deadline proximity, today's repeating schedule, impact, and
   least-recent touch, with a quiet reason for each selection. Completed routines leave the queue
@@ -18,6 +32,16 @@ move those entries into a dated version section.
 
 ### Added
 
+- Added a default-on focus-music interruption monitor on supported macOS versions, with an
+  explicit opt-out synced through the signed-in account's new `user_settings` record.
+  Other app audio or microphone activity pauses music within one scan and resumes it after one
+  quiet second, while manual pause/play intent remains authoritative. Detection uses
+  Core Audio process state only and never records, stores, or transmits audio.
+- Added an opt-in Apple Music and Spotify takeover mode. While TaskPlayer focus music is active,
+  it can pause either supported player and later resume only playback for which it holds a local
+  ownership lease. Meetings and unsupported media players retain the normal yield behavior.
+- Added a dedicated Focus Music settings section containing interruption and player-takeover
+  controls instead of mixing playback coordination into Notifications.
 - Added favorite songs with heart controls in the mini-player and track detail. Favorites persist
   offline, sync across signed-in devices, and can be replayed later through the Favorites vibe.
 - Added weekday-specific repeating tasks, including an explicit Every day mode and combinations
@@ -140,6 +164,24 @@ move those entries into a dated version section.
 - Lit task pages now render inside a dedicated component host, preventing Home, Insights, or
   Settings markup from surviving or replacing a sidebar navigation result.
 
+
+## 0.9.1 - 2026-07-16
+
+### Added
+
+- Music curation increased
+- Added repetition as extension of daily
+
+### Changed
+
+- cleanup
+
+
+### Fixed
+- N/A
+
+
+
 ## 0.8.1 - 2026-07-15
 
 ### Changed
@@ -205,22 +247,6 @@ move those entries into a dated version section.
 
 ### Fixed
 - N/A
-
-## 0.9.1 - 2026-07-16
-
-### Added
-
-- Music curation increased
-- Added repetition as extension of daily
-
-### Changed
-
-- cleanup
-
-
-### Fixed
-- N/A
-
 
 
 ## Historical releases

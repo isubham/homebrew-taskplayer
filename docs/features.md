@@ -213,7 +213,10 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Only one task can be active at a time.
 - Switching tasks closes the previous work segment before starting the next.
 - Session history shows start, end, and duration.
-- Sessions can be added, edited, and deleted manually.
+- Task detail shows each session's date and explicit start–end range alongside its duration.
+- Sessions can be added, edited, and deleted manually. Add/Edit accepts validated 24-hour
+  `HH:mm` start and end values on one row beneath the date; an earlier end time is treated as the
+  next day. Save, Cancel, and backdrop dismissal remain safe through the modal's closing animation.
 - Task detail shows session count and time; Insights provides cross-task history.
 - Sleep/wake gap detection closes a running session at the last known awake tick rather than
   counting computer sleep as work.
@@ -390,6 +393,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Audius queues deduplicate candidates, reject unavailable/gated/short tracks, prefer
   vibe-appropriate moods, and rank by catalog play count with up to 50 candidates.
 - Starts with work, pauses on break/stop, and resumes with work.
+- Normal starts fade from silence to full app volume over two seconds; normal stops fade back to
+  silence over two seconds. External-media and meeting interruptions stop without fading once
+  detected, and neither behavior changes the macOS system volume.
 - Play/pause, next, and vibe controls in the app; volume follows the macOS system volume.
 - The right-side mini-player uses an outlined vibe pill above a static, ellipsized title, followed
   by a prominent play/pause control, next-track control, and artwork on the far right. Favorite is
@@ -397,11 +403,26 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - A heart control in the mini-player and track detail saves or removes the current song. Saved
   songs persist offline, sync through the signed-in account, and appear on every device in a
   Favorites vibe that replays the queue later in saved order.
-- The bottom music player keeps a fixed 25% width; overflowing track titles use a quiet static
+- The bottom music player keeps a fixed 20% width; overflowing track titles use a quiet static
   ellipsis, with the full title available through its native hover tooltip.
 - macOS media keys and Now Playing controls can play, pause, go to the previous/next track while
   TaskPlayer is unfocused; the system surface shows the current title, artist, and available
   artwork.
+- On macOS systems exposing Core Audio process activity, a default-on setting pauses
+  focus music when another app starts output or microphone activity, including browser and native
+  meetings. Music pauses on the first detecting scan and resumes after one quiet second only
+  when TaskPlayer paused it automatically; manual Play overrides the current
+  interruption. Detection stores no audio and sends nothing off-device. A 500 ms Core Audio
+  process-state scan is used because native process-property notifications proved inconsistent
+  across real media apps. The user can explicitly disable the behavior, and that preference syncs
+  across signed-in devices through the account's `user_settings` record.
+- A dedicated Focus Music settings section contains the two playback-coordination switches.
+- An explicit takeover preference lets active TaskPlayer focus music pause Apple Music or Spotify
+  instead of yielding. TaskPlayer resumes only supported players it successfully paused and only
+  when its own music later stops; meetings, unsupported players, manual external playback, and
+  stale leases are never resumed. A supported player that keeps its Core Audio stream active while
+  paused remains recognized as already paused, preventing pause/resume loops. macOS may request
+  Automation permission on first use.
 - The selected vibe persists locally; legacy Jazz and Electronic selections migrate to Coffee
   House and Energizing respectively.
 - Track detail shows artwork, artist, genre, and an Audius link.

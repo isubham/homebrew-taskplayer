@@ -9,6 +9,7 @@ import {
   TOAST_TASK_RENAMED, 
   TOAST_TASK_DELETED
 } from "../constants.jsx";
+import { createSessionDraft, parseSessionDraft, sessionDraftFromRange } from "../session-time";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -271,20 +272,16 @@ export function DatabaseProvider({ children }) {
   }, [apply]);
 
   const addSession = useCallback((taskId) => {
-    const d = new Date();
-    const dateStr = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
-    const startStr = d.toTimeString().slice(0, 5); // HH:MM
-    setDialogSession({ date: dateStr, start: startStr, end: startStr });
+    setDialogSession(createSessionDraft());
     return new Promise((resolve) => {
       uiForm({
         type: "session",
         title: "Add session",
-        confirmText: "Add",
-        resolve: async (val) => {
-          if (val) {
-            const start = new Date(`${val.date}T${val.start}`).getTime();
-            const end = new Date(`${val.date}T${val.end}`).getTime();
-            apply(await invoke("add_session", { taskId, start, end }));
+          confirmText: "Add",
+          resolve: async (val) => {
+          const range = parseSessionDraft(val);
+          if (range) {
+            apply(await invoke("add_session", { taskId, ...range }));
           }
           resolve();
         }
@@ -295,23 +292,18 @@ export function DatabaseProvider({ children }) {
   const editSession = useCallback((id) => {
     const session = S?.sessions.find((s) => s.id === id);
     if (session) {
-      const d = new Date(session.start);
-      const dateStr = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
-      const startStr = d.toTimeString().slice(0, 5); // HH:MM
-      const endStr = session.end ? new Date(session.end).toTimeString().slice(0, 5) : "";
-      setDialogSession({ date: dateStr, start: startStr, end: endStr });
+      setDialogSession(sessionDraftFromRange(session.start, session.end));
     }
     return new Promise((resolve) => {
       uiForm({
         type: "session",
         title: "Edit session",
         confirmText: "Save",
-        subtitle: "Editing or deleting this session will recalculate all rollups immediately.",
-        resolve: async (val) => {
-          if (val) {
-            const start = new Date(`${val.date}T${val.start}`).getTime();
-            const end = val.end ? new Date(`${val.date}T${val.end}`).getTime() : null;
-            apply(await invoke("update_session", { id, start, end }));
+          subtitle: "Editing or deleting this session will recalculate all rollups immediately.",
+          resolve: async (val) => {
+          const range = parseSessionDraft(val);
+          if (range) {
+            apply(await invoke("update_session", { id, ...range }));
           }
           resolve();
         }

@@ -1063,6 +1063,60 @@ impl Db {
         }
     }
 
+    pub fn get_user_settings(&self) -> UserSettings {
+        self.conn
+            .query_row(
+                "SELECT pause_for_other_audio,take_over_apple_music,
+                        take_over_music_players,updated_at
+                 FROM user_settings WHERE id=1",
+                [],
+                |row| {
+                    Ok(UserSettings {
+                        pause_for_other_audio: row.get(0)?,
+                        take_over_apple_music: row.get(1)?,
+                        take_over_music_players: row.get(2)?,
+                        updated_at: row.get(3)?,
+                    })
+                },
+            )
+            .unwrap_or_default()
+    }
+
+    pub fn set_user_settings(&self, settings: &UserSettings) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO user_settings(
+               id,pause_for_other_audio,take_over_apple_music,
+               take_over_music_players,updated_at
+             ) VALUES(1,?1,?2,?3,?4)
+             ON CONFLICT(id) DO UPDATE SET
+               pause_for_other_audio=excluded.pause_for_other_audio,
+               take_over_apple_music=excluded.take_over_apple_music,
+               take_over_music_players=excluded.take_over_music_players,
+               updated_at=excluded.updated_at",
+            params![
+                settings.pause_for_other_audio,
+                settings.take_over_apple_music,
+                settings.take_over_music_players,
+                settings.updated_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn upsert_user_settings_from_remote(
+        &self,
+        remote: &UserSettings,
+        force: bool,
+    ) -> rusqlite::Result<bool> {
+        let current = self.get_user_settings();
+        if force || remote.updated_at > current.updated_at {
+            self.set_user_settings(remote)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn get_run(&self) -> RunState {
         self.get_meta("run")
             .and_then(|v| serde_json::from_str(&v).ok())
@@ -1163,6 +1217,7 @@ impl Db {
             tasks: self.tasks()?,
             sessions: self.sessions()?,
             music_favorites: self.music_favorites()?,
+            user_settings: self.get_user_settings(),
             config: self.get_config(),
             run: self.get_run(),
             device_id: self.get_device_id(),
@@ -1580,10 +1635,42 @@ mod tests {
 
         assert_eq!(
             db.sync_schema_backfill().as_deref(),
-            Some("planner_music_v1")
+            Some("planner_music_user_settings_v1")
         );
         db.clear_sync_schema_backfill().unwrap();
         assert_eq!(db.sync_schema_backfill(), None);
+    }
+
+    #[test]
+    fn user_settings_default_on_and_remote_lww() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(db.get_user_settings().pause_for_other_audio);
+        assert!(!db.get_user_settings().take_over_apple_music);
+        assert!(!db.get_user_settings().take_over_music_players);
+
+        let disabled = UserSettings {
+            pause_for_other_audio: false,
+            take_over_apple_music: true,
+            take_over_music_players: true,
+            updated_at: 20,
+        };
+        assert!(db
+            .upsert_user_settings_from_remote(&disabled, false)
+            .unwrap());
+        assert!(!db.get_user_settings().pause_for_other_audio);
+        assert!(db.get_user_settings().take_over_apple_music);
+        assert!(db.get_user_settings().take_over_music_players);
+
+        let stale = UserSettings {
+            pause_for_other_audio: true,
+            take_over_apple_music: false,
+            take_over_music_players: false,
+            updated_at: 10,
+        };
+        assert!(!db
+            .upsert_user_settings_from_remote(&stale, false)
+            .unwrap());
+        assert!(!db.get_user_settings().pause_for_other_audio);
     }
 
     #[test]

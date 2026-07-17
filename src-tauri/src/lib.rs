@@ -1,4 +1,5 @@
 // TaskPlayer library — Tauri shell around taskplayer-core.
+mod audio_interruption;
 mod auth;
 mod background_jobs;
 mod bindings;
@@ -29,6 +30,7 @@ use taskplayer_core::{
     Snapshot, Status, Task, TaskList,
 };
 
+use audio_interruption::*;
 use constants::*;
 
 mod state;
@@ -130,6 +132,12 @@ pub fn run() {
             full_sync,
             open_main,
             set_music_playing,
+            audio_interruption_capability,
+            set_audio_interruption_monitoring,
+            set_pause_for_other_audio,
+            set_music_player_takeover,
+            take_over_music_players,
+            release_music_players,
             toggle_music_favorite,
             import_music_favorites,
             open_url,

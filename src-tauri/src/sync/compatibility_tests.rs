@@ -40,6 +40,19 @@ mod compatibility_tests {
     }
 
     #[test]
+    fn accepts_user_settings_without_takeover_preference() {
+        let settings: RemoteUserSettings = serde_json::from_value(serde_json::json!({
+            "user_id": "user-1",
+            "pause_for_other_audio": true,
+            "updated_at": 2000
+        }))
+        .unwrap();
+
+        assert!(!settings.take_over_apple_music);
+        assert!(!settings.take_over_music_players);
+    }
+
+    #[test]
     fn accepts_old_task_without_planner_fields_and_ignores_future_fields() {
         let task: RemoteTask = serde_json::from_value(serde_json::json!({
             "id": "task-1",

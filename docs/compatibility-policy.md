@@ -46,6 +46,9 @@ Current capabilities:
 - `life_area_priorities_v1`
 - `run_state_v1`
 - `music_favorites_v1`
+- `user_settings_v1`
+- `apple_music_takeover_v1`
+- `music_player_takeover_v2`
 
 ## Serialization rules
 

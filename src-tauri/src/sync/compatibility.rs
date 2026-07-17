@@ -26,12 +26,15 @@ pub(super) fn rest_url(table: &str) -> String {
 /// > x.updated_at` only writes if it's actually newer.
 pub(super) const PULL_REWIND_MS: i64 = 5 * 60 * 1000;
 
-pub(super) const MIN_BACKEND_SCHEMA_VERSION: i64 = 4;
+pub(super) const MIN_BACKEND_SCHEMA_VERSION: i64 = 7;
 pub(super) const REQUIRED_BACKEND_CAPABILITIES: &[&str] = &[
     "planner_windows_v1",
     "life_area_priorities_v1",
     "run_state_v1",
     "music_favorites_v1",
+    "user_settings_v1",
+    "apple_music_takeover_v1",
+    "music_player_takeover_v2",
 ];
 
 #[derive(Clone, Debug, Deserialize)]

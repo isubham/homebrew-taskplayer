@@ -16,9 +16,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, OnceLock};
 use taskplayer_core::{
     canonical_life_area, now_ms, Db, LifeAreaPriority, MusicFavorite, RunState, Session,
-    SessionConfig, Task, TaskList, WeeklyTimeWindow,
+    SessionConfig, Task, TaskList, UserSettings, WeeklyTimeWindow,
 };
 
+mod backfill;
 mod compatibility;
 mod content_models;
 mod music_models;
@@ -27,6 +28,7 @@ mod push;
 mod runtime_models;
 mod transport;
 
+use backfill::*;
 use compatibility::*;
 use content_models::*;
 use music_models::*;
@@ -43,6 +45,14 @@ pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, Str
             "planner_v1" => backfill_planner_schema(db, access_token),
             "music_favorites_v1" => backfill_music_favorites_schema(db, access_token),
             "planner_music_v1" => backfill_planner_and_music_schema(db, access_token),
+            "user_settings_v1" => backfill_user_settings_schema(db, access_token),
+            "apple_music_takeover_v1" => backfill_user_settings_schema(db, access_token),
+            "music_player_takeover_v2" => backfill_user_settings_schema(db, access_token),
+            "planner_user_settings_v1" => {
+                backfill_planner_and_user_settings_schema(db, access_token)
+            }
+            "music_user_settings_v1" => backfill_music_and_user_settings_schema(db, access_token),
+            "planner_music_user_settings_v1" => backfill_all_current_schema(db, access_token),
             unknown => Err(format!(
                 "Sync paused: this client does not understand schema backfill {unknown}."
             )),

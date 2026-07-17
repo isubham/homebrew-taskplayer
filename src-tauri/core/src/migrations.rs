@@ -325,6 +325,73 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "017_user_settings",
+        run: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS user_settings(
+                   id INTEGER PRIMARY KEY CHECK(id=1),
+                   pause_for_other_audio INTEGER NOT NULL DEFAULT 1,
+                   updated_at INTEGER NOT NULL DEFAULT 0
+                 );
+                 INSERT OR IGNORE INTO user_settings(id,pause_for_other_audio,updated_at)
+                   VALUES(1,1,0);",
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES('sync_schema_backfill','user_settings_v1')
+                 ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN value='planner_v1' THEN 'planner_user_settings_v1'
+                   WHEN value='music_favorites_v1' THEN 'music_user_settings_v1'
+                   WHEN value='planner_music_v1' THEN 'planner_music_user_settings_v1'
+                   ELSE 'user_settings_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
+    Migration {
+        name: "018_apple_music_takeover",
+        run: |conn| {
+            add_column(
+                conn,
+                "user_settings",
+                "take_over_apple_music",
+                "INTEGER NOT NULL DEFAULT 0",
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES(
+                   'sync_schema_backfill','apple_music_takeover_v1'
+                 ) ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN instr(value,'user_settings') > 0 THEN value
+                   ELSE 'apple_music_takeover_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
+    Migration {
+        name: "019_music_player_takeover",
+        run: |conn| {
+            add_column(
+                conn,
+                "user_settings",
+                "take_over_music_players",
+                "INTEGER NOT NULL DEFAULT 0",
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES(
+                   'sync_schema_backfill','music_player_takeover_v2'
+                 ) ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN instr(value,'user_settings') > 0 THEN value
+                   ELSE 'music_player_takeover_v2'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -428,7 +495,7 @@ mod compatibility_tests {
                 |row| row.get::<_, String>(0)
             )
             .unwrap(),
-            "planner_music_v1"
+            "planner_music_user_settings_v1"
         );
     }
 

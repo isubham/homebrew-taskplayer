@@ -42,6 +42,11 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
         .into_iter()
         .map(RemoteConfig::into_local)
         .collect();
+    let user_settings: Vec<UserSettings> =
+        fetch_since::<RemoteUserSettings>(access_token, "user_settings", cursor)?
+            .into_iter()
+            .map(RemoteUserSettings::into_local)
+            .collect();
 
     let collection_rows_changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
     let mut changed =
@@ -90,6 +95,14 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
             changed = true;
         }
     }
+    if let Some(remote_settings) = user_settings.into_iter().next() {
+        if db
+            .upsert_user_settings_from_remote(&remote_settings, force)
+            .map_err(|e| e.to_string())?
+        {
+            changed = true;
+        }
+    }
     // Rewind below "now" rather than advancing straight to it — see
     // `PULL_REWIND_MS` for why. `.max(cursor)` keeps this monotonic even if
     // the rewind window would otherwise put it behind where we already are
@@ -97,64 +110,4 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
     db.set_pull_cursor((now - PULL_REWIND_MS).max(cursor))
         .map_err(|e| e.to_string())?;
     Ok(changed)
-}
-
-/// Recover fields introduced after an older client may already have advanced
-/// its incremental pull cursor. This deliberately runs before any push and
-/// merges only the new planner fields, rather than force-replacing complete
-/// local rows. The durable marker is cleared only after every fetch and local
-/// write succeeds, so a transient failure retries on the next sync.
-pub(super) fn backfill_planner_schema(db: &Db, access_token: &str) -> Result<bool, String> {
-    let changed = backfill_planner_fields(db, access_token)?;
-    db.clear_sync_schema_backfill()
-        .map_err(|error| error.to_string())?;
-    Ok(changed)
-}
-
-fn backfill_planner_fields(db: &Db, access_token: &str) -> Result<bool, String> {
-    let lists = fetch_since::<RemoteList>(access_token, "lists", 0)?
-        .into_iter()
-        .map(RemoteList::into_local)
-        .collect::<Vec<_>>();
-    let tasks = fetch_since::<RemoteTask>(access_token, "tasks", 0)?
-        .into_iter()
-        .map(RemoteTask::into_local)
-        .collect::<Vec<_>>();
-    let priorities =
-        fetch_since::<RemoteLifeAreaPriority>(access_token, "life_area_priorities", 0)?
-            .into_iter()
-            .map(RemoteLifeAreaPriority::into_local)
-            .collect::<Vec<_>>();
-
-    db.backfill_planner_fields_from_remote(&lists, &tasks, &priorities)
-        .map_err(|error| error.to_string())
-}
-
-pub(super) fn backfill_music_favorites_schema(db: &Db, access_token: &str) -> Result<bool, String> {
-    let changed = backfill_music_favorites(db, access_token)?;
-    db.clear_sync_schema_backfill()
-        .map_err(|error| error.to_string())?;
-    Ok(changed)
-}
-
-fn backfill_music_favorites(db: &Db, access_token: &str) -> Result<bool, String> {
-    let favorites = fetch_since::<RemoteMusicFavorite>(access_token, "music_favorites", 0)?
-        .into_iter()
-        .map(RemoteMusicFavorite::into_local)
-        .collect::<Vec<_>>();
-    let changed = !favorites.is_empty();
-    db.upsert_music_favorites_from_remote(&favorites, false)
-        .map_err(|error| error.to_string())?;
-    Ok(changed)
-}
-
-pub(super) fn backfill_planner_and_music_schema(
-    db: &Db,
-    access_token: &str,
-) -> Result<bool, String> {
-    let planner_changed = backfill_planner_fields(db, access_token)?;
-    let favorites_changed = backfill_music_favorites(db, access_token)?;
-    db.clear_sync_schema_backfill()
-        .map_err(|error| error.to_string())?;
-    Ok(planner_changed || favorites_changed)
 }

@@ -124,6 +124,14 @@
 .entry .when{color:var(--muted)}
 .entry .dur{font-variant-numeric:tabular-nums;font-weight:600}
 .entry.live .dur{color:var(--green)}
+.session-date-row{margin-bottom:10px}
+.session-time-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:8px}
+.session-time-field{min-width:0}
+.session-date-row .dinput,.session-time-fields .dinput{box-sizing:border-box;width:100%;margin:4px 0 0}
+.session-time-field .dinput{font-variant-numeric:tabular-nums}
+.session-time-feedback{min-height:16px;color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:12px}
+.session-time-feedback.error{color:#ff8d8d}
+.dfoot .btn:disabled{cursor:not-allowed;opacity:.45}
 .close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;margin-left:auto}
 .close:hover{color:#fff}
 .foot{padding:14px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between}

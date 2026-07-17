@@ -121,4 +121,41 @@ impl RemoteConfig {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct RemoteUserSettings {
+    pub(super) user_id: String,
+    #[serde(default = "default_remote_pause_for_other_audio")]
+    pub(super) pause_for_other_audio: bool,
+    #[serde(default)]
+    pub(super) take_over_apple_music: bool,
+    #[serde(default)]
+    pub(super) take_over_music_players: bool,
+    pub(super) updated_at: i64,
+}
+
+fn default_remote_pause_for_other_audio() -> bool {
+    UserSettings::default().pause_for_other_audio
+}
+
+impl RemoteUserSettings {
+    pub(super) fn from_local(settings: &UserSettings, user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            pause_for_other_audio: settings.pause_for_other_audio,
+            take_over_apple_music: settings.take_over_apple_music,
+            take_over_music_players: settings.take_over_music_players,
+            updated_at: settings.updated_at,
+        }
+    }
+
+    pub(super) fn into_local(self) -> UserSettings {
+        UserSettings {
+            pause_for_other_audio: self.pause_for_other_audio,
+            take_over_apple_music: self.take_over_apple_music,
+            take_over_music_players: self.take_over_music_players,
+            updated_at: self.updated_at,
+        }
+    }
+}
+
 // ---- HTTP ----

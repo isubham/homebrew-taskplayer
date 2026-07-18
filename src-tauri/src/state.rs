@@ -4,7 +4,6 @@ use std::sync::Mutex;
 
 use taskplayer_core::{Db, RunState, SessionConfig};
 
-use crate::audio_interruption::{AudioInterruptionMonitor, MediaTakeover};
 use crate::auth;
 
 pub(crate) struct AppState {
@@ -33,8 +32,6 @@ pub(crate) struct AppState {
     /// `set_music_playing` command, purely so the tray menu's music toggle
     /// label can read "Pause music" vs. "Play music" correctly.
     pub(crate) music_playing: Mutex<bool>,
-    pub(crate) audio_interruption_monitor: Mutex<AudioInterruptionMonitor>,
-    pub(crate) media_takeover: Mutex<MediaTakeover>,
     /// The update `check_for_update` last found, if any and not yet consumed
     /// by `install_update`. A single slot is enough — only one "is there an
     /// update" round-trip is ever in flight from the Settings page at a time.

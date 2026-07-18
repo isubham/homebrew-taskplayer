@@ -70,7 +70,6 @@
 .m-art { width: 100%; height: 100%; display: block; object-fit: cover; }
 .m-art-fallback { display: grid; place-items: center; color: var(--muted); }
 .m-track-title { grid-area: title; align-self: start; margin-top: var(--music-label-center-offset); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--music-track-title-size); font-weight: var(--music-track-title-weight); color: var(--text); }
-.m-track-title.interrupted{color:var(--muted)}
 .music.loading .m-track-title { font-style: italic; }
 
 @media (prefers-reduced-motion: reduce) {

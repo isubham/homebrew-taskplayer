@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 
-import { KEYBINDINGS_STORAGE_KEY, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from "../constants.jsx";
-import { commands } from "../bindings";
-import { useCore } from "./CoreProvider.jsx";
+import { KEYBINDINGS_STORAGE_KEY, ZOOM_MIN, ZOOM_MAX } from "../constants.jsx";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -13,7 +11,6 @@ export function useSettings() {
 }
 
 export function SettingsProvider({ children }) {
-  const { S, apply } = useCore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return JSON.parse(localStorage.getItem("tp.sidebarCollapsed") || "{}"); }
     catch { return {}; }
@@ -25,10 +22,6 @@ export function SettingsProvider({ children }) {
     return (localStorage.getItem(KEYBINDINGS_STORAGE_KEY) ?? "1") === "1";
   });
   const [insightsPeriod, setInsightsPeriod] = useState("7d");
-  const audioInterruptionEnabled = S?.userSettings?.pauseForOtherAudio ?? true;
-  const musicPlayerTakeoverEnabled = S?.userSettings?.takeOverMusicPlayers ?? false;
-  const settingsLoaded = !!S;
-  const [audioInterruptionCapability, setAudioInterruptionCapability] = useState({ available: null, enabled: false });
   const [sessionGroupsCollapsed, setSessionGroupsCollapsed] = useState({});
   const [soundOptions, setSoundOptions] = useState([]);
 
@@ -64,24 +57,6 @@ export function SettingsProvider({ children }) {
 
   const toggleKeybindings = useCallback(() => setKeybindings((current) => !current), [setKeybindings]);
 
-  const setAudioInterruptionEnabled = useCallback(async (requested) => {
-    try {
-      const snapshot = await commands.setPauseForOtherAudio(!!requested);
-      apply(snapshot);
-    } catch (error) {
-      console.error("Failed to save audio interruption preference:", error);
-    }
-  }, [apply]);
-
-  const setMusicPlayerTakeoverEnabled = useCallback(async (requested) => {
-    try {
-      const snapshot = await commands.setMusicPlayerTakeover(!!requested);
-      apply(snapshot);
-    } catch (error) {
-      console.error("Failed to save music-player takeover preference:", error);
-    }
-  }, [apply]);
-
   // Load sound options once
   useEffect(() => {
     invoke("sound_options").then((res) => {
@@ -89,27 +64,15 @@ export function SettingsProvider({ children }) {
     }).catch(console.error);
   }, []);
 
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    commands.setAudioInterruptionMonitoring(audioInterruptionEnabled)
-      .then(setAudioInterruptionCapability)
-      .catch((error) => {
-        console.error("Failed to update audio interruption monitoring:", error);
-        setAudioInterruptionCapability({ available: false, enabled: false });
-      });
-  }, [settingsLoaded, audioInterruptionEnabled]);
-
   return (
     <SettingsContext.Provider value={{
       state: {
         sidebarCollapsed, lifeBalanceAgainst, keybindings, insightsPeriod,
-        audioInterruptionEnabled, audioInterruptionCapability, musicPlayerTakeoverEnabled,
         sessionGroupsCollapsed, zoomLevel, soundOptions
       },
       actions: {
         setSidebarCollapsed, setLifeBalanceAgainst, setKeybindings, toggleKeybindings,
-        setInsightsPeriod, setSessionGroupsCollapsed, setZoom, setAudioInterruptionEnabled,
-        setMusicPlayerTakeoverEnabled
+        setInsightsPeriod, setSessionGroupsCollapsed, setZoom
       }
     }}>
       {children}

@@ -34,7 +34,6 @@ export const STICKY_TITLE_SELECTOR = ".hdr .info h1";
 export const TAURI_EVENT_STATE_CHANGED = "state-changed";
 export const TAURI_EVENT_MUSIC_TOGGLE = "music-toggle";
 export const TAURI_EVENT_MUSIC_NEXT = "music-next";
-export const TAURI_EVENT_AUDIO_INTERRUPTION = "audio-interruption-changed";
 
 // Focus music and system media controls
 export const MUSIC_APP_NAME = "TaskPlayer";
@@ -81,9 +80,6 @@ export const MUSIC_COPY = {
   favoriteTitle: "Add to favorite songs",
   unfavoriteTitle: "Remove from favorite songs",
   noFavoritesTitle: "No favorite songs yet",
-  pausedForMedia: "Paused for other audio",
-  pausedForMeeting: "Paused for a meeting",
-  resumeOverInterruptionTitle: "Resume focus music anyway",
 };
 export const MUSIC_FAVORITES_VIBE_KEY = "favorites";
 export const MEDIA_SESSION_ACTIONS = {
@@ -148,21 +144,6 @@ export const SETTINGS_DATA_COPY = {
 
 export const SETTINGS_SECTION_STORAGE_KEY = "tp.settingsSection";
 export const SETTINGS_NAV_LABEL = "Settings sections";
-export const AUDIO_INTERRUPTION_COPY = {
-  heading: "Automatic coordination",
-  label: "Pause for other audio and meetings",
-  description: "Uses local macOS audio-process activity only. TaskPlayer does not record, save, or transmit audio.",
-  unavailable: "Available on macOS 14.2 or later.",
-  checking: "Checking macOS support…",
-  enableTitle: "Enable automatic music pause",
-  disableTitle: "Disable automatic music pause",
-  toggleLabel: "Toggle automatic music pause for other audio",
-  takeoverLabel: "Prioritize focus music over Apple Music and Spotify",
-  takeoverDescription: "TaskPlayer pauses supported players and resumes only playback it paused itself. macOS may ask for Automation permission.",
-  takeoverEnableTitle: "Allow TaskPlayer to pause Apple Music and Spotify",
-  takeoverDisableTitle: "Stop TaskPlayer from controlling music players",
-  takeoverToggleLabel: "Toggle Apple Music and Spotify takeover",
-};
 export const KEYBINDINGS_STORAGE_KEY = "tp.keybindings";
 export const KEYBOARD_SETTINGS_COPY = {
   enableTitle: "Enable keyboard shortcuts",
@@ -189,7 +170,6 @@ export const SETTINGS_SECTIONS = [
   { key: "account", icon: "👤", color: "#509bf5", title: "Account", subtitle: "Sign-in & account" },
   { key: "workflow", icon: "⏱️", color: "#2f9e8f", title: "Workflow", subtitle: "Timer configuration" },
   { key: "notifications", icon: "🔔", color: "#f5a623", title: "Notifications", subtitle: "Sounds & alerts" },
-  { key: "focusMusic", icon: "♫", color: "#1db954", title: "Focus Music", subtitle: "Playback coordination" },
   { key: "keyboard", icon: "⌨️", color: "#8d67ab", title: "Keyboard", subtitle: "Shortcuts" },
   { key: "data", icon: SETTINGS_DATA_COPY.icon, color: SETTINGS_DATA_COPY.color, title: SETTINGS_DATA_COPY.title, subtitle: SETTINGS_DATA_COPY.subtitle },
   { key: "diagnostics", icon: "🛠️", color: "#9aa0a6", title: "Diagnostics", subtitle: "Backups & logs" },

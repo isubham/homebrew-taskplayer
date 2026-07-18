@@ -38,3 +38,5 @@ session.json
 concepts/
 
 dist_verify/.env
+
+output/

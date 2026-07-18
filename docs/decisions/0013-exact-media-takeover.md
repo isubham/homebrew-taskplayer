@@ -1,6 +1,6 @@
 # 0013 — Exact media takeover
 
-- Status: Accepted
+- Status: Superseded by [0014](0014-no-external-audio-coordination.md)
 - Date: 2026-07-17
 - Owners: TaskPlayer
 - Related: [0011](0011-local-audio-interruption-detection.md), [0012](0012-synced-user-settings.md)

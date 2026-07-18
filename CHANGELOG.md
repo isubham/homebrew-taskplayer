@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 [Semantic Versioning](https://semver.org/). Add new work under **Unreleased**; during a release,
 move those entries into a dated version section.
 
+## Unreleased
+
+### Removed
+
+- Removed automatic external-audio and meeting detection. Focus music no longer pauses or resumes
+  when Apple Music, Spotify, a browser, a meeting app, or another service starts or stops audio.
+- Removed the Apple Music and Spotify takeover option, along with the Focus Music coordination
+  settings and macOS Automation permission. TaskPlayer no longer controls playback in other apps.
+
 ## 0.9.2 - 2026-07-17
 
 ### Changed

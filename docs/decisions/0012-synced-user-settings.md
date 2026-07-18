@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-07-17
 - Owners: TaskPlayer
-- Related: [0011](0011-local-audio-interruption-detection.md), `public.user_settings`
+- Related: [0011](0011-local-audio-interruption-detection.md),
+  [0014](0014-no-external-audio-coordination.md), `public.user_settings`
 
 ## Context
 
@@ -28,4 +29,6 @@ and interruption events remain ephemeral and local to each device.
 - Clients require the additive `user_settings_v1` backend capability before syncing this model.
 - Exact-player takeover consent uses the additive `music_player_takeover_v2` capability; the
   Apple-only v1 field remains dual-written during the older-client support window.
+- [0014](0014-no-external-audio-coordination.md) retires the playback behavior; its released
+  fields remain inert compatibility data until the support window permits a contract migration.
 - Device-specific settings should not be placed here; they remain local by design.

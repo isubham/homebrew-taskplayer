@@ -57,8 +57,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "11.0",
-      "entitlements": "TaskPlayer.entitlements"
+      "minimumSystemVersion": "11.0"
     }
   }
 }

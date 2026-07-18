@@ -24,9 +24,10 @@ would otherwise be repeatedly debated. Do not create one for routine implementat
 | [0008](0008-react-and-vite-migration.md) | Accepted | Migrate frontend to React and Vite |
 | [0009](0009-rust-shell-module-boundaries.md) | Accepted | Keep the Rust shell in small responsibility-focused modules |
 | [0010](0010-hybrid-focus-audio-sourcing.md) | Accepted | Use hybrid local and Audius sourcing for focus vibes |
-| [0011](0011-local-audio-interruption-detection.md) | Accepted | Detect competing audio locally without capturing it |
+| [0011](0011-local-audio-interruption-detection.md) | Superseded | Detect competing audio locally without capturing it |
 | [0012](0012-synced-user-settings.md) | Accepted | Store account preferences in a synced singleton separate from timer config |
-| [0013](0013-exact-media-takeover.md) | Accepted | Control only explicitly supported media apps through a local ownership lease |
+| [0013](0013-exact-media-takeover.md) | Superseded | Control only explicitly supported media apps through a local ownership lease |
+| [0014](0014-no-external-audio-coordination.md) | Accepted | Keep focus music independent of external audio and media players |
 
 ## Creating a record
 

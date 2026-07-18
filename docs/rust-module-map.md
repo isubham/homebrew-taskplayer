@@ -27,12 +27,6 @@ persistence logic remains in `src-tauri/core`.
 | `tick_loop.rs` | One-second timer progression, sleep detection, and tray refresh. |
 | `tick_notifications.rs` | Target, hourly, and scheduled reminder dispatch. |
 | `background_jobs.rs` | Periodic sync, full-sync, and update-check loops. |
-| `audio_interruption.rs` | Debounced external audio/meeting activity monitor and frontend event emission. |
-| `audio_interruption/core_audio.rs` | Shared macOS Core Audio process-property FFI primitives. |
-| `audio_interruption/platform.rs` | Core Audio activity classification and own-audio exclusion heuristic. |
-| `audio_interruption/takeover.rs` | Guarded Apple Music/Spotify pause-resume ownership leases. |
-| `audio_interruption/tests.rs` | Interruption debounce policy tests. |
-| `audio_interruption/platform_tests.rs` | Live macOS Core Audio capability probe. |
 | `auth_session.rs` | Applies/refreshed sessions and maintains in-memory credentials. |
 | `sync_service.rs` | App-level sync orchestration, retries, and frontend refresh. |
 
@@ -87,7 +81,6 @@ persistence logic remains in `src-tauri/core`.
 | `commands/schedule.rs` | Computes deduplicated daily/list schedule notices. |
 | `commands/music.rs` | Saves and imports synced focus-music favorites. |
 | `commands/system.rs` | Music state, URL opening, and updater commands. |
-| `commands/audio.rs` | Audio-interruption capability, monitoring lifecycle, and synced preference. |
 
 ## Boundaries
 

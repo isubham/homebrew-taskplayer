@@ -4,7 +4,6 @@ import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { KEYBOARD_SETTINGS_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
 import { SettingsNavigation } from "./settings-navigation";
-import { AudioInterruptionSetting } from "./audio-interruption-setting";
 
 function SettingsAlbum({ icon, color, title, subtitle, children }) {
   return (
@@ -177,8 +176,6 @@ export function SettingsPage() {
       {renderNotificationModeContent()}
     </>
   );
-
-  const renderFocusMusicSection = () => <AudioInterruptionSetting />;
 
   // Workflow Section
   const renderSessionControls = () => {
@@ -361,7 +358,6 @@ export function SettingsPage() {
     account: renderAccountSection(),
     workflow: renderSessionControls(),
     notifications: renderNotificationsSection(),
-    focusMusic: renderFocusMusicSection(),
     keyboard: renderKeyboardSection(),
     data: renderDataSection(),
     diagnostics: renderDiagnosticsSection(),

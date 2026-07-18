@@ -1,6 +1,5 @@
 use super::*;
 
-mod audio;
 mod lists;
 mod music;
 mod playback;
@@ -10,7 +9,6 @@ mod settings;
 mod system;
 mod tasks;
 
-pub(crate) use audio::*;
 pub(crate) use lists::*;
 pub(crate) use music::*;
 pub(crate) use playback::*;

@@ -6,7 +6,6 @@ import { audiusStreamUrl, fetchVibeTracks, type MusicTrack } from "./app/music-c
 import { createWhiteNoiseUrl } from "./app/music-noise.ts";
 import { LEGACY_MUSIC_VIBE_KEYS, MUSIC_VIBES } from "./app/music-vibes.ts";
 import { useMusicFavorites } from "./app/hooks/use-music-favorites";
-import { useAudioInterruption } from "./app/hooks/use-audio-interruption";
 import { useAudioFade } from "./app/hooks/use-audio-fade";
 
 export const GENRES = MUSIC_VIBES;
@@ -32,7 +31,6 @@ export function MusicProvider({ children }) {
   const [playing, setPlaying] = useState(false);
   const currentTrack = tracks[trackIdx] || null;
   const { favorites, isFavorite, toggleFavorite } = useMusicFavorites();
-  const interruption = useAudioInterruption(enabled);
   const { fadeInAndPlay, fadeOutAndPause, pauseImmediately } = useAudioFade(audioRef);
 
   const fetchAndLoadTracks = async (gKey) => {
@@ -47,20 +45,17 @@ export function MusicProvider({ children }) {
   };
 
   const play = async () => {
-    await interruption.takeOverCurrent();
-    interruption.overrideCurrent();
     setEnabled(true);
     if (!tracks.length) {
       const list = await fetchAndLoadTracks(genre);
       if (!list.length) setEnabled(false);
-    } else if (enabled && !interruption.suppressed && audioRef.current?.paused) {
+    } else if (enabled && audioRef.current?.paused) {
       await fadeInAndPlay().catch(console.error);
     }
   };
 
   const pause = () => {
     setEnabled(false);
-    interruption.releaseTakeover();
   };
 
   const next = async () => {
@@ -102,7 +97,6 @@ export function MusicProvider({ children }) {
 
   const setActive = (on) => {
     setEnabled(on);
-    if (!on) interruption.releaseTakeover();
   };
 
   // When track index or tracks change, update source and play if enabled.
@@ -132,18 +126,16 @@ export function MusicProvider({ children }) {
 
   // When enabled status changes
   useEffect(() => {
-    if (enabled && !interruption.suppressed) {
+    if (enabled) {
       if (!tracks.length && !loading) {
         fetchAndLoadTracks(genre);
       } else if (currentTrack) {
         fadeInAndPlay().catch(console.error);
       }
-    } else if (interruption.suppressed) {
-      pauseImmediately();
     } else {
       fadeOutAndPause();
     }
-  }, [enabled, interruption.suppressed, currentTrack?.id]);
+  }, [enabled, currentTrack?.id]);
 
   const handleEnded = () => {
     next();
@@ -175,8 +167,6 @@ export function MusicProvider({ children }) {
     permalink: currentTrack ? currentTrack.permalink : null,
     favoriteCount: favorites.length,
     isFavorite: isFavorite(currentTrack),
-    interruptionActive: interruption.suppressed,
-    interruptionKind: interruption.kind,
   };
 
   useMediaSession(currentTrack, playing, { play, pause, next, previous });

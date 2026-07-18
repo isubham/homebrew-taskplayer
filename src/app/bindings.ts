@@ -113,12 +113,6 @@ export const commands = {
 	 *  The frontend calls this every time window.Music's own state changes.
 	 */
 	setMusicPlaying: (playing: boolean) => __TAURI_INVOKE<Snapshot>("set_music_playing", { playing }),
-	audioInterruptionCapability: () => __TAURI_INVOKE<AudioInterruptionCapability>("audio_interruption_capability"),
-	setAudioInterruptionMonitoring: (enabled: boolean) => __TAURI_INVOKE<AudioInterruptionCapability>("set_audio_interruption_monitoring", { enabled }),
-	setPauseForOtherAudio: (enabled: boolean) => __TAURI_INVOKE<Snapshot>("set_pause_for_other_audio", { enabled }),
-	setMusicPlayerTakeover: (enabled: boolean) => __TAURI_INVOKE<Snapshot>("set_music_player_takeover", { enabled }),
-	takeOverMusicPlayers: () => __TAURI_INVOKE<boolean>("take_over_music_players"),
-	releaseMusicPlayers: () => __TAURI_INVOKE<boolean>("release_music_players"),
 	toggleMusicFavorite: (track: MusicFavoriteInput) => __TAURI_INVOKE<Snapshot>("toggle_music_favorite", { track }),
 	/**
 	 *  One-time bridge from the localStorage implementation. Existing SQLite
@@ -164,11 +158,6 @@ export type AccountInfo = {
 	email: string,
 	name: string | null,
 	avatarUrl: string | null,
-};
-
-export type AudioInterruptionCapability = {
-	available: boolean,
-	enabled: boolean,
 };
 
 /**

@@ -1,6 +1,6 @@
 # 0011 — Local audio-interruption detection
 
-- Status: Accepted
+- Status: Superseded by [0014](0014-no-external-audio-coordination.md)
 - Date: 2026-07-17
 - Owners: TaskPlayer
 - Related: `docs/features.md` Audius player, `src-tauri/src/audio_interruption.rs`

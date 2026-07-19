@@ -5,7 +5,7 @@ import { useSettings } from "./SettingsProvider.jsx";
 import { useUI } from "./UIProvider.jsx";
 import { usePlayback } from "./PlaybackProvider.jsx";
 import { useDatabase } from "./DatabaseProvider.jsx";
-import { KEYBOARD_SETTINGS_COPY, ZOOM_STEP } from "../constants.jsx";
+import { KEYBOARD_SETTINGS_COPY, PLANNER_VIEW_KEY, TIMER_PLAY_TRIGGERS, ZOOM_STEP } from "../constants.jsx";
 
 const KeyboardContext = createContext(null);
 
@@ -121,20 +121,20 @@ export function KeyboardProvider({ children }) {
       if (kbRegion === "sidebar") {
         selectList(el.dataset.dragListId);
       } else if (kbRegion === "main") {
-        play(el.dataset.dragId);
+        play(el.dataset.dragId, TIMER_PLAY_TRIGGERS.keyboardActivate);
       }
     };
 
     const playPauseShort = () => {
       const run = S?.run;
-      if (run?.activeTaskId && run.phase) return play(run.activeTaskId);
+      if (run?.activeTaskId && run.phase) return play(run.activeTaskId, TIMER_PLAY_TRIGGERS.keyboardShortcut);
       if (kbRegion === "main") {
         const rows = getRows("main");
         const el = rows[kbIdx];
-        if (el) return play(el.dataset.dragId);
+        if (el) return play(el.dataset.dragId, TIMER_PLAY_TRIGGERS.keyboardShortcut);
       }
       const lastId = run?.lastTaskId || lastTaskIdRef.current;
-      if (lastId) play(lastId);
+      if (lastId) play(lastId, TIMER_PLAY_TRIGGERS.keyboardShortcut);
     };
 
     const isSuppressed = (event) => {
@@ -187,6 +187,7 @@ export function KeyboardProvider({ children }) {
 
       switch (event.key) {
         case "o": event.preventDefault(); clearFocus(); return goHome();
+        case "p": event.preventDefault(); clearFocus(); return navigate({ view: PLANNER_VIEW_KEY });
         case "i": event.preventDefault(); clearFocus(); return navigate({ view: "insights" });
         case "s": event.preventDefault(); clearFocus(); return navigate({ view: "settings" });
         case "j": event.preventDefault(); return moveRowFocus(1);

@@ -234,3 +234,14 @@ second live session for the same user.
 
 Steps 1–3 are backend-only and independently testable against `timer.rs`'s existing unit
 test style before any UI work starts.
+
+## 9. Upcoming release TODO — recorded-session collision reconciliation
+
+Local manual add/edit now rechecks recorded and active-session overlap in Rust immediately before
+writing. That closes stale-snapshot races once all relevant rows have reached the local database.
+
+Two offline or not-yet-synced devices can still create individually valid sessions whose ranges
+overlap when later merged. The upcoming release must define and test a deterministic sync policy
+that preserves both factual records, surfaces the named collision calmly at the point of review,
+and lets the user correct or reassign it. It must not silently delete time, choose a winner based
+on task priority, or create a permanent missed-work/failure tally.

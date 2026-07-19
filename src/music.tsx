@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { MUSIC_COPY, MUSIC_DEFAULTS, MUSIC_FAVORITES_VIBE_KEY, MUSIC_STORAGE_KEYS } from "./app/constants.jsx";
+import { MUSIC_COPY, MUSIC_DEFAULTS, MUSIC_FAVORITES_VIBE_KEY, MUSIC_STORAGE_KEYS, MUSIC_STORAGE_VALUES } from "./app/constants.jsx";
 import { useMediaSession } from "./app/hooks/use-media-session.jsx";
 import { useMusicBridge } from "./app/hooks/use-music-bridge.jsx";
 import { audiusStreamUrl, fetchVibeTracks, type MusicTrack } from "./app/music-catalog.ts";
@@ -19,10 +19,15 @@ export function useMusic() {
 export function MusicProvider({ children }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const noiseUrlRef = useRef<string | null>(null);
+  const activityRef = useRef(false);
   const [genre, setGenreState] = useState(() => {
     const saved = localStorage.getItem(MUSIC_STORAGE_KEYS.genre) || "";
     const migrated = LEGACY_MUSIC_VIBE_KEYS[saved] || saved;
     return GENRES[migrated] ? migrated : MUSIC_DEFAULTS.genre;
+  });
+  const [flowMusicEnabled, setFlowMusicEnabledState] = useState(() => {
+    const saved = localStorage.getItem(MUSIC_STORAGE_KEYS.flowEnabled);
+    return saved == null ? MUSIC_DEFAULTS.flowEnabled : saved === MUSIC_STORAGE_VALUES.enabled;
   });
   const [enabled, setEnabled] = useState(false);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
@@ -45,6 +50,7 @@ export function MusicProvider({ children }) {
   };
 
   const play = async () => {
+    if (!flowMusicEnabled) return;
     setEnabled(true);
     if (!tracks.length) {
       const list = await fetchAndLoadTracks(genre);
@@ -59,6 +65,7 @@ export function MusicProvider({ children }) {
   };
 
   const next = async () => {
+    if (!flowMusicEnabled) return;
     if (!tracks.length) {
       setEnabled(true);
       const list = await fetchAndLoadTracks(genre);
@@ -69,6 +76,7 @@ export function MusicProvider({ children }) {
   };
 
   const previous = async () => {
+    if (!flowMusicEnabled) return;
     if (!tracks.length) {
       setEnabled(true);
       const list = await fetchAndLoadTracks(genre);
@@ -96,7 +104,18 @@ export function MusicProvider({ children }) {
   };
 
   const setActive = (on) => {
-    setEnabled(on);
+    activityRef.current = on;
+    setEnabled(on && flowMusicEnabled);
+  };
+
+  const setFlowMusicEnabled = (on) => {
+    const nextEnabled = !!on;
+    localStorage.setItem(
+      MUSIC_STORAGE_KEYS.flowEnabled,
+      nextEnabled ? MUSIC_STORAGE_VALUES.enabled : MUSIC_STORAGE_VALUES.disabled,
+    );
+    setFlowMusicEnabledState(nextEnabled);
+    setEnabled(nextEnabled && activityRef.current);
   };
 
   // When track index or tracks change, update source and play if enabled.
@@ -157,6 +176,7 @@ export function MusicProvider({ children }) {
   const musicState = {
     playing,
     enabled,
+    flowMusicEnabled,
     loading,
     genre,
     genreLabel: GENRES[genre].label,
@@ -182,6 +202,7 @@ export function MusicProvider({ children }) {
       toggleFavorite: () => toggleFavorite(currentTrack),
       setGenre: changeGenre,
       setActive,
+      setFlowMusicEnabled,
       GENRES
     }}>
       <audio

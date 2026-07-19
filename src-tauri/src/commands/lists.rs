@@ -91,7 +91,7 @@ pub(crate) fn delete_list(app: AppHandle, state: State<AppState>, id: String) ->
         let db = state.db.lock().unwrap();
         let _ = db.delete_list(&id);
     }
-    reset_run_if_orphaned(state.inner());
+    reset_run_if_orphaned(state.inner(), TIMER_PAUSE_TRIGGER_LIST_DELETE);
     push(&app);
     build_snapshot(state.inner())
 }

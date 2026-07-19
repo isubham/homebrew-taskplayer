@@ -1,21 +1,11 @@
 use super::*;
 
 pub(crate) fn spawn(app: &mut tauri::App) {
-    // --- 1s background loop: pomodoro transitions + tray refresh ---
-    // Also doubles as sleep/wake detection: this thread is suspended
-    // along with the rest of the process while the Mac is asleep, so
-    // a `sleep(1000)` that comes back having taken much longer than
-    // 1s means the system was actually asleep (there's no reliable,
-    // dependency-free "sleep" notification otherwise). When that
-    // happens, and a task was running, we stop the clock as of the
-    // last tick we know was real — so the nap never gets logged as
-    // work — rather than at the (much later) wake-up time.
-    const SLEEP_GAP_MS: i64 = 5_000;
+    // --- background loop: pomodoro transitions + tray refresh ---
     let handle = app.handle().clone();
     std::thread::spawn(move || {
-        let mut last_seen = now_ms();
         loop {
-            std::thread::sleep(Duration::from_millis(1000));
+            std::thread::sleep(Duration::from_millis(TIMER_TICK_INTERVAL_MS));
             // The whole per-tick body is panic-guarded: this thread runs
             // for the entire lifetime of the app, so an unhandled panic
             // here (a bug we didn't anticipate) would otherwise silently
@@ -26,9 +16,6 @@ pub(crate) fn spawn(app: &mut tauri::App) {
             guard("pomodoro tick", || {
                 let state = handle.state::<AppState>();
                 let now = now_ms();
-                let woke_from_sleep_at = last_seen;
-                let gap = now - last_seen;
-                last_seen = now;
 
                 let owned = is_own(&state.run.lock().unwrap(), &state.device_id);
 
@@ -46,13 +33,6 @@ pub(crate) fn spawn(app: &mut tauri::App) {
                     return;
                 }
 
-                if gap > SLEEP_GAP_MS {
-                    let was_working = state.run.lock().unwrap().phase.as_deref() == Some("work");
-                    if was_working {
-                        do_stop_at(state.inner(), woke_from_sleep_at);
-                        push(&handle);
-                    }
-                }
                 let (run, config) = {
                     (
                         state.run.lock().unwrap().clone(),
@@ -72,29 +52,32 @@ pub(crate) fn spawn(app: &mut tauri::App) {
                             *r = nr;
                             r.clone()
                         };
-                        let name = {
+                        let (name, session_status, run_status) = {
                             let db = state.db.lock().unwrap();
-                            let _ = db.add_session(&log);
-                            let _ = db.set_run(&run_clone);
-                            task_name_for_notification(&db, &log.task_id)
+                            let session_result = db.add_session(&log);
+                            let run_result = db.set_run(&run_clone);
+                            (
+                                task_name_for_notification(&db, &log.task_id),
+                                timer_write_status(&session_result),
+                                timer_write_status(&run_result),
+                            )
                         };
-                        // Proactive feedback for the thing the tray/menu-bar title
-                        // alone can't give you: you have to be looking at the menu
-                        // bar to notice it changed. A real OS notification is the
-                        // only way to find out a pomodoro phase ended while you
-                        // were away from the screen.
-                        //
+                        log_timer_pause(
+                            state.inner(),
+                            TIMER_PAUSE_REASON_POMODORO_BREAK,
+                            TIMER_PAUSE_TRIGGER_POMODORO_TICK,
+                            &run,
+                            now,
+                            &session_status,
+                            &run_status,
+                        );
                         // The break is already running in `run_clone`; the
                         // notification is information, not a prompt requiring
                         // another action. Never surface the main window here —
                         // the user may still be finishing a thought in
                         // hyperfocus even though break time has begun.
-                        //
-                        // Dispatched via run_on_main_thread — like the tray menu
-                        // rebuild in push() below, macOS's notification center
-                        // isn't safe to touch from a background thread, and doing
-                        // so from here (a std::thread::spawn loop) was crashing
-                        // the whole app the instant a pomodoro segment ended.
+                        // Dispatch on the main thread because macOS notification
+                        // center is not safe to call from this background loop.
                         let notif_handle = handle.clone();
                         // `run_clone.long_break` was set by `timer::tick` the moment
                         // the cycle threshold was hit — substitute the long-break

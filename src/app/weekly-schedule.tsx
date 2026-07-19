@@ -25,7 +25,7 @@ export const weeklyWindowsSignature = (windows: WeeklyTimeWindow[] = []): string
       ),
   );
 
-interface GroupedWindow {
+export interface GroupedWindow {
   weekdays: number[];
   startMinute: number;
   endMinute: number;

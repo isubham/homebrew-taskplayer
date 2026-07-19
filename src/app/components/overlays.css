@@ -120,6 +120,7 @@
 .task-detail-error{margin-top:14px}
 .create-task-btn{background:var(--green);border:1px solid var(--green);color:#000;padding:8px 16px;border-radius:20px;cursor:pointer;font-weight:700}
 .create-task-btn:hover{background:var(--green-hi)}
+.create-task-btn:disabled,.stopbtn:disabled{cursor:not-allowed;opacity:.45}
 .entry{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px}
 .entry .when{color:var(--muted)}
 .entry .dur{font-variant-numeric:tabular-nums;font-weight:600}
@@ -136,6 +137,7 @@
 .close:hover{color:#fff}
 .foot{padding:14px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between}
 .stopbtn{background:none;border:1px solid #555;color:#fff;padding:8px 14px;border-radius:20px;cursor:pointer;font-weight:600}
+.task-detail-plan{display:inline-flex;align-items:center;gap:7px}
 .stopbtn:hover{border-color:#fff}
 .danger{background:none;border:1px solid #5a2a2a;color:#ff6b6b;padding:8px 14px;border-radius:20px;cursor:pointer}
 .danger:hover{border-color:#ff6b6b}
@@ -191,6 +193,9 @@
 .schedule-field-head strong{display:block;color:#fff;font-size:13px}
 .schedule-field-head span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .weekly-editor{min-width:0}
+.schedule-issues{display:flex;flex-direction:column;gap:5px;margin:8px 0 2px}
+.schedule-issue{padding:7px 9px;border-radius:6px;background:rgba(80,155,245,.1);color:#9cc8ff;font-size:11px;line-height:1.35}
+.schedule-issue.blocking{background:rgba(232,185,35,.1);color:#e8c95d}
 .simple-availability{display:block}
 .simple-availability-list{display:flex;flex-direction:column;gap:8px}
 .simple-availability-row{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;padding:7px 0;border-bottom:1px solid var(--line)}

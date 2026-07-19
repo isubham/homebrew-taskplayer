@@ -4,6 +4,7 @@ import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { LIFE_AREAS } from "../utils.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
 import { ListEmojiPicker } from "./list-emoji-picker.jsx";
+import { inspectListAvailability } from "../schedule-validation";
 
 import { DEFAULT_LIST_COLOR, DEFAULT_LIST_EMOJI, TOAST_LIST_SAVED } from "../constants.jsx";
 
@@ -20,6 +21,7 @@ export function EditListModal() {
   const [lifeDirection, setLifeDirection] = useState("increase");
   const [windows, setWindows] = useState([]);
   const initializedListId = useRef(null);
+  const [scheduleBlocked, setScheduleBlocked] = useState(false);
 
   useEffect(() => {
     if (!listItem || initializedListId.current === listItem.id) return;
@@ -30,6 +32,7 @@ export function EditListModal() {
     setLifeArea(listItem.lifeArea || "");
     setLifeDirection(listItem.lifeDirection || "increase");
     setWindows(listItem.availabilityWindows || []);
+    setScheduleBlocked(false);
   }, [listItem]);
 
   const handleAreaChange = (areaKey) => {
@@ -39,7 +42,7 @@ export function EditListModal() {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !listItem) return;
+    if (!name.trim() || !listItem || scheduleBlocked) return;
     try {
       await invoke("rename_list", { id: listItem.id, name: name.trim() });
       await invoke("set_list_style", { id: listItem.id, emoji, color });
@@ -116,6 +119,12 @@ export function EditListModal() {
                 id="listAvailabilityEditor"
                 initialWindows={windows}
                 onSave={(nextWindows) => setWindows(nextWindows)}
+                inspectWindows={(candidate) => inspectListAvailability(
+                  candidate,
+                  state.S.lists.map((list) => ({ id: list.id, name: list.name, windows: list.availabilityWindows })),
+                  listItem.id,
+                )}
+                onBlockingChange={setScheduleBlocked}
               />
             </div>
           </div>
@@ -124,7 +133,7 @@ export function EditListModal() {
         <div className="dfoot">
           <button type="button" className="btn danger dfoot-delete" onClick={handleDelete}>Delete list</button>
           <button className="btn" onClick={() => setOpenListId(null)}>Cancel</button>
-          <button className="btn primary" onClick={handleSave}>Save</button>
+          <button className="btn primary" disabled={scheduleBlocked} onClick={handleSave}>Save</button>
         </div>
     </AnimatedModal>
   );

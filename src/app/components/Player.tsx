@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Heart, History, Music2, Pause, Play, SkipForward } from "lucide-react";
+import { Heart, History, Pause, Play, SkipForward } from "lucide-react";
 import "./player.css";
 import { fmt, esc } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { useMusic } from "../../music.jsx";
-import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE } from "../constants.jsx";
+import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 
 export function Player() {
   const { state, helpers, actions } = useApp();
@@ -106,7 +106,7 @@ export function Player() {
         <>
           <div className="controls">
             {badge}
-            <button className="bigaction" onClick={() => actions.play(task?.id)} title="Take over on this device">▶ Play here</button>
+            <button className="bigaction" onClick={() => actions.play(task?.id, TIMER_PLAY_TRIGGERS.playerTakeover)} title="Take over on this device">▶ Play here</button>
           </div>
           <div className="timeline">
             <span className="clock" id="liveclock" style={{ color: "var(--muted)" }}>{clockText}</span>
@@ -139,7 +139,7 @@ export function Player() {
         <>
           <div className="controls">
             {badge}
-            <button className="pmain timer-toggle" onClick={() => actions.play(task.id)} title="Resume timer">▶</button>
+            <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerResume)} title="Resume timer">▶</button>
             {historyButton(task.id)}
           </div>
           <div className="timeline">
@@ -223,7 +223,7 @@ export function Player() {
       <>
         <div className="controls">
           {badge}
-          <button className="pmain timer-toggle" onClick={() => actions.play(task.id)} title="Stop &amp; log">⏸</button>
+          <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerToggle)} title="Stop &amp; log">⏸</button>
           {historyButton(task.id)}
         </div>
         <div className="timeline">
@@ -241,7 +241,7 @@ export function Player() {
   const renderMusicPanel = () => {
     if (!musicState) return null;
     const stateName = musicState.loading ? "loading" : musicState.playing ? "playing" : "idle";
-    const musicActive = musicState.enabled || musicState.playing;
+    const musicActive = musicState.flowMusicEnabled && (musicState.enabled || musicState.playing);
     const showPause = musicActive;
     const emptyFavorites = musicState.genre === MUSIC_FAVORITES_VIBE_KEY && !musicState.favoriteCount;
     const toggleTitle = showPause
@@ -252,61 +252,43 @@ export function Player() {
     const name = emptyFavorites
       ? MUSIC_COPY.noFavoritesTitle
       : musicState.loading ? "Finding tracks…" : (musicState.playing || (musicState.name && musicState.name !== "Focus music")) ? musicState.name : "Not playing";
-    const urls = musicState.artworkUrls || [];
     const title = musicState.title || name;
 
     return (
       <div className={`music ${stateName}`}>
-        <label className="m-genre" title={MUSIC_COPY.changeVibeTitle}>
-          <span className="m-genre-current">{musicState.genreLabel}</span>
-          <select value={musicState.genre || ""} onChange={(event) => musicSetGenre(event.target.value)} aria-label={MUSIC_COPY.changeVibeTitle}>
-            {Object.entries(GENRES).map(([key, value]) => (
-              <option key={key} value={key}>{value.label}</option>
-            ))}
-          </select>
-        </label>
         <span className="m-track-title" title={title}>{title}</span>
         <button
-          className="m-primary-toggle"
-          title={toggleTitle}
-          aria-label={toggleTitle}
-          onClick={showPause ? musicPause : musicPlay}
-          disabled={!musicActive && (musicBlockedByRemoteSession || emptyFavorites)}
+          className={`m-favorite${musicState.isFavorite ? " on" : ""}`}
+          title={musicState.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
+          aria-label={musicState.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
+          aria-pressed={musicState.isFavorite}
+          onClick={musicToggleFavorite}
+          disabled={!musicState.title}
         >
-          {showPause
-            ? <Pause size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
-            : <Play size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />}
+          <Heart size={MUSIC_MINI_CONTROL_ICON_SIZE} fill={musicState.isFavorite ? "currentColor" : "none"} />
         </button>
-        <button className="m-next" title={MUSIC_COPY.nextTitle} aria-label={MUSIC_COPY.nextTitle} onClick={musicNext}>
-          <SkipForward size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
-        </button>
-        <div className="m-artwork-control">
-          {urls.length ? (
-            <img
-              className="m-art"
-              src={urls[0]}
-              alt=""
-              onError={(e) => {
-                const idx = urls.indexOf(e.target.src);
-                if (idx !== -1 && idx + 1 < urls.length) {
-                  e.target.src = urls[idx + 1];
-                } else {
-                  e.target.style.display = "none";
-                }
-              }}
-            />
-          ) : (
-            <span className="m-art m-art-fallback"><Music2 size={MUSIC_MINI_CONTROL_ICON_SIZE} /></span>
-          )}
+        <div className="m-player-controls">
+          <label className="m-genre" title={MUSIC_COPY.changeVibeTitle}>
+            <span className="m-genre-current">{musicState.genreLabel}</span>
+            <select value={musicState.genre || ""} onChange={(event) => musicSetGenre(event.target.value)} aria-label={MUSIC_COPY.changeVibeTitle}>
+              {Object.entries(GENRES).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </label>
           <button
-            className={`m-art-favorite${musicState.isFavorite ? " on" : ""}`}
-            title={musicState.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
-            aria-label={musicState.isFavorite ? MUSIC_COPY.unfavoriteTitle : MUSIC_COPY.favoriteTitle}
-            aria-pressed={musicState.isFavorite}
-            onClick={musicToggleFavorite}
-            disabled={!musicState.title}
+            className="m-primary-toggle"
+            title={toggleTitle}
+            aria-label={toggleTitle}
+            onClick={showPause ? musicPause : musicPlay}
+            disabled={!musicState.flowMusicEnabled || (!musicActive && (musicBlockedByRemoteSession || emptyFavorites))}
           >
-            <Heart size={MUSIC_MINI_CONTROL_ICON_SIZE} fill={musicState.isFavorite ? "currentColor" : "none"} />
+            {showPause
+              ? <Pause size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
+              : <Play size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />}
+          </button>
+          <button className="m-next" title={MUSIC_COPY.nextTitle} aria-label={MUSIC_COPY.nextTitle} onClick={musicNext} disabled={!musicState.flowMusicEnabled}>
+            <SkipForward size={MUSIC_PRIMARY_CONTROL_ICON_SIZE} fill="currentColor" />
           </button>
         </div>
       </div>

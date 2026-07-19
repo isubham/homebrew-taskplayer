@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useCore } from "./CoreProvider.jsx";
+import { PLANNER_VIEW_KEY } from "../constants";
 
 const RouteContext = createContext(null);
 
@@ -15,6 +16,7 @@ export function RouteProvider({ children }) {
   const [route, setRouteState] = useState({ view: "home", listId: null });
   const [navBack, setNavBack] = useState([]);
   const [navFwd, setNavFwd] = useState([]);
+  const [plannerTarget, setPlannerTarget] = useState(null);
 
   // Ensure activeListId is valid whenever S changes
   useEffect(() => {
@@ -34,6 +36,9 @@ export function RouteProvider({ children }) {
     setNavBack((prev) => [...prev, { view, listId: activeListId }]);
     setNavFwd([]);
     setView(nextView);
+    setPlannerTarget(nextView === PLANNER_VIEW_KEY && target.planTaskId
+      ? { taskId: target.planTaskId, planId: target.planSessionId || null }
+      : null);
     if (nextListId) {
       setActiveListId(nextListId);
     }
@@ -49,6 +54,7 @@ export function RouteProvider({ children }) {
       setView(prev.view);
       setActiveListId(prev.listId);
       setRouteState({ view: prev.view, listId: prev.listId });
+      setPlannerTarget(null);
       return nextBack;
     });
   }, [view, activeListId]);
@@ -62,6 +68,7 @@ export function RouteProvider({ children }) {
       setView(next.view);
       setActiveListId(next.listId);
       setRouteState({ view: next.view, listId: next.listId });
+      setPlannerTarget(null);
       return nextFwd;
     });
   }, [view, activeListId]);
@@ -75,10 +82,12 @@ export function RouteProvider({ children }) {
     navigate({ view: "tasks", listId: id });
   }, [navigate]);
 
+  const clearPlannerTarget = useCallback(() => setPlannerTarget(null), []);
+
   return (
     <RouteContext.Provider value={{
-      state: { view, activeListId, route, navBack, navFwd },
-      actions: { navigate, goBack, goForward, goHome, selectList }
+      state: { view, activeListId, route, navBack, navFwd, plannerTarget },
+      actions: { navigate, goBack, goForward, goHome, selectList, clearPlannerTarget }
     }}>
       {children}
     </RouteContext.Provider>

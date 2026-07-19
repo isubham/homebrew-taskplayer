@@ -34,7 +34,7 @@ export function UIProvider({ children }) {
     toastTimerRef.current = setTimeout(() => setToast(null), duration);
   }, []);
 
-  const uiForm = useCallback(({ title, confirmText = "OK", danger = false, type = "note", message = "", messageHtml = "", subtitle = "", resolve }) => {
+  const uiForm = useCallback(({ title, confirmText = "OK", danger = false, type = "note", message = "", messageHtml = "", subtitle = "", sessionTaskSelection = false, resolve }) => {
     dialogRef.current?.resolve?.(null);
     const nextDialog = {
       title,
@@ -44,6 +44,7 @@ export function UIProvider({ children }) {
       message,
       messageHtml,
       subtitle,
+      sessionTaskSelection,
       resolve,
     };
     dialogRef.current = nextDialog;

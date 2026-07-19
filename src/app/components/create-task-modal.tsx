@@ -6,6 +6,7 @@ import { DEPTH_ICONS, CADENCE_ICONS, TASK_REPEAT_COPY } from "../constants.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { JewelDots } from "./jewel-dots.jsx";
 import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
+import { validateTaskSchedule } from "../schedule-validation";
 
 
 
@@ -24,6 +25,7 @@ export function NewTaskModal() {
   const [estimate, setEstimate] = useState("0.5");
   const [dailyWindows, setDailyWindows] = useState([]);
   const [listId, setListId] = useState(state.activeListId);
+  const [scheduleBlocked, setScheduleBlocked] = useState(false);
 
   const [impactTier, setImpactTier] = useState("");
   const [impactSign, setImpactSign] = useState(listItem.lifeDirection === "decrease" ? -1 : 1);
@@ -52,7 +54,7 @@ export function NewTaskModal() {
     : TASK_REPEAT_COPY.everyDayCaption;
 
   const handleCreate = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || (cadence === "daily" && scheduleBlocked)) return;
     const deadlineAt = deadline ? new Date(deadline + "T00:00:00").getTime() : null;
     const hours = estimate ? parseFloat(estimate) : null;
     actions.createTaskFromDetail({
@@ -175,6 +177,13 @@ export function NewTaskModal() {
                       daysAriaLabel={TASK_REPEAT_COPY.scheduleDaysAriaLabel}
                       emptyMeansEveryDay
                       everyDayLabel={TASK_REPEAT_COPY.everyDayOption}
+                      inspectWindows={(candidate) => validateTaskSchedule(
+                        candidate,
+                        state.S.tasks
+                          .filter((task) => task.cadence)
+                          .map((task) => ({ id: task.id, name: task.name, windows: task.dailyWindows })),
+                      )}
+                      onBlockingChange={setScheduleBlocked}
                     />
                   </div>
                   <div className="depth-hint">{TASK_REPEAT_COPY.scheduleHint}</div>
@@ -213,7 +222,7 @@ export function NewTaskModal() {
         </div>
         <div className="foot">
           <button className="stopbtn" onClick={() => actions.setOpenTaskId(null)}>Cancel</button>
-          <button className="create-task-btn" onClick={handleCreate}>Create task</button>
+          <button className="create-task-btn" disabled={cadence === "daily" && scheduleBlocked} onClick={handleCreate}>Create task</button>
         </div>
     </AnimatedModal>
   );

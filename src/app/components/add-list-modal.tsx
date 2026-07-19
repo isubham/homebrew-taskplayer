@@ -3,6 +3,7 @@ import { AnimatedModal } from "./motion-transitions.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { LIFE_AREAS } from "../utils.jsx";
+import { inspectListAvailability } from "../schedule-validation";
 
 import { EMOJI_CATEGORIES, DEFAULT_LIST_COLOR, DEFAULT_LIST_EMOJI, TOAST_LIST_CREATED } from "../constants.jsx";
 
@@ -18,6 +19,7 @@ export function AddListModal() {
   const [lifeDirection, setLifeDirection] = useState("increase");
   const [windows, setWindows] = useState([]);
   const [activeCat, setActiveCat] = useState("work");
+  const [scheduleBlocked, setScheduleBlocked] = useState(false);
 
   useEffect(() => {
     setName("");
@@ -27,6 +29,7 @@ export function AddListModal() {
     setColor(found ? found.color : DEFAULT_LIST_COLOR);
     setLifeDirection("increase");
     setWindows([]);
+    setScheduleBlocked(false);
   }, [state.openListId, state.openListArea]);
 
   useEffect(() => {
@@ -54,7 +57,7 @@ export function AddListModal() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || scheduleBlocked) return;
     try {
       const snap = await invoke("add_list", { name: name.trim() });
       
@@ -171,6 +174,11 @@ export function AddListModal() {
                 id="listAvailabilityEditor"
                 initialWindows={windows}
                 onSave={(nextWindows) => setWindows(nextWindows)}
+                inspectWindows={(candidate) => inspectListAvailability(
+                  candidate,
+                  state.S.lists.map((list) => ({ id: list.id, name: list.name, windows: list.availabilityWindows })),
+                )}
+                onBlockingChange={setScheduleBlocked}
               />
             </div>
           </div>
@@ -178,7 +186,7 @@ export function AddListModal() {
 
         <div className="dfoot">
           <button className="btn" onClick={() => setOpenListId(null)}>Cancel</button>
-          <button className="btn primary" onClick={handleSave}>Create</button>
+          <button className="btn primary" disabled={scheduleBlocked} onClick={handleSave}>Create</button>
         </div>
     </AnimatedModal>
   );

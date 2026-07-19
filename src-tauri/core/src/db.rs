@@ -1,6 +1,8 @@
 use crate::models::*;
 use rusqlite::{params, types::Type, Connection, OptionalExtension, Row};
 
+mod planned_sessions;
+
 const PALETTE: [&str; 8] = [
     "#2f9e8f", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
 ];
@@ -323,6 +325,11 @@ impl Db {
     pub fn delete_list(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
         self.conn.execute(
+            "UPDATE planned_sessions SET deleted_at=?1, updated_at=?1
+             WHERE task_id IN (SELECT id FROM tasks WHERE list_id=?2)",
+            params![now, id],
+        )?;
+        self.conn.execute(
             "UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE task_id IN (SELECT id FROM tasks WHERE list_id=?2)",
             params![now, id],
         )?;
@@ -438,9 +445,17 @@ impl Db {
     /// switched to "daily" keeps whatever those already were; the frontend's
     /// aggregation just stops reading `completed_at` for it going forward.
     pub fn set_cadence(&self, id: &str, cadence: Option<&str>) -> rusqlite::Result<()> {
+        let now = now_ms();
+        if cadence.is_some() {
+            self.conn.execute(
+                "UPDATE planned_sessions SET deleted_at=?1, updated_at=?1
+                 WHERE task_id=?2 AND deleted_at IS NULL",
+                params![now, id],
+            )?;
+        }
         self.conn.execute(
             "UPDATE tasks SET cadence=?1, updated_at=?2 WHERE id=?3",
-            params![cadence, now_ms(), id],
+            params![cadence, now, id],
         )?;
         Ok(())
     }
@@ -491,9 +506,17 @@ impl Db {
     }
 
     pub fn set_completed(&self, id: &str, at: Option<i64>) -> rusqlite::Result<()> {
+        let now = now_ms();
+        if at.is_some() {
+            self.conn.execute(
+                "UPDATE planned_sessions SET deleted_at=?1, updated_at=?1
+                 WHERE task_id=?2 AND deleted_at IS NULL",
+                params![now, id],
+            )?;
+        }
         self.conn.execute(
             "UPDATE tasks SET done=?1, updated_at=?2 WHERE id=?3",
-            params![at, now_ms(), id],
+            params![at, now, id],
         )?;
         Ok(())
     }
@@ -551,6 +574,10 @@ impl Db {
     pub fn delete_task(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
         self.conn.execute(
+            "UPDATE planned_sessions SET deleted_at=?1, updated_at=?1 WHERE task_id=?2",
+            params![now, id],
+        )?;
+        self.conn.execute(
             "UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE task_id=?2",
             params![now, id],
         )?;
@@ -595,6 +622,41 @@ impl Db {
         Ok(s)
     }
 
+    pub fn add_recorded_session(
+        &self,
+        log: &SessionLog,
+        now: i64,
+    ) -> rusqlite::Result<Option<Session>> {
+        if log.end <= log.start || log.end > now {
+            return Ok(None);
+        }
+        let session = Session {
+            id: new_id(),
+            task_id: log.task_id.clone(),
+            start: log.start,
+            end: Some(log.end),
+            updated_at: now_ms(),
+            deleted_at: None,
+        };
+        let inserted = self.conn.execute(
+            "INSERT INTO sessions(id,task_id,start,end,updated_at)
+             SELECT ?1,?2,?3,?4,?5
+             WHERE NOT EXISTS(
+               SELECT 1 FROM sessions
+               WHERE deleted_at IS NULL AND start<?4 AND COALESCE(end,?6)>?3
+             )",
+            params![
+                session.id,
+                session.task_id,
+                session.start,
+                session.end,
+                session.updated_at,
+                now
+            ],
+        )?;
+        Ok((inserted > 0).then_some(session))
+    }
+
     pub fn delete_session(&self, id: &str) -> rusqlite::Result<()> {
         self.conn.execute(
             "UPDATE sessions SET deleted_at=?1, updated_at=?1 WHERE id=?2",
@@ -603,12 +665,43 @@ impl Db {
         Ok(())
     }
 
-    pub fn update_session(&self, id: &str, start: i64, end: i64) -> rusqlite::Result<()> {
+    pub fn update_session(
+        &self,
+        id: &str,
+        task_id: Option<&str>,
+        start: i64,
+        end: i64,
+    ) -> rusqlite::Result<()> {
         self.conn.execute(
-            "UPDATE sessions SET start=?1, end=?2, updated_at=?3 WHERE id=?4 AND deleted_at IS NULL",
-            params![start, end, now_ms(), id],
+            "UPDATE sessions SET task_id=COALESCE(?1,task_id), start=?2, end=?3, updated_at=?4
+             WHERE id=?5 AND deleted_at IS NULL",
+            params![task_id, start, end, now_ms(), id],
         )?;
         Ok(())
+    }
+
+    pub fn update_recorded_session(
+        &self,
+        id: &str,
+        task_id: Option<&str>,
+        start: i64,
+        end: i64,
+        now: i64,
+    ) -> rusqlite::Result<bool> {
+        if end <= start || end > now {
+            return Ok(false);
+        }
+        Ok(self.conn.execute(
+            "UPDATE sessions
+             SET task_id=COALESCE(?1,task_id),start=?2,end=?3,updated_at=?4
+             WHERE id=?5 AND deleted_at IS NULL
+               AND NOT EXISTS(
+                 SELECT 1 FROM sessions AS other
+                 WHERE other.deleted_at IS NULL AND other.id<>?5
+                   AND other.start<?3 AND COALESCE(other.end,?6)>?2
+               )",
+            params![task_id, start, end, now_ms(), id, now],
+        )? > 0)
     }
 
     /// Task ids ordered by most-recently-played first (by latest session).
@@ -982,9 +1075,11 @@ impl Db {
         lists: &[TaskList],
         tasks: &[Task],
         sessions: &[Session],
+        planned_sessions: &[PlannedSession],
         config: Option<&SessionConfig>,
     ) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM planned_sessions", [])?;
         tx.execute("DELETE FROM sessions", [])?;
         tx.execute("DELETE FROM tasks", [])?;
         tx.execute("DELETE FROM lists", [])?;
@@ -1011,6 +1106,19 @@ impl Db {
             tx.execute(
                 "INSERT INTO sessions(id,task_id,start,end,updated_at) VALUES(?1,?2,?3,?4,?5)",
                 params![s.id, s.task_id, s.start, s.end, s.updated_at],
+            )?;
+        }
+        for planned in planned_sessions {
+            tx.execute(
+                "INSERT INTO planned_sessions(id,task_id,start,end,updated_at)
+                 VALUES(?1,?2,?3,?4,?5)",
+                params![
+                    planned.id,
+                    planned.task_id,
+                    planned.start,
+                    planned.end,
+                    planned.updated_at
+                ],
             )?;
         }
         tx.commit()?;
@@ -1216,6 +1324,7 @@ impl Db {
             life_area_priorities: self.life_area_priorities()?,
             tasks: self.tasks()?,
             sessions: self.sessions()?,
+            planned_sessions: self.planned_sessions()?,
             music_favorites: self.music_favorites()?,
             user_settings: self.get_user_settings(),
             config: self.get_config(),
@@ -1378,6 +1487,93 @@ mod tests {
         assert_eq!(s.end.unwrap() - s.start, 4_000);
         assert_eq!(db.sessions().unwrap().len(), 1);
         assert!(db.get_run().active_task_id.is_none());
+    }
+
+    #[test]
+    fn update_session_can_reassign_its_task() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("L").unwrap();
+        let first = db.add_task(&list.id, "First", None).unwrap();
+        let second = db.add_task(&list.id, "Second", None).unwrap();
+        let session = db
+            .add_session(&SessionLog {
+                task_id: first.id,
+                start: 100,
+                end: 200,
+            })
+            .unwrap();
+
+        db.update_session(&session.id, Some(&second.id), 300, 500)
+            .unwrap();
+        let updated = db.sessions().unwrap().remove(0);
+
+        assert_eq!(updated.task_id, second.id);
+        assert_eq!(updated.start, 300);
+        assert_eq!(updated.end, Some(500));
+
+        db.update_session(&session.id, None, 600, 900).unwrap();
+        let updated_without_task = db.sessions().unwrap().remove(0);
+        assert_eq!(updated_without_task.task_id, second.id);
+    }
+
+    #[test]
+    fn recorded_session_writes_recheck_overlap_and_allow_adjacent_boundaries() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("L").unwrap();
+        let task = db.add_task(&list.id, "Task", None).unwrap();
+        let first = db
+            .add_recorded_session(
+                &SessionLog {
+                    task_id: task.id.clone(),
+                    start: 100,
+                    end: 200,
+                },
+                1_000,
+            )
+            .unwrap()
+            .unwrap();
+
+        assert!(db
+            .add_recorded_session(
+                &SessionLog {
+                    task_id: task.id.clone(),
+                    start: 150,
+                    end: 250,
+                },
+                1_000,
+            )
+            .unwrap()
+            .is_none());
+        assert!(db
+            .add_recorded_session(
+                &SessionLog {
+                    task_id: task.id.clone(),
+                    start: 1_000,
+                    end: 1_100,
+                },
+                1_000,
+            )
+            .unwrap()
+            .is_none());
+        let adjacent = db
+            .add_recorded_session(
+                &SessionLog {
+                    task_id: task.id,
+                    start: 200,
+                    end: 300,
+                },
+                1_000,
+            )
+            .unwrap()
+            .unwrap();
+        assert!(!db
+            .update_recorded_session(&first.id, None, 250, 350, 1_000)
+            .unwrap());
+        assert!(db
+            .update_recorded_session(&first.id, None, 0, 100, 1_000)
+            .unwrap());
+        assert_eq!(db.sessions().unwrap().len(), 2);
+        assert_eq!(adjacent.start, 200);
     }
 
     #[test]
@@ -1563,6 +1759,138 @@ mod tests {
     }
 
     #[test]
+    fn planned_sessions_crud_cascade_and_remote_lww() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("Work").unwrap();
+        let task = db.add_task(&list.id, "Write proposal", Some(60)).unwrap();
+        let other_task = db.add_task(&list.id, "Review proposal", Some(30)).unwrap();
+        let future = now_ms() + 60_000;
+        let planned = db
+            .add_planned_session(&task.id, future, future + 1_000)
+            .unwrap()
+            .expect("one-time incomplete task should be plannable");
+
+        assert_eq!(db.planned_sessions().unwrap(), vec![planned.clone()]);
+        assert!(db
+            .update_planned_session(
+                &planned.id,
+                Some(&other_task.id),
+                future + 500,
+                future + 2_000,
+            )
+            .unwrap());
+        let updated = db.planned_sessions().unwrap().remove(0);
+        assert_eq!(updated.task_id, other_task.id);
+        assert_eq!((updated.start, updated.end), (future + 500, future + 2_000));
+        assert!(db
+            .update_planned_session(&planned.id, None, future + 600, future + 2_100)
+            .unwrap());
+        let updated = db.planned_sessions().unwrap().remove(0);
+        assert_eq!(updated.task_id, other_task.id);
+
+        let mut stale = updated.clone();
+        stale.start = future + 1_000;
+        stale.updated_at -= 1;
+        db.upsert_planned_sessions_from_remote(&[stale], false)
+            .unwrap();
+        assert_eq!(db.planned_sessions().unwrap()[0].start, future + 600);
+
+        let mut newer = updated.clone();
+        newer.start = future + 1_000;
+        newer.end = future + 3_000;
+        newer.updated_at += 1;
+        db.upsert_planned_sessions_from_remote(&[newer], false)
+            .unwrap();
+        assert_eq!(db.planned_sessions().unwrap()[0].start, future + 1_000);
+
+        db.set_completed(&other_task.id, Some(now_ms())).unwrap();
+        assert!(db.planned_sessions().unwrap().is_empty());
+        assert_eq!(db.planned_sessions_dirty_since(0).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn planned_sessions_reject_repeating_completed_and_invalid_ranges() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("Work").unwrap();
+        let future = now_ms() + 60_000;
+        let repeating = db.add_task(&list.id, "Routine", None).unwrap();
+        db.set_cadence(&repeating.id, Some("daily")).unwrap();
+        assert!(db
+            .add_planned_session(&repeating.id, future, future + 1_000)
+            .unwrap()
+            .is_none());
+
+        let completed = db.add_task(&list.id, "Done", None).unwrap();
+        db.set_completed(&completed.id, Some(now_ms())).unwrap();
+        assert!(db
+            .add_planned_session(&completed.id, future, future + 1_000)
+            .unwrap()
+            .is_none());
+
+        let open = db.add_task(&list.id, "Open", None).unwrap();
+        let planned = db
+            .add_planned_session(&open.id, future, future + 1_000)
+            .unwrap()
+            .unwrap();
+        assert!(!db
+            .update_planned_session(&planned.id, Some(&repeating.id), future, future + 2_000,)
+            .unwrap());
+        assert!(db
+            .add_planned_session(&open.id, 2_000, 1_000)
+            .unwrap()
+            .is_none());
+        assert!(db
+            .add_planned_session(&open.id, 1_000, 2_000)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn automatic_plan_acceptance_is_atomic_and_task_deletion_removes_plans() {
+        use crate::planner::AutomaticPlanSuggestion;
+
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("Work").unwrap();
+        let first = db.add_task(&list.id, "First", Some(30)).unwrap();
+        let second = db.add_task(&list.id, "Second", Some(30)).unwrap();
+        let repeating = db.add_task(&list.id, "Routine", Some(30)).unwrap();
+        db.set_cadence(&repeating.id, Some("daily")).unwrap();
+        let future = now_ms() + 60_000;
+        let valid = AutomaticPlanSuggestion {
+            task_id: first.id.clone(),
+            start: future,
+            end: future + 30 * 60_000,
+        };
+        let invalid = AutomaticPlanSuggestion {
+            task_id: repeating.id,
+            start: future + 30 * 60_000,
+            end: future + 60 * 60_000,
+        };
+
+        assert!(db
+            .add_planned_session_suggestions(&[valid.clone(), invalid])
+            .unwrap()
+            .is_none());
+        assert!(db.planned_sessions().unwrap().is_empty());
+
+        let second_suggestion = AutomaticPlanSuggestion {
+            task_id: second.id,
+            start: future + 30 * 60_000,
+            end: future + 60 * 60_000,
+        };
+        assert_eq!(
+            db.add_planned_session_suggestions(&[valid, second_suggestion])
+                .unwrap()
+                .unwrap()
+                .len(),
+            2
+        );
+        db.delete_task(&first.id).unwrap();
+        assert_eq!(db.planned_sessions().unwrap().len(), 1);
+        assert_eq!(db.planned_sessions_dirty_since(0).unwrap().len(), 2);
+    }
+
+    #[test]
     fn planner_backfill_fills_new_fields_without_replacing_local_row_edits() {
         let db = Db::open_in_memory().unwrap();
         let local_list = db.add_list("Local list name").unwrap();
@@ -1635,7 +1963,7 @@ mod tests {
 
         assert_eq!(
             db.sync_schema_backfill().as_deref(),
-            Some("planner_music_user_settings_v1")
+            Some("planner_music_user_settings_v1_planned_sessions_v1")
         );
         db.clear_sync_schema_backfill().unwrap();
         assert_eq!(db.sync_schema_backfill(), None);
@@ -1667,9 +1995,7 @@ mod tests {
             take_over_music_players: false,
             updated_at: 10,
         };
-        assert!(!db
-            .upsert_user_settings_from_remote(&stale, false)
-            .unwrap());
+        assert!(!db.upsert_user_settings_from_remote(&stale, false).unwrap());
         assert!(!db.get_user_settings().pause_for_other_audio);
     }
 

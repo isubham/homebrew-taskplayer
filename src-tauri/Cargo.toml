@@ -30,6 +30,11 @@ base64 = "0.22.1"
 getrandom = "0.4.3"
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6.2"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSWorkspace", "block2"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSOperation", "NSString", "block2"] }
+
 [workspace]
 members = ["core"]
 

@@ -22,9 +22,11 @@ persistence logic remains in `src-tauri/core`.
 |---|---|
 | `device.rs` | Device identity, run ownership, and post-sync reconciliation. |
 | `playback_service.rs` | Internal play/stop mutations and session persistence. |
+| `timer_diagnostics.rs` | Structured timer-pause diagnostics and persistence outcomes. |
+| `system_sleep.rs` | Confirmed macOS workspace sleep/wake observation. |
 | `snapshot.rs` | Builds frontend `Snapshot`/`Status` values and display helpers. |
 | `diagnostics.rs` | Log paths, panic logging, and guarded background execution. |
-| `tick_loop.rs` | One-second timer progression, sleep detection, and tray refresh. |
+| `tick_loop.rs` | One-second timer progression and tray refresh. |
 | `tick_notifications.rs` | Target, hourly, and scheduled reminder dispatch. |
 | `background_jobs.rs` | Periodic sync, full-sync, and update-check loops. |
 | `auth_session.rs` | Applies/refreshed sessions and maintains in-memory credentials. |
@@ -51,6 +53,7 @@ persistence logic remains in `src-tauri/core`.
 | `sync/backfill.rs` | Durable field backfills after schema-aware client upgrades. |
 | `sync/content_models.rs` | List, task, priority, and session wire models. |
 | `sync/music_models.rs` | Focus-music favorite wire model. |
+| `sync/planner_models.rs` | Planned-session wire model. |
 | `sync/runtime_models.rs` | Run-state and configuration wire models. |
 | `sync/transport.rs` | Generic Supabase REST fetch/upsert helpers. |
 | `sync/push.rs` | Local-to-remote serialization and cursor advancement. |
@@ -80,6 +83,7 @@ persistence logic remains in `src-tauri/core`.
 | `commands/settings.rs` | Timer settings, auth, sync, zoom, and sound commands. |
 | `commands/schedule.rs` | Computes deduplicated daily/list schedule notices. |
 | `commands/music.rs` | Saves and imports synced focus-music favorites. |
+| `commands/planner.rs` | Automatic preview/accept plus planned-session create, edit, remove, and direct-start commands. |
 | `commands/system.rs` | Music state, URL opening, and updater commands. |
 
 ## Boundaries

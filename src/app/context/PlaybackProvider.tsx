@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useCallback } from "react";
 import { useCore } from "./CoreProvider.jsx";
+import { TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -43,8 +44,8 @@ export function PlaybackProvider({ children }) {
     }
   }, [S]);
 
-  const play = useCallback(async (id) => {
-    apply(await invoke("play", { taskId: id }));
+  const play = useCallback(async (id, trigger = TIMER_PLAY_TRIGGERS.unknown) => {
+    apply(await invoke("play", { taskId: id, trigger }));
   }, [apply]);
 
   const stop = useCallback(async () => {

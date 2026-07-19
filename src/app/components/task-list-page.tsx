@@ -5,7 +5,7 @@ import { groupWeeklyWindows } from "../weekly-schedule.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { TaskRow, TaskTableHead } from "./task-row.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { TASK_REPEAT_COPY } from "../constants.jsx";
+import { TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { Droppable } from "@hello-pangea/dnd";
 
 const withEstimate = (timeText, estimateMin) => estimateMin ? `${timeText} of ${fmtEst(estimateMin)}` : timeText;
@@ -110,7 +110,7 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
             className="alb-play"
             onClick={(e) => {
               e.stopPropagation();
-              actions.play(tasks[0].id);
+              actions.play(tasks[0].id, TIMER_PLAY_TRIGGERS.albumPlay);
             }}
             title="Play first task in this album"
           >

@@ -1,7 +1,7 @@
 # TaskPlayer feature catalog
 
-Last reviewed: 2026-07-15  
-Applies to: TaskPlayer 0.8.1
+Last reviewed: 2026-07-19
+Applies to: Unreleased after TaskPlayer 0.9.3
 Primary platform: macOS desktop
 
 This is the authoritative record of what TaskPlayer does now. It describes shipped
@@ -25,13 +25,17 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Closing the main window keeps TaskPlayer running in the menu bar.
 - Development and installed builds use separate bundle identifiers, app-data directories,
   OAuth callback schemes, titles, and tray tooltips.
-- Native application logs are written under `~/Library/Logs/TaskPlayer`.
+- Native application logs are written under `~/Library/Logs/TaskPlayer`. Every timer pause records
+  a structured reason and trigger, task/phase timestamps, device id, and the outcome of both the
+  session-history and run-state writes. Frontend triggers distinguish keyboard, task-row, player,
+  menu, Home, and album actions; automatic causes identify sleep, Pomodoro, and sync transitions.
 
 ### Main navigation — Shipped
 
 - Home dashboard.
 - Life-area and list sidebar.
 - Individual task-list pages.
+- Pinned Planner page.
 - Pinned Insights page.
 - Settings page.
 - Dedicated Now Playing focus page and task/track overlays.
@@ -64,7 +68,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - `j` / `k` move through list or task rows; Enter activates the focused row.
 - Space plays or pauses the active, focused, or last-played task.
 - `n` creates a list, task, or session according to the focused region.
-- `o` opens Home, `i` opens Insights, `s` opens Settings, `/` focuses search, and `?` shows help.
+- `o` opens Home, `p` opens Planner, `i` opens Insights, `s` opens Settings, `/` focuses search,
+  and `?` shows help.
 - Shortcuts are suppressed while typing, while overlays are open, or when modifier keys are
   held.
 
@@ -113,7 +118,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - List rows and life-area headers share the same inline, fixed-width drag-grip styling.
 - Priority order is stored in SQLite and synced through Supabase.
 - **Known gap:** priority is not yet enforced when starting a task or adding a session.
-- **Known gap:** the automatic planner does not yet consume priority order.
+- Automatic planning uses this priority after deadline order and before task order.
 
 ### List availability windows — Shipped foundation
 
@@ -126,8 +131,11 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   cue.
 - Equal start/end times are rejected as ambiguous.
 - Availability is stored in SQLite and synced through Supabase.
+- Planner renders availability as quiet candidate-time background rather than claiming it is
+  already booked.
+- List create/edit names overlapping availability from other lists inline without blocking it;
+  overlapping rows inside the same list are rejected as ambiguous.
 - **Known gap:** availability does not yet constrain manual task starts or session entry.
-- **Known gap:** availability is not yet visualized in a Today/next-seven-days planner.
 
 ## 3. Tasks
 
@@ -203,9 +211,11 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Overnight rows use one occurrence, selected weekday as the starting day, and a “Next day”
   cue.
 - Equal start/end times are rejected.
+- Repeating-task create/edit blocks overlapping fixed task schedules and names up to three
+  conflicting tasks inline. Overnight and week-boundary overlaps are included.
 - Stored in SQLite and synced through Supabase.
 - Used by Daily Jam visibility, per-day rewards, task status, and schedule notifications.
-- **Known gap:** these occurrences are not yet rendered as calendar blocks.
+- Planner renders these windows as fixed repeating blocks without materializing duplicate rows.
 
 ### Sessions and history — Shipped
 
@@ -214,12 +224,71 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Switching tasks closes the previous work segment before starting the next.
 - Session history shows start, end, and duration.
 - Task detail shows each session's date and explicit start–end range alongside its duration.
-- Sessions can be added, edited, and deleted manually. Add/Edit accepts validated 24-hour
-  `HH:mm` start and end values on one row beneath the date; an earlier end time is treated as the
-  next day. Save, Cancel, and backdrop dismissal remain safe through the modal's closing animation.
+- Sessions can be added, edited, and deleted manually. Edit Session starts with the session's
+  current list and task; changing the list filters the task selector, and saving can reassign the
+  recorded work while recalculating both task rollups. Add/Edit accepts validated 24-hour `HH:mm`
+  start and end values on one row beneath the date; an earlier end time is treated as the next day.
+  New or edited recorded work cannot overlap another completed or currently active work session;
+  the inline error names the conflicting task and time. Adjacent boundaries remain valid. Save,
+  Cancel, and backdrop dismissal remain safe through the modal's closing animation.
+- Manual add/edit commands recheck recorded and currently active session overlap in Rust while
+  holding the local state and database locks, so a stale modal cannot create a local collision.
 - Task detail shows session count and time; Insights provides cross-task history.
-- Sleep/wake gap detection closes a running session at the last known awake tick rather than
-  counting computer sleep as work.
+- Confirmed macOS workspace sleep/wake events close a running session at the sleep timestamp rather
+  than counting computer sleep as work. Ordinary scheduler delays never pause a task. The pause
+  diagnostic includes the measured sleep interval.
+- **Known gap:** sessions created concurrently on devices that have not yet seen each other's
+  writes can still meet as overlapping factual records after sync. Cross-device reconciliation is
+  an upcoming-release TODO and must not silently delete either record.
+
+### Bounded calendar planner — Shipped
+
+- Today and seven-day views place list availability, repeating windows, deadlines, future plans,
+  recorded work, live work, and a current-time line on one physical timeline.
+- Planned, recorded-work, and live blocks are offset from the wider availability and
+  repeating-time bands, keeping the underlying allocation visible as calm container context. The
+  offset is 30% in Today and 20% in the narrower seven-day view; live work retains stronger active
+  styling.
+- Hovering a list-availability, repeating-task, recorded/live-session, or planned-session block
+  shows one compact card with a linked title and exact start–end time. The link opens the owning
+  list or task, while availability and repeating backgrounds still permit drag selection.
+- One-time tasks can be planned with a list-first, filtered task selector plus explicit local date,
+  start, and end fields; an earlier end time means the following day. New plans default to a
+  non-empty list whose availability contains the selected range when possible. Existing plans can
+  be reassigned to another eligible task without changing their time.
+- Past calendar days can record completed work for any task directly into actual session history;
+  Today exposes both Record and Plan, while future days only expose Plan.
+- Recorded-work blocks can be selected to edit their factual date, start, and end time through the
+  existing Edit Session form; live work and availability remain read-only.
+- Record Session selects a list before a task and only shows tasks from that list, avoiding one
+  cross-list task menu. It defaults to the first non-empty list whose availability contains the
+  selected time, falling back to the first non-empty ordered list when no availability matches.
+- Dragging across empty calendar time creates a 30-minute-snapped visual selection and opens the
+  appropriate Record or Plan form with the range prefilled. The time rail labels every hour.
+  Crossing the current-time line clamps to that boundary, and the form remains the accessible
+  precision fallback. Every new drag opens a fresh form, so list, task, and time choices from the
+  previous selection are not carried into the next one.
+- Planned sessions can be edited, removed, or started directly. Starting removes the plan and
+  uses the normal timer path, so plans never count as recorded work or rewards.
+- Future plans persist in additive SQLite storage, sync across signed-in devices with
+  last-write-wins tombstones, and survive export/import. Older backups remain importable.
+- One-time-task rows show their next plan and provide a quiet planning action at the point of
+  performance; task detail provides the same focused Plan action.
+- Auto-plan previews a deterministic seven-day allocation without saving it. The pure Rust
+  allocator expands local weekly availability, subtracts repeating commitments and existing
+  plans, ranks eligible work by deadline, life-area priority, task order, and stable task id, then
+  splits remaining estimates into each task's valid session range and fills the earliest opening.
+- The bounded preview shows planned-versus-available capacity as a physical bar, lists every
+  suggested block, and names unscheduled work factually. Existing plans consume that bar only for
+  the portion intersecting usable availability, so outside-availability plans remain context
+  without distorting open capacity. Accept persists the entire current preview atomically as
+  ordinary planned sessions; a changed calendar requires a fresh preview.
+- Home/Daily Jam shows the nearest future planned block, calendar blocks retain direct Start, and
+  Planner limits actual-session context to the recent seven days. Detailed history stays in
+  Insights.
+- Past unstarted plans disappear instead of becoming missed-block or failure history.
+- The planner horizon remains bounded and has no rewards, streaks, urgency, or loss framing.
+- **Known gap:** external calendar providers are not included.
 
 ## 4. Timer and player
 
@@ -393,14 +462,19 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Audius queues deduplicate candidates, reject unavailable/gated/short tracks, prefer
   vibe-appropriate moods, and rank by catalog play count with up to 50 candidates.
 - Starts with work, pauses on break/stop, and resumes with work.
+- A dedicated Focus Music settings section contains the device-local enable switch. Disabling it
+  fades out current music and blocks automatic restarts; enabling it resumes music immediately
+  when a local work session is active. The choice persists across restarts without affecting task
+  timing or another device. The mini-player contains no separate enable icon.
 - Normal starts fade from silence to full app volume over two seconds; normal stops fade back to
   silence over two seconds. These fades do not change the macOS system volume.
 - Focus music does not detect, pause for, resume after, or control audio in Apple Music, Spotify,
   browsers, meeting apps, or other external services.
 - Play/pause, next, and vibe controls in the app; volume follows the macOS system volume.
-- The right-side mini-player uses an outlined vibe pill above a static, ellipsized title, followed
-  by a prominent play/pause control, next-track control, and artwork on the far right. Favorite is
-  overlaid in the artwork corner; previous remains available through system media controls.
+- The right-side mini-player is a two-row, text-first control strip. The static ellipsized track
+  name and favorite occupy the first row; vibe, play/pause, and next occupy the second. It
+  deliberately shows neither an enable icon nor album art, keeping music a quiet utility rather
+  than a visual browsing surface. Previous remains available through system media controls.
 - A heart control in the mini-player and track detail saves or removes the current song. Saved
   songs persist offline, sync through the signed-in account, and appear on every device in a
   Favorites vibe that replays the queue later in saved order.
@@ -501,21 +575,22 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ## 13. Planner status
 
-### Existing foundations
+### Shipped planning system
 
 - List availability windows.
 - Daily fixed-time windows, including overnight occurrences.
 - One-time task estimates, deadlines, and minimum/maximum session sizes.
 - Global life-area priority order.
 - Schedule-boundary notifications.
+- Today and next-seven-days calendar views.
+- Manual planned-session blocks, rescheduling, direct Start, and recent actual-session context.
+- Deterministic automatic allocation with a read-only preview, physical capacity bar, factual
+  infeasibility copy, and explicit atomic acceptance.
 
 ### Not shipped yet
 
-- Automatic allocation of one-time-task sessions into available list windows.
-- Today and next-seven-days calendar views.
-- Capacity/feasibility validation against estimates, deadlines, and available time.
 - Conflict warnings when a lower-priority area tries to use a higher-priority window.
-- Manual planned-session calendar blocks and rescheduling.
+- External calendar-provider integration.
 - A full iOS app and iOS notification actions.
 
 ## 14. Documentation map

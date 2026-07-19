@@ -26,6 +26,176 @@ export const ZOOM_STEP = 0.1;
 export const TRACK_PX = 640;
 export const INSIGHTS_ICON_SIZE = 15;
 
+// Bounded planner calendar
+export const PLANNER_VIEW_KEY = "planner";
+export const PLANNER_DAY_COUNT = 7;
+export const PLANNER_HOURS_PER_DAY = 24;
+export const PLANNER_GRID_LINE_COUNT = PLANNER_HOURS_PER_DAY + 1;
+export const PLANNER_MINUTES_PER_HOUR = 60;
+export const PLANNER_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+export const PLANNER_MINUTES_PER_DAY = PLANNER_HOURS_PER_DAY * PLANNER_MINUTES_PER_HOUR;
+export const PLANNER_HOUR_HEIGHT_PX = 120;
+export const PLANNER_DAY_MIN_WIDTH_PX = 220;
+export const PLANNER_TIME_RAIL_WIDTH_PX = 58;
+export const PLANNER_MIN_BLOCK_HEIGHT_PX = 6;
+export const PLANNER_HOUR_LABEL_INTERVAL = 1;
+export const PLANNER_DEFAULT_START_HOUR = 9;
+export const PLANNER_TIME_STEP_MINUTES = 30;
+export const PLANNER_TIME_INPUT_STEP_SECONDS = PLANNER_TIME_STEP_MINUTES * 60;
+export const PLANNER_TIME_STEP_MILLISECONDS = PLANNER_TIME_STEP_MINUTES * 60_000;
+export const PLANNER_DRAG_THRESHOLD_PX = 4;
+export const PLANNER_PRIMARY_POINTER_BUTTON = 0;
+export const PLANNER_SCROLL_LEAD_HOURS = 1;
+export const PLANNER_ICON_SIZE = 16;
+export const PLANNER_ROW_ICON_SIZE = 14;
+export const PLANNER_CLOCK_TICK_MS = 60_000;
+export const PLANNER_MODAL_INITIAL_REVISION = 0;
+export const PLANNER_MODAL_REVISION_STEP = 1;
+export const PLANNER_ACTUAL_CONTEXT_DAYS = 7;
+export const PLANNER_HOVER_CARD_WIDTH_PX = 220;
+export const PLANNER_HOVER_CARD_HEIGHT_PX = 62;
+export const PLANNER_HOVER_CARD_OFFSET_PX = 12;
+export const PLANNER_HOVER_CARD_VIEWPORT_GAP_PX = 8;
+export const PLANNER_HOVER_CARD_HIDE_DELAY_MS = 140;
+export const PLANNER_FALLBACK_COLOR = "var(--muted)";
+export const PLANNER_ACTIVE_COLOR = "var(--green)";
+export const TASK_CADENCE_DAILY = "daily";
+export const PLANNER_DATE_HEADING_FORMAT = { weekday: "short", month: "short", day: "numeric" } as const;
+export const PLANNER_DATE_SHORT_FORMAT = { month: "short", day: "numeric" } as const;
+export const PLANNER_RANGE_FORMAT = { month: "short", day: "numeric" } as const;
+export const PLANNER_TIME_LABEL_FORMAT = { hour: "numeric", minute: "2-digit" } as const;
+export const PLANNER_VIEW_MODES = {
+  today: "today",
+  week: "week",
+} as const;
+export const PLANNER_BLOCK_KINDS = {
+  availability: "availability",
+  routine: "routine",
+  planned: "planned",
+  actual: "actual",
+  live: "live",
+} as const;
+export const PLANNER_BLOCK_ID_PREFIXES = {
+  availability: "availability",
+  routine: "routine",
+  live: "live",
+} as const;
+export const PLANNER_FIELD_IDS = {
+  list: "planner-list",
+  task: "planner-task",
+  date: "planner-date",
+  automaticTitle: "automatic-plan-title",
+} as const;
+export const PLANNER_DRAG_BLOCKING_SELECTOR = "[data-planner-drag-blocking],button";
+export const PLANNER_COPY = {
+  navigationLabel: "Planner",
+  navigationTitle: "Plan work on a calendar",
+  eyebrow: "Planner",
+  todayHeading: "Today",
+  subtitle: "Available time, planned sessions, and actual work in one place.",
+  todayTab: "Today",
+  weekTab: "7 days",
+  todayButton: "Today",
+  previousButton: "Previous period",
+  nextButton: "Next period",
+  addButton: "Plan session",
+  recordButton: "Record session",
+  recordTitle: "Record completed work",
+  recordSaveButton: "Add to history",
+  createTitle: "Plan a session",
+  editTitle: "Edit planned session",
+  taskLabel: "Task",
+  listLabel: "List",
+  dateLabel: "Date",
+  startLabel: "Start",
+  endLabel: "End",
+  cancelButton: "Cancel",
+  saveButton: "Save plan",
+  deleteButton: "Remove plan",
+  startButton: "Start",
+  editButton: "Edit plan",
+  noListsForPlanning: "Add a list before planning a session.",
+  noPlannableTasksInList: "This list has no unfinished one-time tasks.",
+  noLists: "Add a list before recording completed work.",
+  noTasksInList: "This list has no tasks yet.",
+  invalidTask: "Choose an unfinished one-time task.",
+  recordTaskError: "Choose a task.",
+  pastPlanError: "Choose a time that has not already ended.",
+  emptyDay: "Open time",
+  deadlinePrefix: "Due",
+  actualLabel: "Actual",
+  recordedWorkLabel: "Recorded work",
+  currentWorkLabel: "Current work",
+  liveLabel: "Recording now",
+  routineLabel: "Repeating",
+  availabilityLabel: "Available",
+  plannedLabel: "Planned",
+  removeTitle: "Remove this planned session?",
+  removeDescription: "The task stays available and can be planned again.",
+  removeConfirm: "Remove",
+  dismissButton: "OK",
+  commandErrorTitle: "Couldn't update the plan",
+  timeGridLabel: "Planner timeline",
+  hoverCardLabel: "Planner item details",
+  openReferenceLabel: (title) => `Open ${title}`,
+  dragHint: "Drag across empty time to record past work or plan future work.",
+  dragRecordLabel: "Release to record",
+  dragPlanLabel: "Release to plan",
+  planTaskButton: "Plan",
+  planTaskTitle: "Plan this task",
+  editTaskPlanTitle: "Edit the next plan",
+  nextPlanLabel: (rangeLabel) => `Next: ${rangeLabel}`,
+  outsideAvailabilityNotice: "Outside this list's saved availability.",
+  overlapNotice: "Overlaps another plan or repeating block.",
+  dayCountLabel: (count) => `${count} day${count === 1 ? "" : "s"}`,
+  deadlineLabel: (taskName) => `Due: ${taskName}`,
+  availabilityBlockLabel: (listName) => `${listName} available`,
+  timeRangeLabel: (startLabel, endLabel) => `${startLabel}–${endLabel}`,
+  blockTitle: (taskName, rangeLabel) => `${taskName} · ${rangeLabel}`,
+  editRecordedSessionTitle: (taskName, rangeLabel) => `Edit recorded session: ${taskName} · ${rangeLabel}`,
+  dateRangeLabel: (startLabel, endLabel) => `${startLabel} – ${endLabel}`,
+};
+
+export const AUTOMATIC_PLAN_FALLBACK_TIME_ZONE = "UTC";
+export const AUTOMATIC_PLAN_CAPACITY_PERCENT = 100;
+export const AUTOMATIC_PLAN_DATE_FORMAT = { weekday: "long" } as const;
+export const AUTOMATIC_PLAN_COPY = {
+  button: "Auto-plan",
+  buttonTitle: "Suggest sessions from availability and task constraints",
+  loadingButton: "Planning…",
+  title: "Preview automatic plan",
+  subtitle: "Review the suggested blocks. Nothing is saved until you accept.",
+  capacityHeading: "Seven-day capacity",
+  capacityAriaLabel: "Planned and suggested time within available capacity",
+  existingCapacityLabel: "Already planned",
+  suggestedCapacityLabel: "Suggested",
+  openCapacityLabel: "Still open",
+  suggestionsHeading: "Suggested sessions",
+  remainderHeading: "Still needs time",
+  emptySuggestions: "No sessions fit the current availability and task constraints.",
+  noRemainders: "All estimated work that fits these rules has a suggested time.",
+  unknownTask: "Unavailable task",
+  unknownList: "Unavailable list",
+  refreshButton: "Refresh",
+  acceptButton: "Accept plan",
+  acceptingButton: "Accepting…",
+  closeButton: "Cancel",
+  commandErrorTitle: "Couldn't build the plan",
+  durationLabel: (minutes: number) => {
+    const hours = Math.floor(minutes / PLANNER_MINUTES_PER_HOUR);
+    const remainder = minutes % PLANNER_MINUTES_PER_HOUR;
+    if (!hours) return `${remainder} min`;
+    if (!remainder) return `${hours} hr`;
+    return `${hours} hr ${remainder} min`;
+  },
+  remainderMessage: (duration: string, deadlineLabel?: string) =>
+    `${duration} still needs a time${deadlineLabel ? ` before ${deadlineLabel}` : " in the next seven days"}.`,
+  suggestionMeta: (listName: string, rangeLabel: string) => `${listName} · ${rangeLabel}`,
+  nextHeading: "Next planned block",
+  nextOpenTitle: "Open this planned session",
+  nextMeta: (listName: string, rangeLabel: string) => `${listName} · ${rangeLabel}`,
+};
+
 // Sticky page header selectors
 export const STICKY_SCROLL_ROOT_SELECTOR = ".main";
 export const STICKY_TITLE_SELECTOR = ".hdr .info h1";
@@ -41,10 +211,13 @@ export const MUSIC_API_BASE = "https://api.audius.co";
 export const MUSIC_STORAGE_KEYS = {
   genre: "tp.genre",
   favorites: "tp.musicFavorites",
+  flowEnabled: "tp.focusMusicEnabled",
 };
 export const MUSIC_DEFAULTS = {
   genre: "lofi",
+  flowEnabled: true,
 };
+export const MUSIC_STORAGE_VALUES = { enabled: "1", disabled: "0" } as const;
 export const MUSIC_FADE_DURATION_MS = 2_000;
 export const MUSIC_FADE_TICK_MS = 50;
 export const MUSIC_VOLUME_MUTED = 0;
@@ -54,7 +227,25 @@ export const SESSION_MILLISECONDS_PER_MINUTE = 60_000;
 export const SESSION_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 export const SESSION_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const SESSION_TIME_INPUT_MAX_LENGTH = 5;
+export const SESSION_FIELD_IDS = {
+  list: "session-list",
+  task: "session-task",
+  feedback: "session-time-feedback",
+} as const;
 export const SESSION_COPY = {
+  addTitle: "Add session",
+  addButton: "Add",
+  editTitle: "Edit session",
+  editButton: "Save",
+  editSubtitle: "Editing or deleting this session will recalculate all rollups immediately.",
+  listLabel: "List",
+  taskLabel: "Task",
+  noLists: "No lists available.",
+  noTasksInList: "This list has no tasks.",
+  chooseTask: "Choose the task this work belongs to.",
+  unknownTask: "Another task",
+  overlapError: (taskName, rangeLabel) => `${taskName} already has work recorded at ${rangeLabel}. Choose a non-overlapping time.`,
+  commandErrorTitle: "Couldn't save session",
   dateLabel: "Date",
   startTimeLabel: "Start time",
   endTimeLabel: "End time",
@@ -63,7 +254,10 @@ export const SESSION_COPY = {
   invalidStartTime: "Enter the start time as HH:mm.",
   invalidEndTime: "Enter the end time as HH:mm.",
   equalTimes: "Start and end time must be different.",
+  futureEnd: "Recorded work must end at or before the current time.",
   overnightHint: "An end time earlier than the start is saved as the next day.",
+  cancelButton: "Cancel",
+  confirmButton: "OK",
   liveEndLabel: "now",
   recordingLabel: "recording…",
 };
@@ -80,6 +274,10 @@ export const MUSIC_COPY = {
   favoriteTitle: "Add to favorite songs",
   unfavoriteTitle: "Remove from favorite songs",
   noFavoritesTitle: "No favorite songs yet",
+  flowToggleLabel: "Focus music",
+  flowEnabledTitle: "Disable focus music",
+  flowDisabledTitle: "Enable focus music",
+  flowDescription: "Automatically plays during work and pauses during breaks or when the timer stops.",
 };
 export const MUSIC_FAVORITES_VIBE_KEY = "favorites";
 export const MEDIA_SESSION_ACTIONS = {
@@ -93,6 +291,18 @@ export const MUSIC_MARQUEE_GAP_PX = 32;
 export const MUSIC_MARQUEE_MIN_DURATION_SECONDS = 8;
 export const MUSIC_MARQUEE_PIXELS_PER_SECOND = 24;
 export const PLAYER_HISTORY_ICON_SIZE = 18;
+export const TIMER_PLAY_TRIGGERS = {
+  unknown: "frontend_unknown",
+  keyboardActivate: "keyboard_activate",
+  keyboardShortcut: "keyboard_shortcut",
+  homeDailyJam: "home_daily_jam",
+  rowMenu: "row_menu",
+  taskRow: "task_row",
+  playerTakeover: "player_takeover",
+  playerResume: "player_resume",
+  playerToggle: "player_toggle",
+  albumPlay: "album_play",
+} as const;
 export const MUSIC_MINI_CONTROL_ICON_SIZE = 16;
 export const MUSIC_PRIMARY_CONTROL_ICON_SIZE = 16;
 
@@ -130,6 +340,15 @@ export const TASK_REPEAT_COPY = {
   dailyJamEmpty: DAILY_JAM_COPY.allClear,
 };
 
+export const SCHEDULE_VALIDATION_MAX_ITEMS = 3;
+export const SCHEDULE_VALIDATION_COPY = {
+  equalTimes: (dayLabel, timeLabel) => `${dayLabel} starts and ends at ${timeLabel}. Choose two different times.`,
+  selfOverlap: (rangeLabel) => `Two rows in this schedule overlap at ${rangeLabel}.`,
+  listOverlap: (name, rangeLabel) => `${name} is also available at ${rangeLabel}.`,
+  taskOverlap: (name, rangeLabel) => `${name} is already scheduled at ${rangeLabel}.`,
+  additionalItems: (count) => `And ${count} more.`,
+};
+
 export const SETTINGS_DATA_COPY = {
   icon: "🗄️",
   color: "#509bf5",
@@ -161,6 +380,7 @@ export const KEYBOARD_SETTINGS_COPY = {
       <div><kbd>/</kbd></div><div>Focus search</div>
       <div><kbd>Escape</kbd></div><div>Clear focus / close modals</div>
       <div><kbd>o</kbd></div><div>Go to Home</div>
+      <div><kbd>p</kbd></div><div>Go to Planner</div>
       <div><kbd>i</kbd></div><div>Go to Insights</div>
       <div><kbd>s</kbd></div><div>Go to Settings</div>
     </div>
@@ -169,6 +389,7 @@ export const KEYBOARD_SETTINGS_COPY = {
 export const SETTINGS_SECTIONS = [
   { key: "account", icon: "👤", color: "#509bf5", title: "Account", subtitle: "Sign-in & account" },
   { key: "workflow", icon: "⏱️", color: "#2f9e8f", title: "Workflow", subtitle: "Timer configuration" },
+  { key: "music", icon: "🎵", color: "#1db954", title: "Focus Music", subtitle: "Automatic work soundtrack" },
   { key: "notifications", icon: "🔔", color: "#f5a623", title: "Notifications", subtitle: "Sounds & alerts" },
   { key: "keyboard", icon: "⌨️", color: "#8d67ab", title: "Keyboard", subtitle: "Shortcuts" },
   { key: "data", icon: SETTINGS_DATA_COPY.icon, color: SETTINGS_DATA_COPY.color, title: SETTINGS_DATA_COPY.title, subtitle: SETTINGS_DATA_COPY.subtitle },

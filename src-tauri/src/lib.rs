@@ -6,6 +6,7 @@ mod config;
 mod constants;
 mod startup;
 mod sync;
+mod system_sleep;
 mod tick_loop;
 mod tick_notifications;
 
@@ -25,8 +26,8 @@ use tauri_plugin_updater::UpdaterExt;
 use taskplayer_core::models::now_ms;
 use taskplayer_core::schedule::{due_schedule_events, ScheduleEvent, ScheduleEventKind};
 use taskplayer_core::{
-    task_total_ms, timer, AccountInfo, Db, MusicFavoriteInput, RunState, Session, SessionConfig,
-    Snapshot, Status, Task, TaskList,
+    task_total_ms, timer, AccountInfo, Db, MusicFavoriteInput, PlannedSession, RunState, Session,
+    SessionConfig, Snapshot, Status, Task, TaskList,
 };
 
 use constants::*;
@@ -47,11 +48,13 @@ mod auth_session;
 mod device;
 mod playback_service;
 mod sync_service;
+mod timer_diagnostics;
 
 use auth_session::*;
 use device::*;
 use playback_service::*;
 use sync_service::*;
+use timer_diagnostics::*;
 
 mod commands;
 use commands::*;
@@ -111,6 +114,12 @@ pub fn run() {
             add_session,
             update_session,
             delete_session,
+            suggest_automatic_plan,
+            accept_automatic_plan,
+            create_planned_session,
+            update_planned_session,
+            delete_planned_session,
+            start_planned_session,
             export_data,
             reveal_logs,
             import_data,

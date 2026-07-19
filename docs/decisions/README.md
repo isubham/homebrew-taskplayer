@@ -28,6 +28,9 @@ would otherwise be repeatedly debated. Do not create one for routine implementat
 | [0012](0012-synced-user-settings.md) | Accepted | Store account preferences in a synced singleton separate from timer config |
 | [0013](0013-exact-media-takeover.md) | Superseded | Control only explicitly supported media apps through a local ownership lease |
 | [0014](0014-no-external-audio-coordination.md) | Accepted | Keep focus music independent of external audio and media players |
+| [0015](0015-planned-sessions-separate-from-history.md) | Accepted | Keep future plans separate from recorded work sessions |
+| [0016](0016-automatic-planning-requires-preview.md) | Accepted | Require preview and acceptance for deterministic automatic planning |
+| [0017](0017-confirmed-system-sleep-events.md) | Accepted | Pause timers only for confirmed macOS system sleep |
 
 ## Creating a record
 

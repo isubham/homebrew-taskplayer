@@ -59,34 +59,32 @@
 
 .right { min-width: 0; flex: 0 0 auto; display: flex; justify-content: flex-end; overflow: hidden; }
 
-/* Reference-style player: vibe above title, prominent play/pause and next,
-   then artwork with its favorite control overlaid in the corner. */
+/* Text-first focus-music strip: enable, vibe/title, and direct controls. */
 .music {
-  display: grid; grid-template-columns: minmax(0,1fr) var(--music-primary-control-size) 24px var(--music-mini-art-size); grid-template-rows: 1fr 1fr;
-  grid-template-areas: "vibe toggle next art" "title toggle next art"; align-items: center; column-gap: 10px; width: 100%; min-width: 0;
+  display: grid; grid-template-columns: minmax(0,1fr) var(--music-secondary-control-size); grid-template-rows: 1fr 1fr;
+  grid-template-areas: "title favorite" "controls controls"; align-items: center; column-gap: 10px; width: 100%; min-width: 0;
   height: var(--music-mini-height); padding: 4px 8px; border-radius: 10px;
 }
-.m-artwork-control { grid-area: art; position: relative; width: var(--music-mini-art-size); height: var(--music-mini-art-size); overflow: hidden; border-radius: 7px; background: var(--bg3); }
-.m-art { width: 100%; height: 100%; display: block; object-fit: cover; }
-.m-art-fallback { display: grid; place-items: center; color: var(--muted); }
-.m-track-title { grid-area: title; align-self: start; margin-top: var(--music-label-center-offset); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--music-track-title-size); font-weight: var(--music-track-title-weight); color: var(--text); }
+.m-track-title { grid-area: title; align-self: end; margin-bottom: var(--music-label-center-offset); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--music-track-title-size); font-weight: var(--music-track-title-weight); color: var(--text); }
 .music.loading .m-track-title { font-style: italic; }
 
 @media (prefers-reduced-motion: reduce) {
   .bar.live > span { transition: none; }
 }
 
-/* Outlined vibe pill anchors the upper-left like the reference. */
-.m-genre { grid-area: vibe; position: relative; align-self: end; justify-self: start; margin-bottom: var(--music-label-center-offset); min-width: 0; max-width: var(--music-vibe-max-width); height: 19px; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--music-vibe-padding-x); border: .5px solid var(--green); border-radius: 10px; background: transparent; color: var(--green-hi); font-size: 9px; font-weight: 600; }
+/* Vibe and playback actions share the second row. */
+.m-player-controls { grid-area: controls; align-self: start; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.m-genre { position: relative; margin-right: auto; min-width: 0; max-width: var(--music-vibe-max-width); height: 19px; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--music-vibe-padding-x); border: .5px solid var(--green); border-radius: 10px; background: transparent; color: var(--green-hi); font-size: 9px; font-weight: 600; }
 .m-genre-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-genre select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; appearance: none; border: 0; }
 
-.m-primary-toggle { grid-area: toggle; width: var(--music-primary-control-size); height: var(--music-primary-control-size); display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--bg3); color: var(--text); cursor: pointer; }
+.m-primary-toggle { flex: none; width: var(--music-primary-control-size); height: var(--music-primary-control-size); display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--bg3); color: var(--text); cursor: pointer; }
 .m-primary-toggle:hover { background: var(--elev); }
 .m-primary-toggle:disabled { color: #666; cursor: default; }
-.m-primary-toggle svg, .m-next svg, .m-art-favorite svg { display: block; }
-.m-next { grid-area: next; width: 24px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; }
+.m-primary-toggle svg, .m-next svg, .m-favorite svg { display: block; }
+.m-next { flex: none; width: var(--music-secondary-control-size); height: var(--music-primary-control-size); display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; }
 .m-next:hover { background: rgba(255,255,255,.08); }
-.m-art-favorite { position: absolute; top: 4px; right: 4px; width: 25px; height: 25px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.68); color: var(--text); cursor: pointer; }
-.m-art-favorite:hover, .m-art-favorite.on { color: var(--green-hi); background: rgba(0,0,0,.82); }
-.m-art-favorite:disabled { color: #666; cursor: default; }
+.m-next:disabled { color: #666; cursor: default; }
+.m-favorite { grid-area: favorite; align-self: end; margin-bottom: var(--music-label-center-offset); width: var(--music-secondary-control-size); height: var(--music-secondary-control-size); display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; }
+.m-favorite:hover, .m-favorite.on { color: var(--green-hi); background: rgba(255,255,255,.08); }
+.m-favorite:disabled { color: #666; cursor: default; }

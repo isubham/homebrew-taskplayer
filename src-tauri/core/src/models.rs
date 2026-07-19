@@ -260,6 +260,26 @@ pub struct Task {
     pub deleted_at: Option<i64>,
 }
 
+/// A future one-time-task commitment. Planned sessions are intentionally
+/// separate from recorded `Session` rows so history, totals, and rewards
+/// continue to mean work that actually happened.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PlannedSession {
+    pub id: String,
+    pub task_id: String,
+    #[specta(type = f64)]
+    pub start: i64,
+    #[specta(type = f64)]
+    pub end: i64,
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub updated_at: i64,
+    #[serde(skip)]
+    #[specta(type = Option<i32>)]
+    pub deleted_at: Option<i64>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
@@ -466,6 +486,8 @@ pub struct Snapshot {
     pub life_area_priorities: Vec<LifeAreaPriority>,
     pub tasks: Vec<Task>,
     pub sessions: Vec<Session>,
+    #[serde(default)]
+    pub planned_sessions: Vec<PlannedSession>,
     #[serde(default)]
     pub music_favorites: Vec<MusicFavorite>,
     #[serde(default)]

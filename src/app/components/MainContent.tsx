@@ -4,8 +4,10 @@ import { HomePage } from "./HomePage.jsx";
 import { SettingsPage } from "./SettingsPage.jsx";
 import { InsightsPage } from "./InsightsPage.jsx";
 import { NowPlayingPage } from "./NowPlayingPage.jsx";
+import { PlannerPage } from "./PlannerPage.jsx";
 import { TaskListPage } from "./task-list-page.jsx";
 import { AnimatedPage } from "./motion-transitions.jsx";
+import { PLANNER_VIEW_KEY } from "../constants";
 
 export function MainContent(props) {
   const { state, activeList, tasksForList, attentionTasks, dispatch } = props;
@@ -22,6 +24,8 @@ export function MainContent(props) {
         return <SettingsPage state={state} dispatch={dispatch} />;
       case "insights":
         return <InsightsPage {...props} />;
+      case PLANNER_VIEW_KEY:
+        return <PlannerPage />;
       case "playing":
         return <NowPlayingPage {...props} />;
       default: {
@@ -45,7 +49,7 @@ export function MainContent(props) {
     }
   };
 
-  const listItem = state.view !== "home" && state.view !== "settings" && state.view !== "insights" && state.view !== "playing"
+  const listItem = state.view !== "home" && state.view !== "settings" && state.view !== "insights" && state.view !== PLANNER_VIEW_KEY && state.view !== "playing"
     ? activeList()
     : null;
   const accentColor = listItem?.color || null;

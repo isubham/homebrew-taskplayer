@@ -1,46 +1,30 @@
 use super::*;
 
-pub(super) fn backfill_planner_schema(db: &Db, token: &str) -> Result<bool, String> {
-    finish(db, backfill_planner(db, token)?)
-}
+pub(super) fn backfill_schema(db: &Db, token: &str, marker: &str) -> Result<bool, String> {
+    let needs_planner = marker.contains("planner");
+    let needs_music = marker.contains("music");
+    let needs_settings = marker.contains("user_settings") || marker.contains("takeover");
+    let needs_planned_sessions = marker.contains("planned_sessions");
+    if !needs_planner && !needs_music && !needs_settings && !needs_planned_sessions {
+        return Err(format!(
+            "Sync paused: this client does not understand schema backfill {marker}."
+        ));
+    }
 
-pub(super) fn backfill_music_favorites_schema(db: &Db, token: &str) -> Result<bool, String> {
-    finish(db, backfill_music(db, token)?)
-}
-
-pub(super) fn backfill_planner_and_music_schema(db: &Db, token: &str) -> Result<bool, String> {
-    let planner = backfill_planner(db, token)?;
-    let music = backfill_music(db, token)?;
-    finish(db, planner || music)
-}
-
-pub(super) fn backfill_user_settings_schema(db: &Db, token: &str) -> Result<bool, String> {
-    finish(db, backfill_settings(db, token)?)
-}
-
-pub(super) fn backfill_planner_and_user_settings_schema(
-    db: &Db,
-    token: &str,
-) -> Result<bool, String> {
-    let planner = backfill_planner(db, token)?;
-    let settings = backfill_settings(db, token)?;
-    finish(db, planner || settings)
-}
-
-pub(super) fn backfill_music_and_user_settings_schema(
-    db: &Db,
-    token: &str,
-) -> Result<bool, String> {
-    let music = backfill_music(db, token)?;
-    let settings = backfill_settings(db, token)?;
-    finish(db, music || settings)
-}
-
-pub(super) fn backfill_all_current_schema(db: &Db, token: &str) -> Result<bool, String> {
-    let planner = backfill_planner(db, token)?;
-    let music = backfill_music(db, token)?;
-    let settings = backfill_settings(db, token)?;
-    finish(db, planner || music || settings)
+    let mut changed = false;
+    if needs_planner {
+        changed |= backfill_planner(db, token)?;
+    }
+    if needs_music {
+        changed |= backfill_music(db, token)?;
+    }
+    if needs_settings {
+        changed |= backfill_settings(db, token)?;
+    }
+    if needs_planned_sessions {
+        changed |= backfill_planned_sessions(db, token)?;
+    }
+    finish(db, changed)
 }
 
 fn backfill_planner(db: &Db, token: &str) -> Result<bool, String> {
@@ -82,6 +66,17 @@ fn backfill_settings(db: &Db, token: &str) -> Result<bool, String> {
             .map_err(|error| error.to_string()),
         None => Ok(false),
     }
+}
+
+fn backfill_planned_sessions(db: &Db, token: &str) -> Result<bool, String> {
+    let sessions = fetch_since::<RemotePlannedSession>(token, "planned_sessions", 0)?
+        .into_iter()
+        .map(RemotePlannedSession::into_local)
+        .collect::<Vec<_>>();
+    let changed = !sessions.is_empty();
+    db.upsert_planned_sessions_from_remote(&sessions, false)
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
 }
 
 fn finish(db: &Db, changed: bool) -> Result<bool, String> {

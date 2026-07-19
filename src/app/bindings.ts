@@ -28,28 +28,19 @@ export const commands = {
 	moveTask: (id: string, listId: string) => __TAURI_INVOKE<Snapshot>("move_task", { id, listId }),
 	reorderTasks: (listId: string, orderedIds: string[]) => __TAURI_INVOKE<Snapshot>("reorder_tasks", { listId, orderedIds }),
 	deleteTask: (id: string) => __TAURI_INVOKE<Snapshot>("delete_task", { id }),
-	addSession: (taskId: string, start: number | null, end: number | null) => __TAURI_INVOKE<Snapshot>("add_session", { taskId, start, end }),
-	updateSession: (id: string, start: number | null, end: number | null) => __TAURI_INVOKE<Snapshot>("update_session", { id, start, end }),
+	addSession: (taskId: string, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("add_session", { taskId, start, end })),
+	updateSession: (id: string, taskId: string | null, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("update_session", { id, taskId, start, end })),
 	deleteSession: (id: string) => __TAURI_INVOKE<Snapshot>("delete_session", { id }),
-	/**
-	 *  Serialize all data to a JSON backup in ~/Downloads and reveal it in Finder.
-	 *  Returns the written file path.
-	 */
+	suggestAutomaticPlan: (timeZone: string) => typedError<AutomaticPlanPreview, string>(__TAURI_INVOKE("suggest_automatic_plan", { timeZone })),
+	acceptAutomaticPlan: (timeZone: string, preview: AutomaticPlanPreview) => typedError<Snapshot, string>(__TAURI_INVOKE("accept_automatic_plan", { timeZone, preview })),
+	createPlannedSession: (taskId: string, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("create_planned_session", { taskId, start, end })),
+	updatePlannedSession: (id: string, taskId: string | null, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("update_planned_session", { id, taskId, start, end })),
+	deletePlannedSession: (id: string) => typedError<Snapshot, string>(__TAURI_INVOKE("delete_planned_session", { id })),
+	startPlannedSession: (id: string) => typedError<Snapshot, string>(__TAURI_INVOKE("start_planned_session", { id })),
 	exportData: () => typedError<string, string>(__TAURI_INVOKE("export_data")),
-	/**
-	 *  Reveals `taskplayer.log` in Finder (creating an empty one first if
-	 *  nothing's been logged yet), the same "open -R" pattern export_data uses —
-	 *  so "attach your logs to a bug report" is a single click in Settings
-	 *  instead of "go find ~/Library/Logs yourself." Returns the path so the
-	 *  frontend can show it, in case Finder itself doesn't grab focus.
-	 */
 	revealLogs: () => typedError<string, string>(__TAURI_INVOKE("reveal_logs")),
-	/**
-	 *  Replace all data from a backup JSON string. Clears the run state so nothing
-	 *  is left "playing" against tasks that may no longer exist.
-	 */
 	importData: (payload: string) => typedError<Snapshot, string>(__TAURI_INVOKE("import_data", { payload })),
-	play: (taskId: string) => __TAURI_INVOKE<Snapshot>("play", { taskId }),
+	play: (taskId: string, trigger: string | null) => __TAURI_INVOKE<Snapshot>("play", { taskId, trigger }),
 	stop: () => __TAURI_INVOKE<Snapshot>("stop"),
 	skipBreak: () => __TAURI_INVOKE<Snapshot>("skip_break"),
 	/**
@@ -160,6 +151,27 @@ export type AccountInfo = {
 	avatarUrl: string | null,
 };
 
+export type AutomaticPlanPreview = {
+	suggestions: AutomaticPlanSuggestion[],
+	remainders: AutomaticPlanRemainder[],
+	capacityMinutes: number,
+	existingPlannedMinutes: number,
+	suggestedMinutes: number,
+	horizonEnd: number | null,
+};
+
+export type AutomaticPlanRemainder = {
+	taskId: string,
+	remainingMinutes: number,
+	deadlineAt: number | null,
+};
+
+export type AutomaticPlanSuggestion = {
+	taskId: string,
+	start: number | null,
+	end: number | null,
+};
+
 /**
  *  User-controlled planning precedence for one fixed life area. Rank 1 is
  *  highest. The area name/color remain defined by the app; only this order is
@@ -197,6 +209,19 @@ export type MusicFavoriteInput = {
 	artworkUrls?: string[],
 	permalink: string | null,
 	sourceType: string,
+};
+
+/**
+ *  A future one-time-task commitment. Planned sessions are intentionally
+ *  separate from recorded `Session` rows so history, totals, and rewards
+ *  continue to mean work that actually happened.
+ */
+export type PlannedSession = {
+	id: string,
+	taskId: string,
+	start: number | null,
+	end: number | null,
+	updatedAt?: number | null,
 };
 
 export type RunState = {
@@ -325,6 +350,7 @@ export type Snapshot = {
 	lifeAreaPriorities?: LifeAreaPriority[],
 	tasks: Task[],
 	sessions: Session[],
+	plannedSessions?: PlannedSession[],
 	musicFavorites?: MusicFavorite[],
 	userSettings?: UserSettings,
 	config: SessionConfig,

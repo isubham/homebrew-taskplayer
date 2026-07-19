@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   groupWeeklyWindows,
-  minuteToTime,
   timeToMinute,
-  WEEKDAYS,
   weeklyWindowsSignature,
 } from "../weekly-schedule.jsx";
+import type { ScheduleIssue } from "../schedule-validation";
+import { WeeklyWindowRow } from "./weekly-window-row";
 
 export function WeeklyAvailabilityEditor({
   id,
@@ -15,15 +15,23 @@ export function WeeklyAvailabilityEditor({
   daysAriaLabel = "Available days",
   emptyMeansEveryDay = false,
   everyDayLabel = "Every day",
+  inspectWindows,
+  onBlockingChange,
 }) {
   const [rows, setRows] = useState(() => groupWeeklyWindows(initialWindows));
+  const [issues, setIssues] = useState<ScheduleIssue[]>(() => inspectWindows?.(initialWindows) || []);
   const pendingSignatures = useRef(new Set());
   const initialSignature = weeklyWindowsSignature(initialWindows);
 
   useEffect(() => {
     if (pendingSignatures.current.delete(initialSignature)) return;
     setRows(groupWeeklyWindows(initialWindows));
+    setIssues(inspectWindows?.(initialWindows) || []);
   }, [initialSignature]);
+
+  useEffect(() => {
+    onBlockingChange?.(issues.some((issue) => issue.blocking));
+  }, [issues, onBlockingChange]);
 
   const triggerSave = (nextRows) => {
     if (!onSave) return;
@@ -38,6 +46,9 @@ export function WeeklyAvailabilityEditor({
       });
     });
     const signature = weeklyWindowsSignature(windows);
+    const nextIssues = inspectWindows?.(windows) || [];
+    setIssues(nextIssues);
+    if (nextIssues.some((issue) => issue.blocking)) return;
     if (pendingSignatures.current.has(signature)) return;
     pendingSignatures.current.add(signature);
     onSave(windows);
@@ -100,59 +111,28 @@ export function WeeklyAvailabilityEditor({
         </button>
       ) : null}
       <div className="simple-availability-list" data-window-list>
-        {rows.map((row, rowIdx) => {
-          const isOvernight = row.startMinute !== null && row.endMinute !== null && row.endMinute < row.startMinute;
-          return (
-            <div key={rowIdx} className="simple-availability-row" data-window-row>
-              <div className="weekday-pill-row" aria-label={daysAriaLabel}>
-                {WEEKDAYS.map((day, index) => {
-                  const weekdayNum = index + 1;
-                  const checked = row.weekdays.includes(weekdayNum);
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      className="weekday-pill"
-                      aria-pressed={checked}
-                      onClick={() => handleWeekdayChange(rowIdx, weekdayNum, !checked)}
-                    >
-                      <span>{day.slice(0, 3)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="availability-time-row" hidden={emptyMeansEveryDay && !row.weekdays.length}>
-                <input
-                  type="time"
-                  aria-label="Available from"
-                  value={minuteToTime(row.startMinute)}
-                  onInput={(e) => handleTimeChange(rowIdx, "startMinute", e.currentTarget.value)}
-                  onChange={(e) => handleTimeChange(rowIdx, "startMinute", e.currentTarget.value)}
-                />
-                <span>to</span>
-                <div className="availability-end-field">
-                  <input
-                    type="time"
-                    aria-label="Available until"
-                    value={minuteToTime(row.endMinute)}
-                    onInput={(e) => handleTimeChange(rowIdx, "endMinute", e.currentTarget.value)}
-                    onChange={(e) => handleTimeChange(rowIdx, "endMinute", e.currentTarget.value)}
-                  />
-                  <span className="overnight-indicator" hidden={!isOvernight}>Next day</span>
-                </div>
-                <button
-                  type="button"
-                  className="weekly-window-remove"
-                  onClick={() => removeRow(rowIdx)}
-                  aria-label="Remove time window"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {rows.map((row, rowIdx) => (
+          <WeeklyWindowRow
+            key={rowIdx}
+            row={row}
+            rowIndex={rowIdx}
+            daysAriaLabel={daysAriaLabel}
+            hideTime={emptyMeansEveryDay && !row.weekdays.length}
+            onWeekdayChange={handleWeekdayChange}
+            onTimeChange={handleTimeChange}
+            onRemove={removeRow}
+          />
+        ))}
       </div>
+      {issues.length ? (
+        <div className="schedule-issues" aria-live="polite">
+          {issues.map((issue, index) => (
+            <div key={`${issue.message}:${index}`} className={`schedule-issue${issue.blocking ? " blocking" : ""}`}>
+              {issue.message}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <button
         type="button"
         className="linkbtn blue weekly-window-add"

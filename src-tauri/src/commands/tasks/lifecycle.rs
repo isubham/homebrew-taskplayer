@@ -45,7 +45,11 @@ pub(crate) fn set_done(app: AppHandle, state: State<AppState>, id: String) -> Sn
     // is the one currently running.
     let is_active = state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str());
     if is_active {
-        do_stop(state.inner());
+        do_stop(
+            state.inner(),
+            TIMER_PAUSE_REASON_TASK_COMPLETED,
+            TIMER_PAUSE_TRIGGER_TASK_LIFECYCLE,
+        );
     }
     {
         let db = state.db.lock().unwrap();
@@ -133,13 +137,17 @@ pub(crate) fn delete_task(app: AppHandle, state: State<AppState>, id: String) ->
     // statement so the `state.run` guard drops before `do_stop` re-locks it.
     let is_active = state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str());
     if is_active {
-        do_stop(state.inner());
+        do_stop(
+            state.inner(),
+            TIMER_PAUSE_REASON_TASK_DELETED,
+            TIMER_PAUSE_TRIGGER_TASK_LIFECYCLE,
+        );
     }
     {
         let db = state.db.lock().unwrap();
         let _ = db.delete_task(&id);
     }
-    reset_run_if_orphaned(state.inner());
+    reset_run_if_orphaned(state.inner(), TIMER_PAUSE_TRIGGER_TASK_DELETE);
     push(&app);
     build_snapshot(state.inner())
 }

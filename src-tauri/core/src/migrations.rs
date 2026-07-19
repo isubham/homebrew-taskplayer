@@ -392,6 +392,35 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "020_planned_sessions",
+        run: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS planned_sessions(
+                   id TEXT PRIMARY KEY,
+                   task_id TEXT NOT NULL,
+                   start INTEGER NOT NULL,
+                   end INTEGER NOT NULL,
+                   updated_at INTEGER NOT NULL DEFAULT 0,
+                   deleted_at INTEGER
+                 );
+                 CREATE INDEX IF NOT EXISTS idx_planned_sessions_task
+                   ON planned_sessions(task_id);
+                 CREATE INDEX IF NOT EXISTS idx_planned_sessions_start
+                   ON planned_sessions(start);",
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES(
+                   'sync_schema_backfill','planned_sessions_v1'
+                 ) ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN instr(value,'planned_sessions_v1') > 0 THEN value
+                   ELSE value || '_planned_sessions_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -495,8 +524,65 @@ mod compatibility_tests {
                 |row| row.get::<_, String>(0)
             )
             .unwrap(),
-            "planner_music_user_settings_v1"
+            "planner_music_user_settings_v1_planned_sessions_v1"
         );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM planned_sessions", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn upgrades_from_every_prior_schema_version() {
+        for starting_version in 1..MIGRATIONS.len() {
+            let conn = Connection::open_in_memory().unwrap();
+            (MIGRATIONS[0].run)(&conn).unwrap();
+            conn.execute_batch(
+                "INSERT INTO lists(id,name,emoji,color,ord)
+                   VALUES('list-kept','Kept list','📦','#123456',1);
+                 INSERT INTO tasks(id,list_id,name,depth,ord,est,done,descr)
+                   VALUES('task-kept','list-kept','Kept task','deep',1,30,NULL,'Keep me');
+                 INSERT INTO sessions(id,task_id,start,end)
+                   VALUES('session-kept','task-kept',1000,2000);
+                 PRAGMA user_version = 1;",
+            )
+            .unwrap();
+            for (index, migration) in MIGRATIONS.iter().enumerate().take(starting_version).skip(1) {
+                (migration.run)(&conn).unwrap();
+                conn.execute_batch(&format!("PRAGMA user_version = {};", index + 1))
+                    .unwrap();
+            }
+
+            run(&conn).unwrap();
+
+            assert_eq!(user_version(&conn), MIGRATIONS.len() as i64);
+            assert_eq!(
+                conn.query_row("SELECT name FROM lists WHERE id='list-kept'", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .unwrap(),
+                "Kept list"
+            );
+            assert_eq!(
+                conn.query_row("SELECT descr FROM tasks WHERE id='task-kept'", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .unwrap(),
+                "Keep me"
+            );
+            assert_eq!(
+                conn.query_row(
+                    "SELECT end FROM sessions WHERE id='session-kept'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+                2000
+            );
+        }
     }
 
     #[test]

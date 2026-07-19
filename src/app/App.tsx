@@ -8,11 +8,11 @@ import { Overlays } from "./components/Overlays.jsx";
 import { AddSessionModal } from "./components/add-session-modal.jsx";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { INSIGHTS_ICON_SIZE, SIDEBAR_COPY } from "./constants.jsx";
+import { INSIGHTS_ICON_SIZE, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { BarChart2, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
+import { BarChart2, CalendarDays, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
 
 import { useTauriSubscriptions } from "./hooks/use-tauri-subscriptions.jsx";
 import { useSidebarSections } from "./hooks/use-sidebar-sections.jsx";
@@ -73,6 +73,10 @@ export function App() {
         <aside className="side">
           <div className="side-fixed">
             <div id="pinnedNav">
+              <div className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
+                <span className="li-icon"><CalendarDays size={PLANNER_ICON_SIZE} /></span>
+                <span className="li-label">{PLANNER_COPY.navigationLabel}</span>
+              </div>
               <div className={`list-item ${state.view === "insights" ? "active" : ""}`} onClick={() => actions.navigate({ view: "insights" })} title="Session history & analytics">
                 <span className="li-icon"><BarChart2 size={INSIGHTS_ICON_SIZE} /></span>
                 <span className="li-label">Insights</span>
@@ -178,7 +182,7 @@ export function App() {
                 {helpers.findTask(state.activeMenuTaskId)?.completedAt ? "↩\u00a0 Mark as not done" : "✓\u00a0 Mark as done"}
               </button>
               <button onClick={() => { actions.closeRowMenu(); actions.setOpenTaskId(state.activeMenuTaskId); }}>Edit</button>
-              <button onClick={() => { actions.closeRowMenu(); actions.play(state.activeMenuTaskId); }}>
+              <button onClick={() => { actions.closeRowMenu(); actions.play(state.activeMenuTaskId, TIMER_PLAY_TRIGGERS.rowMenu); }}>
                 {state.S.run.activeTaskId === state.activeMenuTaskId && state.S.run.phase ? "⏸ Stop timer" : "▶ Start timer"}
               </button>
               <div className="sep"></div>

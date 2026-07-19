@@ -29,6 +29,11 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
             .into_iter()
             .map(RemoteMusicFavorite::into_local)
             .collect();
+    let planned_sessions: Vec<PlannedSession> =
+        fetch_since::<RemotePlannedSession>(access_token, "planned_sessions", cursor)?
+            .into_iter()
+            .map(RemotePlannedSession::into_local)
+            .collect();
     // At most one row ever comes back — `run_state` is a singleton keyed by
     // `user_id` (see docs/session-sync-design.md) — but `fetch_since` still
     // returns a `Vec` since it's a generic PostgREST GET.
@@ -49,8 +54,10 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
             .collect();
 
     let collection_rows_changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
-    let mut changed =
-        collection_rows_changed || !priorities.is_empty() || !music_favorites.is_empty();
+    let mut changed = collection_rows_changed
+        || !priorities.is_empty()
+        || !music_favorites.is_empty()
+        || !planned_sessions.is_empty();
     if collection_rows_changed {
         if force {
             db.upsert_from_remote_force(&lists, &tasks, &sessions)
@@ -66,6 +73,10 @@ pub(super) fn pull(db: &Db, access_token: &str, force: bool) -> Result<bool, Str
     }
     if !music_favorites.is_empty() {
         db.upsert_music_favorites_from_remote(&music_favorites, force)
+            .map_err(|e| e.to_string())?;
+    }
+    if !planned_sessions.is_empty() {
+        db.upsert_planned_sessions_from_remote(&planned_sessions, force)
             .map_err(|e| e.to_string())?;
     }
     // Applied separately from the three above: `upsert_run_from_remote`

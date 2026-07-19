@@ -4,7 +4,8 @@ import { buildCapacityBar, deadlineDate, fmtHM, jewelPayout, LIFE_AREAS, repeati
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { Draggable } from "@hello-pangea/dnd";
-import { TASK_REPEAT_COPY } from "../constants.jsx";
+import { PLANNER_VIEW_KEY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { TaskPlanningCue } from "./planner/task-planning-cue";
 
 const gripIcon = () => (
   <svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor" aria-hidden="true">
@@ -169,7 +170,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
           className="go"
           onClick={(e) => {
             e.stopPropagation();
-            actions.play(task.id);
+            actions.play(task.id, TIMER_PLAY_TRIGGERS.taskRow);
           }}
           title={playTitle}
         >
@@ -189,6 +190,13 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
             </span>
             <span>{deadlineDate(task.deadlineAt)}</span>
           </div>
+        ) : null}
+        {!daily && !task.completedAt ? (
+          <TaskPlanningCue
+            taskId={task.id}
+            plans={state.S.plannedSessions}
+            onPlan={(taskId, planId) => actions.navigate({ view: PLANNER_VIEW_KEY, planTaskId: taskId, planSessionId: planId })}
+          />
         ) : null}
       </td>
       <td className="r sess-cell">{sessionsCell}</td>

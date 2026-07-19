@@ -6,6 +6,7 @@
 pub mod db;
 mod migrations;
 pub mod models;
+pub mod planner;
 pub mod schedule;
 pub mod timer;
 

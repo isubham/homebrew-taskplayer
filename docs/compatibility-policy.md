@@ -49,6 +49,7 @@ Current capabilities:
 - `user_settings_v1`
 - `apple_music_takeover_v1`
 - `music_player_takeover_v2`
+- `planned_sessions_v1`
 
 ## Serialization rules
 
@@ -74,10 +75,11 @@ Current capabilities:
 The compatibility workflow runs on pull requests and `main`:
 
 - rejects destructive Supabase migration statements;
-- upgrades a historical SQLite database and verifies its data;
+- upgrades fixtures from every prior SQLite migration version and verifies their data;
 - verifies current models accept old Supabase/JSON payloads;
 - creates a fresh Supabase database from migration history;
-- simulates old-client list/task upserts and verifies new planner fields survive;
+- simulates old-client list/task upserts and verifies new planner fields and separate planned
+  sessions survive;
 - runs the current Rust test suites and formatting check.
 
 Run the local portion with:

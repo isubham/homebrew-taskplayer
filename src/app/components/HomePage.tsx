@@ -3,8 +3,9 @@ import { fmtLong, fmtHM, LIFE_AREAS, timeAgo, IMPACT_TIERS } from "../utils.jsx"
 import { StickyHeader } from "./sticky-header.jsx";
 import { DailyJam } from "./daily-jam.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { DAILY_JAM_COPY, RECENT_TASKS_SIZE } from "../constants.jsx";
+import { DAILY_JAM_COPY, RECENT_TASKS_SIZE, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { visibleDailyJamAttentionCount } from "../daily-jam-attention";
+import { NextPlannedBlock } from "./planner/next-planned-block";
 
 const HOME_SVG = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -326,7 +327,7 @@ export function HomePage() {
                       className="jb-play"
                       onClick={(e) => {
                         e.stopPropagation();
-                        actions.play(task.id);
+                        actions.play(task.id, TIMER_PLAY_TRIGGERS.homeDailyJam);
                       }}
                       title={live ? "Stop" : "Start"}
                     >
@@ -345,6 +346,7 @@ export function HomePage() {
             {DAILY_JAM_COPY.heading}
             <span className="home-sub-note">· {DAILY_JAM_COPY.subtitle} · {DAILY_JAM_COPY.taskCount(dailyAttentionCount)}</span>
           </h4>
+          <NextPlannedBlock />
           <div id="dailyJamRoot">
             <DailyJam
               state={state}

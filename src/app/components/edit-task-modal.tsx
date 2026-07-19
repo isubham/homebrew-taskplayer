@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { CalendarPlus, ChevronDown, Pencil } from "lucide-react";
 import { esc, fmt, toDateInputValue, jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { DEPTH_ICONS, CADENCE_ICONS, SESSION_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { CADENCE_ICONS, DEPTH_ICONS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { JewelDots } from "./jewel-dots.jsx";
 import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
 import { sessionRangeLabel } from "../session-time";
-
-const DETAIL_PENCIL_ICON = (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-  </svg>
-);
-
-
+import { validateTaskSchedule } from "../schedule-validation";
 
 export function TaskDetailModal() {
   const { state, helpers, actions } = useApp();
@@ -48,6 +42,7 @@ export function TaskDetailModal() {
   const earnsLabel = task.cadence === "daily" ? TASK_REPEAT_COPY.rewardTiming : "Earns on completion";
 
   const [notes, setNotes] = useState("");
+  const [scheduleBlocked, setScheduleBlocked] = useState(false);
 
   useEffect(() => {
     setNotes(task.description || "");
@@ -67,7 +62,7 @@ export function TaskDetailModal() {
               >
                 {task.name}
               </span>{" "}
-              <button className="editbtn" title="Rename" onClick={() => actions.renameTask(task.id)}>{DETAIL_PENCIL_ICON}</button>
+              <button className="editbtn" title="Rename" onClick={() => actions.renameTask(task.id)}><Pencil size={PLANNER_ROW_ICON_SIZE} /></button>
             </h2>
           </div>
           <button className="close" onClick={() => actions.setOpenTaskId(null)}>×</button>
@@ -130,7 +125,7 @@ export function TaskDetailModal() {
                     <option key={l.id} value={l.id}>{l.emoji} {l.name}</option>
                   ))}
                 </select>
-                <svg className="list-select-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                <ChevronDown className="list-select-caret" size={PLANNER_ROW_ICON_SIZE} />
               </div>
             </div>
             <div className="task-detail-column task-detail-sessions">
@@ -153,6 +148,14 @@ export function TaskDetailModal() {
                       daysAriaLabel={TASK_REPEAT_COPY.scheduleDaysAriaLabel}
                       emptyMeansEveryDay
                       everyDayLabel={TASK_REPEAT_COPY.everyDayOption}
+                      inspectWindows={(candidate) => validateTaskSchedule(
+                        candidate,
+                        state.S.tasks
+                          .filter((item) => item.cadence)
+                          .map((item) => ({ id: item.id, name: item.name, windows: item.dailyWindows })),
+                        task.id,
+                      )}
+                      onBlockingChange={setScheduleBlocked}
                     />
                   </div>
                   <div className="depth-hint">{TASK_REPEAT_COPY.scheduleHint}</div>
@@ -224,7 +227,15 @@ export function TaskDetailModal() {
         </div>
         <div className="foot">
           <button className="danger" onClick={() => actions.deleteTask(task.id)}>Delete task</button>
-          <button className="stopbtn" onClick={() => {
+          {!task.cadence && !task.completedAt ? (
+            <button className="stopbtn task-detail-plan" onClick={() => {
+              actions.setOpenTaskId(null);
+              actions.navigate({ view: PLANNER_VIEW_KEY, planTaskId: task.id });
+            }}>
+              <CalendarPlus size={PLANNER_ICON_SIZE} />{PLANNER_COPY.planTaskButton}
+            </button>
+          ) : null}
+          <button className="stopbtn" disabled={task.cadence === "daily" && scheduleBlocked} onClick={() => {
             actions.setOpenTaskId(null);
             actions.showToast({ message: TOAST_TASK_SAVED });
           }}>Save</button>

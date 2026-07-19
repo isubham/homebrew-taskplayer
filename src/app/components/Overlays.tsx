@@ -63,14 +63,7 @@ export function LyricsPanel() {
 export function TrackDetailModal() {
   const { actions } = useApp();
   const { musicState: m, toggleFavorite } = useMusic();
-  const urls = (m && m.artworkUrls) || [];
-  const hasTrack = m && (m.title || urls.length || m.permalink);
-
-  const art = urls.length ? (
-    <img className="art" src={urls[0]} alt="" />
-  ) : (
-    <div className="art" style={{ background: "linear-gradient(135deg,var(--green),#0a5)" }}>♪</div>
-  );
+  const hasTrack = m && (m.title || m.permalink);
 
   return (
     <AnimatedModal
@@ -79,7 +72,6 @@ export function TrackDetailModal() {
       id="trkmodal"
     >
         <div className="top">
-          {art}
           <div>
             <h2>{(m && m.title) || "Focus music"}</h2>
             <div className="m">

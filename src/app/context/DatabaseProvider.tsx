@@ -4,6 +4,7 @@ import { useRoute } from "./RouteProvider.jsx";
 import { useUI } from "./UIProvider.jsx";
 import { esc } from "../utils.jsx";
 import { 
+  SESSION_COPY,
   TOAST_LIST_DELETED, 
   TOAST_TASK_CREATED, 
   TOAST_TASK_RENAMED, 
@@ -276,40 +277,55 @@ export function DatabaseProvider({ children }) {
     return new Promise((resolve) => {
       uiForm({
         type: "session",
-        title: "Add session",
-          confirmText: "Add",
-          resolve: async (val) => {
+        title: SESSION_COPY.addTitle,
+        confirmText: SESSION_COPY.addButton,
+        resolve: async (val) => {
           const range = parseSessionDraft(val);
           if (range) {
-            apply(await invoke("add_session", { taskId, ...range }));
+            try {
+              apply(await invoke("add_session", { taskId, ...range }));
+            } catch (error) {
+              await uiNote(SESSION_COPY.commandErrorTitle, esc(String(error)));
+            }
           }
           resolve();
         }
       });
     });
-  }, [uiForm, setDialogSession, apply]);
+  }, [uiForm, uiNote, setDialogSession, apply]);
 
   const editSession = useCallback((id) => {
     const session = S?.sessions.find((s) => s.id === id);
-    if (session) {
-      setDialogSession(sessionDraftFromRange(session.start, session.end));
-    }
+    const task = session && S?.tasks.find((item) => item.id === session.taskId);
+    if (!session || !task) return Promise.resolve();
+    setDialogSession({
+      ...sessionDraftFromRange(session.start, session.end),
+      sessionId: session.id,
+      listId: task.listId,
+      taskId: task.id,
+    });
     return new Promise((resolve) => {
       uiForm({
         type: "session",
-        title: "Edit session",
-        confirmText: "Save",
-          subtitle: "Editing or deleting this session will recalculate all rollups immediately.",
-          resolve: async (val) => {
+        title: SESSION_COPY.editTitle,
+        confirmText: SESSION_COPY.editButton,
+        subtitle: SESSION_COPY.editSubtitle,
+        sessionTaskSelection: true,
+        resolve: async (val) => {
           const range = parseSessionDraft(val);
-          if (range) {
-            apply(await invoke("update_session", { id, ...range }));
+          const selectedTask = S?.tasks.find((item) => item.id === val?.taskId && item.listId === val?.listId);
+          if (range && selectedTask) {
+            try {
+              apply(await invoke("update_session", { id, taskId: selectedTask.id, ...range }));
+            } catch (error) {
+              await uiNote(SESSION_COPY.commandErrorTitle, esc(String(error)));
+            }
           }
           resolve();
         }
       });
     });
-  }, [S, uiForm, setDialogSession, apply]);
+  }, [S, uiForm, uiNote, setDialogSession, apply]);
 
   const deleteSession = useCallback(async (id) => {
     const ok = await uiConfirm("Delete session?", "This removes the session duration from the task rollup permanently. It cannot be undone.", "Delete");

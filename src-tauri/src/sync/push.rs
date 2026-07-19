@@ -9,6 +9,9 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
     let music_favorites = db
         .music_favorites_dirty_since(cursor)
         .map_err(|e| e.to_string())?;
+    let planned_sessions = db
+        .planned_sessions_dirty_since(cursor)
+        .map_err(|e| e.to_string())?;
     let now = now_ms();
 
     upsert(
@@ -49,6 +52,14 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
         &music_favorites
             .iter()
             .map(|favorite| RemoteMusicFavorite::from_local(favorite, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "planned_sessions",
+        &planned_sessions
+            .iter()
+            .map(|session| RemotePlannedSession::from_local(session, user_id))
             .collect::<Vec<_>>(),
     )?;
 

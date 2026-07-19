@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { whenLabel } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { KEYBOARD_SETTINGS_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
+import { KEYBOARD_SETTINGS_COPY, MUSIC_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
 import { SettingsNavigation } from "./settings-navigation";
+import { FocusMusicToggle } from "./focus-music-toggle";
 
 function SettingsAlbum({ icon, color, title, subtitle, children }) {
   return (
@@ -273,6 +274,16 @@ export function SettingsPage() {
     );
   };
 
+  const renderFocusMusicSection = () => (
+    <>
+      <div className="settings-keyboard-toggle-row">
+        <span>{MUSIC_COPY.flowToggleLabel}</span>
+        <FocusMusicToggle />
+      </div>
+      <p className="hint">{MUSIC_COPY.flowDescription}</p>
+    </>
+  );
+
   // Keyboard Section
   const renderKeyboardSection = () => {
     const on = !!state.keybindings;
@@ -357,6 +368,7 @@ export function SettingsPage() {
   const sectionContent = {
     account: renderAccountSection(),
     workflow: renderSessionControls(),
+    music: renderFocusMusicSection(),
     notifications: renderNotificationsSection(),
     keyboard: renderKeyboardSection(),
     data: renderDataSection(),

@@ -172,6 +172,14 @@
 .hs-label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
 .home-section{margin-bottom:32px}
 .home-section h4{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px}
+.next-planned-block{box-sizing:border-box;width:100%;margin:0 0 12px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;border:1px solid color-mix(in srgb,var(--green) 38%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--green) 7%,var(--bg2));color:var(--text);text-align:left;cursor:pointer}
+.next-planned-block:hover{border-color:var(--green);background:color-mix(in srgb,var(--green) 11%,var(--bg2))}
+.next-planned-block>svg{color:var(--green)}
+.next-planned-block>span{min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;align-items:baseline}
+.next-planned-block small{grid-column:1/-1;color:var(--muted);font-size:9px;font-style:normal;letter-spacing:.08em;text-transform:uppercase}
+.next-planned-block strong,.next-planned-block em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.next-planned-block strong{font-size:12px}
+.next-planned-block em{color:var(--muted);font-size:10px;font-style:normal;font-variant-numeric:tabular-nums}
 .home-sub-note{text-transform:none;letter-spacing:0;font-weight:400;opacity:.7}
 /* Opt-in "pulling against" toggle on the Life balance header — quiet, sentence
    case (not the uppercased h4), sits inline to the right. */

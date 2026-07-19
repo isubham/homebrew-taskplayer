@@ -40,6 +40,7 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
         data_dir: dir.clone(),
         session_notify: Mutex::new(SessionNotify::default()),
     });
+    system_sleep::register(app.handle());
 
     // --- Google Sign-In: deep-link callback + silent refresh on startup ---
     {
@@ -108,7 +109,7 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
             let id = event.id().as_ref();
             if let Some(task_id) = id.strip_prefix("recent:") {
                 let state = app.state::<AppState>();
-                do_play(state.inner(), task_id);
+                do_play(state.inner(), task_id, TIMER_PAUSE_TRIGGER_TRAY_RECENT);
                 push(app);
                 return;
             }
@@ -118,7 +119,11 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
                     let state = app.state::<AppState>();
                     let active = state.run.lock().unwrap().active_task_id.is_some();
                     if active {
-                        do_stop(state.inner());
+                        do_stop(
+                            state.inner(),
+                            TIMER_PAUSE_REASON_EXPLICIT_STOP,
+                            TIMER_PAUSE_TRIGGER_TRAY_TOGGLE,
+                        );
                     } else {
                         // resume the remembered task if it still exists, else the first task
                         let last = state.run.lock().unwrap().last_task_id.clone();
@@ -138,7 +143,7 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
                             })
                         };
                         if let Some(id) = target {
-                            do_play(state.inner(), &id);
+                            do_play(state.inner(), &id, TIMER_PAUSE_TRIGGER_TRAY_TOGGLE);
                         }
                     }
                     push(app);

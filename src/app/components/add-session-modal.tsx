@@ -1,14 +1,34 @@
 import React from "react";
 import { useApp } from "../context/AppContext.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
-import { SESSION_COPY, SESSION_TIME_INPUT_MAX_LENGTH } from "../constants";
-import { sessionDraftError } from "../session-time";
+import { SESSION_COPY, SESSION_FIELD_IDS, SESSION_TIME_INPUT_MAX_LENGTH } from "../constants";
+import { sessionConflictError } from "../session-conflict";
+import { parseSessionDraft, sessionDraftError } from "../session-time";
 
 export function AddSessionModal() {
   const { state, actions, setDialogSession } = useApp();
   const dialog = state.dialog;
   if (!dialog) return null;
-  const validationError = sessionDraftError(state.dialogSession);
+  const lists = [...(state.S?.lists || [])].sort((left, right) => left.order - right.order);
+  const listId = state.dialogSession?.listId || "";
+  const tasks = (state.S?.tasks || [])
+    .filter((task) => task.listId === listId)
+    .sort((left, right) => left.order - right.order);
+  const selectedTask = tasks.find((task) => task.id === state.dialogSession?.taskId);
+  const selectionError = !dialog.sessionTaskSelection
+    ? null
+    : !lists.length
+      ? SESSION_COPY.noLists
+      : !tasks.length
+        ? SESSION_COPY.noTasksInList
+        : !selectedTask
+          ? SESSION_COPY.chooseTask
+          : null;
+  const range = parseSessionDraft(state.dialogSession);
+  const conflictError = range && state.S
+    ? sessionConflictError(state.S, range, state.dialogSession?.sessionId)
+    : null;
+  const validationError = selectionError || sessionDraftError(state.dialogSession) || conflictError;
 
   return (
     <AnimatedModal
@@ -18,6 +38,41 @@ export function AddSessionModal() {
     >
         <div className="dtitle">{dialog.title}</div>
         <div className="dbody">
+          {dialog.sessionTaskSelection ? (
+            <>
+              <div className="session-date-row">
+                <label className="lbl" htmlFor={SESSION_FIELD_IDS.list}>{SESSION_COPY.listLabel}</label>
+                <select
+                  id={SESSION_FIELD_IDS.list}
+                  className="dinput"
+                  value={listId}
+                  aria-invalid={!lists.length}
+                  onChange={(event) => setDialogSession((previous) => ({
+                    ...previous,
+                    listId: event.target.value,
+                    taskId: "",
+                  }))}
+                >
+                  {!lists.length ? <option value="">{SESSION_COPY.noLists}</option> : null}
+                  {lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
+                </select>
+              </div>
+              <div className="session-date-row">
+                <label className="lbl" htmlFor={SESSION_FIELD_IDS.task}>{SESSION_COPY.taskLabel}</label>
+                <select
+                  id={SESSION_FIELD_IDS.task}
+                  className="dinput"
+                  value={state.dialogSession?.taskId || ""}
+                  aria-invalid={!selectedTask}
+                  disabled={!tasks.length}
+                  onChange={(event) => setDialogSession((previous) => ({ ...previous, taskId: event.target.value }))}
+                >
+                  {!selectedTask ? <option value="">{tasks.length ? SESSION_COPY.chooseTask : SESSION_COPY.noTasksInList}</option> : null}
+                  {tasks.map((task) => <option key={task.id} value={task.id}>{task.name}</option>)}
+                </select>
+              </div>
+            </>
+          ) : null}
           <div className="session-date-row">
             <div>
               <label className="lbl">{SESSION_COPY.dateLabel}</label>
@@ -25,7 +80,7 @@ export function AddSessionModal() {
                 className="dinput"
                 type="date"
                 aria-invalid={validationError === SESSION_COPY.invalidDate}
-                aria-describedby="session-time-feedback"
+                aria-describedby={SESSION_FIELD_IDS.feedback}
                 value={state.dialogSession?.date || ""}
                 onChange={(e) => setDialogSession(prev => ({ ...prev, date: e.target.value }))}
               />
@@ -41,7 +96,7 @@ export function AddSessionModal() {
                 placeholder={SESSION_COPY.timePlaceholder}
                 maxLength={SESSION_TIME_INPUT_MAX_LENGTH}
                 aria-invalid={validationError === SESSION_COPY.invalidStartTime}
-                aria-describedby="session-time-feedback"
+                aria-describedby={SESSION_FIELD_IDS.feedback}
                 value={state.dialogSession?.start || ""}
                 onChange={(e) => setDialogSession(prev => ({ ...prev, start: e.target.value }))}
               />
@@ -55,13 +110,13 @@ export function AddSessionModal() {
                 placeholder={SESSION_COPY.timePlaceholder}
                 maxLength={SESSION_TIME_INPUT_MAX_LENGTH}
                 aria-invalid={validationError === SESSION_COPY.invalidEndTime || validationError === SESSION_COPY.equalTimes}
-                aria-describedby="session-time-feedback"
+                aria-describedby={SESSION_FIELD_IDS.feedback}
                 value={state.dialogSession?.end || ""}
                 onChange={(e) => setDialogSession(prev => ({ ...prev, end: e.target.value }))}
               />
             </div>
           </div>
-          <div id="session-time-feedback" aria-live="polite" className={`session-time-feedback${validationError ? " error" : ""}`}>
+          <div id={SESSION_FIELD_IDS.feedback} aria-live="polite" className={`session-time-feedback${validationError ? " error" : ""}`}>
             {validationError || SESSION_COPY.overnightHint}
           </div>
           {dialog.subtitle && (
@@ -76,7 +131,7 @@ export function AddSessionModal() {
             id="dcancel"
             onClick={() => actions.resolveDialog(null)}
           >
-            Cancel
+            {SESSION_COPY.cancelButton}
           </button>
           <button
             className={`btn ${dialog.danger ? "danger" : "primary"}`}
@@ -84,7 +139,7 @@ export function AddSessionModal() {
             disabled={Boolean(validationError)}
             onClick={() => actions.resolveDialog(state.dialogSession)}
           >
-            {dialog.confirmText || "OK"}
+            {dialog.confirmText || SESSION_COPY.confirmButton}
           </button>
         </div>
     </AnimatedModal>

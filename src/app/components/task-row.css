@@ -63,6 +63,9 @@ tr.playing .idx .num { font-weight: 700; }
 .task-attention-cue { display: flex; align-items: center; gap: 8px; margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 400; white-space: nowrap; }
 .task-deadline-track { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: #2c2c2c; overflow: hidden; flex: none; }
 .task-deadline-track > span { display: block; height: 100%; background: var(--attention); }
+.task-planning-cue{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:0;border:0;background:transparent;color:var(--muted);font:inherit;font-size:11px;font-weight:500;cursor:pointer;opacity:0;transition:opacity .12s,color .12s}
+tbody tr:hover .task-planning-cue,.task-planning-cue:focus-visible,.task-planning-cue.has-plan{opacity:1}
+.task-planning-cue:hover{color:var(--green-hi)}
 
 .rwhen { color: var(--muted); font-size: 12px; white-space: nowrap; text-align: right; width: 110px; }
 tr.playing .rwhen { color: var(--green); }

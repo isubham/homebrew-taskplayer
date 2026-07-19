@@ -8,17 +8,37 @@ pub(crate) fn add_session(
     task_id: String,
     start: f64,
     end: f64,
-) -> Snapshot {
-    if end > start {
+) -> Result<Snapshot, String> {
+    let (start, end, now) = (start as i64, end as i64, now_ms());
+    if end <= start || end > now {
+        return Err(RECORDED_SESSION_INVALID_MSG.to_string());
+    }
+    {
+        let run = state.run.lock().unwrap();
+        if run.phase.as_deref() == Some(RUN_PHASE_WORK)
+            && run
+                .running_start
+                .is_some_and(|active_start| start < now && end > active_start)
+        {
+            return Err(RECORDED_SESSION_OVERLAP_MSG.to_string());
+        }
         let db = state.db.lock().unwrap();
-        let _ = db.add_session(&taskplayer_core::SessionLog {
-            task_id,
-            start: start as i64,
-            end: end as i64,
-        });
+        let saved = db
+            .add_recorded_session(
+                &taskplayer_core::SessionLog {
+                    task_id,
+                    start,
+                    end,
+                },
+                now,
+            )
+            .map_err(|error| error.to_string())?;
+        if saved.is_none() {
+            return Err(RECORDED_SESSION_OVERLAP_MSG.to_string());
+        }
     }
     push(&app);
-    build_snapshot(state.inner())
+    Ok(build_snapshot(state.inner()))
 }
 #[specta::specta]
 #[tauri::command]
@@ -37,18 +57,35 @@ pub(crate) fn update_session(
     app: AppHandle,
     state: State<AppState>,
     id: String,
+    task_id: Option<String>,
     start: f64,
     end: f64,
-) -> Snapshot {
-    if end > start {
+) -> Result<Snapshot, String> {
+    let (start, end, now) = (start as i64, end as i64, now_ms());
+    if end <= start || end > now {
+        return Err(RECORDED_SESSION_INVALID_MSG.to_string());
+    }
+    {
+        let run = state.run.lock().unwrap();
+        if run.phase.as_deref() == Some(RUN_PHASE_WORK)
+            && run
+                .running_start
+                .is_some_and(|active_start| start < now && end > active_start)
+        {
+            return Err(RECORDED_SESSION_OVERLAP_MSG.to_string());
+        }
         let db = state.db.lock().unwrap();
-        let _ = db.update_session(&id, start as i64, end as i64);
+        let saved = db
+            .update_recorded_session(&id, task_id.as_deref(), start, end, now)
+            .map_err(|error| error.to_string())?;
+        if !saved {
+            return Err(RECORDED_SESSION_OVERLAP_MSG.to_string());
+        }
     }
     push(&app);
-    build_snapshot(state.inner())
+    Ok(build_snapshot(state.inner()))
 }
 
-// ---- data export / import ----
 #[derive(serde::Serialize)]
 struct Backup {
     app: &'static str,
@@ -58,6 +95,7 @@ struct Backup {
     lists: Vec<TaskList>,
     tasks: Vec<Task>,
     sessions: Vec<Session>,
+    planned_sessions: Vec<PlannedSession>,
     config: SessionConfig,
 }
 
@@ -66,11 +104,11 @@ struct RestorePayload {
     lists: Vec<TaskList>,
     tasks: Vec<Task>,
     sessions: Vec<Session>,
+    #[serde(default)]
+    planned_sessions: Vec<PlannedSession>,
     config: Option<SessionConfig>,
 }
 
-/// Serialize all data to a JSON backup in ~/Downloads and reveal it in Finder.
-/// Returns the written file path.
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn export_data(state: State<AppState>) -> Result<String, String> {
@@ -78,11 +116,12 @@ pub(crate) fn export_data(state: State<AppState>) -> Result<String, String> {
         let db = state.db.lock().unwrap();
         Backup {
             app: "TaskPlayer",
-            version: 1,
+            version: 2,
             exported_at: now_ms(),
             lists: db.lists().map_err(|e| e.to_string())?,
             tasks: db.tasks().map_err(|e| e.to_string())?,
             sessions: db.sessions().map_err(|e| e.to_string())?,
+            planned_sessions: db.planned_sessions().map_err(|e| e.to_string())?,
             config: db.get_config(),
         }
     };
@@ -104,11 +143,6 @@ pub(crate) fn export_data(state: State<AppState>) -> Result<String, String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
-/// Reveals `taskplayer.log` in Finder (creating an empty one first if
-/// nothing's been logged yet), the same "open -R" pattern export_data uses —
-/// so "attach your logs to a bug report" is a single click in Settings
-/// instead of "go find ~/Library/Logs yourself." Returns the path so the
-/// frontend can show it, in case Finder itself doesn't grab focus.
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn reveal_logs() -> Result<String, String> {
@@ -124,8 +158,6 @@ pub(crate) fn reveal_logs() -> Result<String, String> {
     Ok(path.to_string_lossy().into_owned())
 }
 
-/// Replace all data from a backup JSON string. Clears the run state so nothing
-/// is left "playing" against tasks that may no longer exist.
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn import_data(
@@ -141,16 +173,12 @@ pub(crate) fn import_data(
             &data.lists,
             &data.tasks,
             &data.sessions,
+            &data.planned_sessions,
             data.config.as_ref(),
         )
         .map_err(|e| e.to_string())?;
     }
-    {
-        let mut run = state.run.lock().unwrap();
-        *run = RunState::default();
-        let db = state.db.lock().unwrap();
-        let _ = db.set_run(&run);
-    }
+    reset_run_after_import(state.inner());
     {
         // As in `build_snapshot`, do not hold `db` while taking `config`:
         // settings commands persist in config -> db order.

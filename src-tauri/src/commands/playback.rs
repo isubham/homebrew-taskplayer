@@ -2,8 +2,19 @@ use super::super::*;
 
 #[specta::specta]
 #[tauri::command]
-pub(crate) fn play(app: AppHandle, state: State<AppState>, task_id: String) -> Snapshot {
-    do_play(state.inner(), &task_id);
+pub(crate) fn play(
+    app: AppHandle,
+    state: State<AppState>,
+    task_id: String,
+    trigger: Option<String>,
+) -> Snapshot {
+    do_play(
+        state.inner(),
+        &task_id,
+        trigger
+            .as_deref()
+            .unwrap_or(TIMER_PAUSE_TRIGGER_FRONTEND_PLAY),
+    );
     push(&app);
     build_snapshot(state.inner())
 }
@@ -11,7 +22,11 @@ pub(crate) fn play(app: AppHandle, state: State<AppState>, task_id: String) -> S
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn stop(app: AppHandle, state: State<AppState>) -> Snapshot {
-    do_stop(state.inner());
+    do_stop(
+        state.inner(),
+        TIMER_PAUSE_REASON_EXPLICIT_STOP,
+        TIMER_PAUSE_TRIGGER_FRONTEND_STOP,
+    );
     push(&app);
     build_snapshot(state.inner())
 }

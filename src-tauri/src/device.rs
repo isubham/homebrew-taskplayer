@@ -102,18 +102,28 @@ pub(crate) fn reconcile_run_after_sync(state: &AppState) {
         && db_run.running_start == run.running_start
         && db_run.break_start == run.break_start;
 
-    if we_owned_locally
-        && !still_ours_remotely
-        && !same_segment_continues
-        && run.phase.as_deref() == Some("work")
-    {
+    if we_owned_locally && !same_segment_continues && run.phase.as_deref() == Some("work") {
         if let (Some(task_id), Some(start)) = (run.active_task_id.clone(), run.running_start) {
-            let db = state.db.lock().unwrap();
-            let _ = db.add_session(&taskplayer_core::SessionLog {
-                task_id,
-                start,
-                end: now_ms(),
-            });
+            let pause_at = now_ms();
+            let session_status = if still_ours_remotely {
+                TIMER_WRITE_STATUS_NOT_APPLICABLE.to_string()
+            } else {
+                let db = state.db.lock().unwrap();
+                timer_write_status(&db.add_session(&taskplayer_core::SessionLog {
+                    task_id,
+                    start,
+                    end: pause_at,
+                }))
+            };
+            log_timer_pause(
+                state,
+                TIMER_PAUSE_REASON_REMOTE_RECONCILE,
+                TIMER_PAUSE_TRIGGER_SYNC_PULL,
+                &run,
+                pause_at,
+                &session_status,
+                TIMER_WRITE_STATUS_SYNC_APPLIED,
+            );
         }
     }
 

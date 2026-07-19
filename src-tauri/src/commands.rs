@@ -2,6 +2,7 @@ use super::*;
 
 mod lists;
 mod music;
+mod planner;
 mod playback;
 mod schedule;
 mod sessions;
@@ -11,6 +12,7 @@ mod tasks;
 
 pub(crate) use lists::*;
 pub(crate) use music::*;
+pub(crate) use planner::*;
 pub(crate) use playback::*;
 pub(crate) use schedule::*;
 pub(crate) use sessions::*;
@@ -20,7 +22,7 @@ pub(crate) use tasks::*;
 /// After a delete, drop any run-state references to tasks that no longer exist:
 /// reset entirely if the active task is gone, and forget the remembered task if
 /// it's gone (so the paused player doesn't point at a ghost).
-pub(crate) fn reset_run_if_orphaned(state: &AppState) {
+pub(crate) fn reset_run_if_orphaned(state: &AppState, trigger: &str) {
     let ids: Vec<String> = state
         .db
         .lock()
@@ -29,6 +31,7 @@ pub(crate) fn reset_run_if_orphaned(state: &AppState) {
         .map(|t| t.into_iter().map(|x| x.id).collect())
         .unwrap_or_default();
     let mut run = state.run.lock().unwrap();
+    let previous = run.clone();
     let mut changed = false;
     if let Some(id) = run.active_task_id.clone() {
         if !ids.contains(&id) {
@@ -50,6 +53,20 @@ pub(crate) fn reset_run_if_orphaned(state: &AppState) {
         // looks dirty to the sync loop (see `RunState::updated_at`'s doc
         // comment in models.rs).
         stamp_own(&mut run, &state.device_id, &state.device_name);
-        let _ = state.db.lock().unwrap().set_run(&run);
+        let db = state.db.lock().unwrap();
+        let run_result = db.set_run(&run);
+        let run_status = timer_write_status(&run_result);
+        drop(db);
+        if previous.active_task_id.is_some() {
+            log_timer_pause(
+                state,
+                TIMER_PAUSE_REASON_ORPHANED_TASK,
+                trigger,
+                &previous,
+                now_ms(),
+                TIMER_WRITE_STATUS_NOT_APPLICABLE,
+                &run_status,
+            );
+        }
     }
 }

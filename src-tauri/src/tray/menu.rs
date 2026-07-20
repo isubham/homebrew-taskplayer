@@ -2,7 +2,12 @@ use super::super::*;
 
 pub(crate) fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let state = app.state::<AppState>();
-    let active = state.run.lock().unwrap().active_task_id.clone();
+    let run = state.run.lock().unwrap().clone();
+    let active = run.active_task_id.clone();
+    let open_task_id = run
+        .active_session_id
+        .as_ref()
+        .and_then(|_| active.clone().or(run.last_task_id.clone()));
     let tasks = state.db.lock().unwrap().tasks().unwrap_or_default();
     let lists = state.db.lock().unwrap().lists().unwrap_or_default();
     let recent = state.db.lock().unwrap().recent_task_ids(12);
@@ -23,10 +28,25 @@ pub(crate) fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>
     owned.push(Box::new(MenuItem::with_id(
         app,
         "toggle",
-        if active.is_some() { "Pause" } else { "Play" },
+        if active.is_some() {
+            "Pause"
+        } else if open_task_id.is_some() {
+            TRAY_RESUME_SESSION_LABEL
+        } else {
+            "Play"
+        },
         true,
         None::<&str>,
     )?));
+    if open_task_id.is_some() {
+        owned.push(Box::new(MenuItem::with_id(
+            app,
+            TRAY_FINISH_SESSION_ID,
+            TRAY_FINISH_SESSION_LABEL,
+            true,
+            None::<&str>,
+        )?));
+    }
 
     // Focus-music controls — separate from the task Play/Pause above, since
     // the ambient music and the work timer are two different things a
@@ -82,11 +102,15 @@ pub(crate) fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>
                 .find(|l| l.id == t.list_id)
                 .map(|l| l.emoji.as_str())
                 .unwrap_or("");
+            let can_start = open_task_id
+                .as_deref()
+                .map(|open_id| open_id == t.id.as_str())
+                .unwrap_or(true);
             owned.push(Box::new(MenuItem::with_id(
                 app,
                 format!("recent:{}", t.id),
                 format!("{}  {}", emoji, t.name),
-                true,
+                can_start,
                 None::<&str>,
             )?));
         }

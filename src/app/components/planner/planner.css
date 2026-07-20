@@ -62,8 +62,9 @@
 .planner-block-availability .planner-block-copy span,.planner-block-availability .planner-block-copy small{display:none}
 .planner-block-availability .planner-block-copy strong{font-size:9px;font-weight:500}
 .planner-block-routine{z-index:1;background:color-mix(in srgb,var(--planner-block-color) 18%,var(--bg2));border-style:dashed;opacity:.75}
-.planner-block-actual,.planner-block-planned,.planner-block-live{left:var(--planner-session-offset);right:var(--planner-block-gap)}
+.planner-block-actual,.planner-block-break,.planner-block-planned,.planner-block-live{left:var(--planner-session-offset);right:var(--planner-block-gap)}
 .planner-block-actual{z-index:2;opacity:.5;background:color-mix(in srgb,var(--planner-block-color) 30%,var(--bg2));cursor:pointer}
+.planner-block-break{z-index:2;opacity:.58;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--planner-block-color) 24%,var(--bg2)) 0 6px,color-mix(in srgb,var(--planner-block-color) 10%,var(--bg2)) 6px 12px);border-left-style:dashed}
 .planner-block-actual:hover,.planner-block-actual:focus-visible{opacity:.72;filter:brightness(1.12);outline:1px solid var(--planner-block-color);outline-offset:1px}
 .planner-block-live{z-index:4;box-shadow:0 0 0 1px var(--green-hi);animation:pulse 1.2s ease-in-out infinite}
 .planner-block-planned{z-index:3;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.22)}

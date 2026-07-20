@@ -31,6 +31,7 @@ export const commands = {
 	addSession: (taskId: string, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("add_session", { taskId, start, end })),
 	updateSession: (id: string, taskId: string | null, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("update_session", { id, taskId, start, end })),
 	deleteSession: (id: string) => __TAURI_INVOKE<Snapshot>("delete_session", { id }),
+	deleteLogicalSession: (logicalSessionId: string) => __TAURI_INVOKE<Snapshot>("delete_logical_session", { logicalSessionId }),
 	suggestAutomaticPlan: (timeZone: string) => typedError<AutomaticPlanPreview, string>(__TAURI_INVOKE("suggest_automatic_plan", { timeZone })),
 	acceptAutomaticPlan: (timeZone: string, preview: AutomaticPlanPreview) => typedError<Snapshot, string>(__TAURI_INVOKE("accept_automatic_plan", { timeZone, preview })),
 	createPlannedSession: (taskId: string, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("create_planned_session", { taskId, start, end })),
@@ -40,8 +41,9 @@ export const commands = {
 	exportData: () => typedError<string, string>(__TAURI_INVOKE("export_data")),
 	revealLogs: () => typedError<string, string>(__TAURI_INVOKE("reveal_logs")),
 	importData: (payload: string) => typedError<Snapshot, string>(__TAURI_INVOKE("import_data", { payload })),
-	play: (taskId: string, trigger: string | null) => __TAURI_INVOKE<Snapshot>("play", { taskId, trigger }),
+	play: (taskId: string, trigger: string | null) => typedError<Snapshot, string>(__TAURI_INVOKE("play", { taskId, trigger })),
 	stop: () => __TAURI_INVOKE<Snapshot>("stop"),
+	finishSession: () => __TAURI_INVOKE<Snapshot>("finish_session"),
 	skipBreak: () => __TAURI_INVOKE<Snapshot>("skip_break"),
 	/**
 	 *  Backward-compatible recovery for an `awaiting_break` state written by app
@@ -231,6 +233,22 @@ export type RunState = {
 	phase: string | null,
 	breakStart: number | null,
 	/**
+	 *  The one logical session that pause/resume and Pomodoro phases append
+	 *  focus intervals to. It remains set while paused, even though
+	 *  `active_task_id` and `phase` are cleared for old-client safety.
+	 */
+	activeSessionId?: string | null,
+	/**
+	 *  Focus already persisted for the current logical session, excluding
+	 *  the live `running_start..now` interval.
+	 */
+	sessionWorkMs?: number | null,
+	/**
+	 *  Focus already completed in the current Pomodoro work block before a
+	 *  manual pause. Reset only when that block reaches its break.
+	 */
+	pomodoroWorkMs?: number | null,
+	/**
 	 *  Last task that was playing — remembered after stop so the player can
 	 *  keep showing it and resume (Spotify-style). Mirrors active_task_id while
 	 *  running; retained when stopped. `#[serde(default)]` keeps old saved
@@ -259,7 +277,7 @@ export type RunState = {
 	 *  Which device currently owns this session, for cross-device sync (see
 	 *  docs/session-sync-design.md) — `Db::get_device_id()`'s stable
 	 *  per-install id, stamped by `main.rs` (never by `timer.rs`, which stays
-	 *  pure I/O-free) on every local play/stop/phase-transition. `None` means
+	 *  pure I/O-free) on every local play/pause/finish/phase-transition. `None` means
 	 *  either a pre-migration local-only RunState or a fresh reset (e.g.
 	 *  `import_data`) — treated as "this device's own" by the reconciliation
 	 *  logic in `main.rs`, never as a foreign session. `#[serde(default)]`
@@ -291,6 +309,17 @@ export type Session = {
 	start: number | null,
 	/**  None while running */
 	end: number | null,
+	/**
+	 *  Groups focus intervals that belong to one user-visible session.
+	 *  Legacy rows remain `None` and are treated as standalone sessions.
+	 */
+	logicalSessionId?: string | null,
+	/**
+	 *  Wall-clock time at which the user explicitly finished the logical
+	 *  session. Repeated on the group's focus rows so the grouping metadata
+	 *  survives an individual interval being edited or removed.
+	 */
+	sessionFinishedAt?: number | null,
 	/**  ms epoch of last change — drives cross-device sync (last-write-wins). */
 	updatedAt?: number | null,
 };

@@ -11,6 +11,13 @@ Decisions locked in during scoping:
 - **Reuse the existing 60s sync cadence** — no new realtime infrastructure. A few seconds
   to a couple minutes of lag before another device notices is acceptable.
 
+Current logical-session addendum (supersedes older play/stop wording below): `RunState` now syncs
+`active_session_id`, accumulated session focus, and accumulated Pomodoro-block focus. Each stored
+`sessions` row is a focus interval with an optional `logical_session_id` and repeated
+`session_finished_at`; clients derive breaks from the gaps. Pause preserves this identity, Finish
+clears it, and starting another task requires finishing the open session. Legacy rows without a
+group id remain standalone finished sessions.
+
 ---
 
 ## 1. Problem

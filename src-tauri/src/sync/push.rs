@@ -68,7 +68,7 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
     // so check its own `updated_at` against the same push cursor directly.
     // This is also exactly what keeps an idle device from re-pushing (and
     // thereby re-claiming ownership of) a session it isn't actually running:
-    // `updated_at` only advances on an actual local play/stop/phase
+    // `updated_at` only advances on an actual local play/pause/finish/phase
     // transition (see `RunState::updated_at`'s doc comment in models.rs), so
     // a device that hasn't touched its timer never has anything dirty here.
     let run = db.get_run();

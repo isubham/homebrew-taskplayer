@@ -25,6 +25,8 @@ export const ZOOM_STEP = 0.1;
 // Insights Page Timeline
 export const TRACK_PX = 640;
 export const INSIGHTS_ICON_SIZE = 15;
+export const INSIGHTS_HERO_ICON_SIZE = 64;
+export const HOME_ICON_SIZE = 15;
 
 // Bounded planner calendar
 export const PLANNER_VIEW_KEY = "planner";
@@ -59,6 +61,7 @@ export const PLANNER_HOVER_CARD_VIEWPORT_GAP_PX = 8;
 export const PLANNER_HOVER_CARD_HIDE_DELAY_MS = 140;
 export const PLANNER_FALLBACK_COLOR = "var(--muted)";
 export const PLANNER_ACTIVE_COLOR = "var(--green)";
+export const PLANNER_BREAK_COLOR = "var(--blue)";
 export const TASK_CADENCE_DAILY = "daily";
 export const PLANNER_DATE_HEADING_FORMAT = { weekday: "short", month: "short", day: "numeric" } as const;
 export const PLANNER_DATE_SHORT_FORMAT = { month: "short", day: "numeric" } as const;
@@ -73,12 +76,14 @@ export const PLANNER_BLOCK_KINDS = {
   routine: "routine",
   planned: "planned",
   actual: "actual",
+  break: "break",
   live: "live",
 } as const;
 export const PLANNER_BLOCK_ID_PREFIXES = {
   availability: "availability",
   routine: "routine",
   live: "live",
+  break: "break",
 } as const;
 export const PLANNER_FIELD_IDS = {
   list: "planner-list",
@@ -124,6 +129,7 @@ export const PLANNER_COPY = {
   emptyDay: "Open time",
   deadlinePrefix: "Due",
   actualLabel: "Actual",
+  breakLabel: "Break",
   recordedWorkLabel: "Recorded work",
   currentWorkLabel: "Current work",
   liveLabel: "Recording now",
@@ -224,6 +230,9 @@ export const MUSIC_VOLUME_MUTED = 0;
 export const MUSIC_VOLUME_FULL = 1;
 export const SESSION_DEFAULT_DURATION_MINUTES = 30;
 export const SESSION_MILLISECONDS_PER_MINUTE = 60_000;
+export const SESSION_CLOCK_TICK_MS = 1_000;
+export const SESSION_BREAKDOWN_PERCENT_MAX = 100;
+export const SESSION_BREAKDOWN_MIN_SPAN_MS = 1;
 export const SESSION_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 export const SESSION_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const SESSION_TIME_INPUT_MAX_LENGTH = 5;
@@ -260,7 +269,58 @@ export const SESSION_COPY = {
   confirmButton: "OK",
   liveEndLabel: "now",
   recordingLabel: "recording…",
+  deleteLogicalTitle: "Delete session?",
+  deleteLogicalDescription: "This removes every focus interval in the session from the task total. It cannot be undone.",
+  deleteLogicalConfirm: "Delete",
+  editFocusIntervalTitle: "Edit focus interval",
+  removeLogicalTitle: "Remove session",
 };
+export const LOGICAL_SESSION_STATUS = {
+  focus: "focus",
+  break: "break",
+  paused: "paused",
+  finished: "finished",
+} as const;
+export const TIMER_PHASE = {
+  work: "work",
+  break: "break",
+} as const;
+export const SESSION_INTERVAL_KIND = {
+  focus: "focus",
+  break: "break",
+} as const;
+export const SESSION_PLAYBACK_COPY = {
+  finishButton: "Finish session",
+  finishTitle: "Finish this session",
+  pauseTitle: "Pause session",
+  resumeTitle: "Resume session",
+  startTitle: "Start session",
+  switchTitle: "Finish current session?",
+  switchDescription: (taskName: string) => `Finish the current session and start ${taskName}?`,
+  switchConfirm: "Finish & start",
+  fallbackTaskName: "this task",
+  commandErrorTitle: "Couldn't update the session",
+  focusLabel: "Focus",
+  breakLabel: "Break",
+  pausedLabel: "Paused",
+  recordingLabel: "Recording",
+  recordingNowLabel: "now · recording",
+  sessionLabel: "Session",
+  deletedTaskLabel: "(deleted task)",
+  statusLabels: {
+    focus: "Focusing",
+    break: "On break",
+    paused: "Paused",
+    finished: "Finished",
+  },
+  taskActionLabels: {
+    pause: "pause",
+    resume: "resume",
+    start: "start",
+  },
+  taskPlayTitle: (action: string, reward: string) => `Click to ${action}${reward ? ` — earns ${reward}` : ""}`,
+  breakdownLabel: (focus: string, pause: string) => `Focus ${focus} · Break ${pause}`,
+} as const;
 export const MUSIC_COPY = {
   fallbackArtist: "Audius",
   fallbackTitle: "Focus music",

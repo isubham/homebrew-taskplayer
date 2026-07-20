@@ -64,7 +64,7 @@
 .sub-sess{display:flex;align-items:center;gap:12px;padding:7px 6px 7px 32px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
 .sub-sess:hover{background:var(--bg3);border-radius:6px}
 .sub-range{flex:1}
-.sub-dur{width:72px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.sub-dur{min-width:180px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
 /* "How my day went" — one 24h (midnight-to-midnight) strip per day group,
    sessions as colored blocks positioned at their real start time, same
    list colors as the .sess-dot rows below. Sits between the day header
@@ -72,6 +72,7 @@
 .daybar{position:relative;height:16px;border-radius:5px;background:#1c1c1c;overflow:hidden;margin:2px 0 6px}
 .daybar .seg{position:absolute;top:0;bottom:0;border-radius:2px;cursor:pointer}
 .daybar .seg.live{animation:pulse 1.2s ease-in-out infinite}
+.daybar .seg.break,.lane-note.break{opacity:.48;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.18) 0 4px,transparent 4px 8px)}
 .now-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.7}
 .dayruler{position:relative;height:6px;margin:0 0 4px}
 .dayruler .rtick{position:absolute;top:0;width:1px;height:3px;background:var(--muted);opacity:.45}
@@ -243,6 +244,7 @@
 .jb-body{flex:1;min-width:0}
 .jb-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jb-meta{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session-breakdown{display:flex;flex-direction:column;gap:7px}.session-breakdown.compact{gap:4px;margin-top:4px}.session-breakdown-bar{height:7px;display:flex;overflow:hidden;border-radius:999px;background:var(--bg3)}.session-breakdown-bar .focus{background:var(--green)}.session-breakdown-bar .break{background:var(--blue);opacity:.55}.session-breakdown-copy{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.session-breakdown.compact .session-breakdown-bar{height:4px}.session-breakdown.compact .session-breakdown-copy{font-size:10px}
 .jb-play{flex:none;width:30px;height:30px;border-radius:50%;background:var(--green);color:#000;border:none;font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s}
 .jb-card:hover .jb-play{opacity:1}
 /* "Daily Jam" (see dailyJamTasks()/dailyJamCardTemplate in render.js) — a

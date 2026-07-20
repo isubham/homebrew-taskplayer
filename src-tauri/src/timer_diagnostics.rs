@@ -105,7 +105,7 @@ mod tests {
             event: TIMER_PAUSE_LOG_EVENT,
             reason: TIMER_PAUSE_REASON_SYSTEM_SLEEP,
             trigger: TIMER_PAUSE_TRIGGER_MACOS_WORKSPACE,
-            task_id: Some(TIMER_PAUSE_REASON_TASK_SWITCH),
+            task_id: Some(TIMER_PAUSE_TRIGGER_TASK_DELETE),
             phase: Some(RUN_PHASE_WORK),
             session_start: Some(i64::MIN),
             pause_at: i64::MIN,

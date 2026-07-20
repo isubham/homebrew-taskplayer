@@ -146,7 +146,13 @@ export function repeatingTaskOccursOn(task, dayStart) {
 export function dailyPayoutOn(task, sessions, dayStart) {
   if (!repeatingTaskOccursOn(task, dayStart)) return false;
   const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-  return sessions.some((s) => s.taskId === task.id && s.start >= dayStart && s.start < dayEnd);
+  return sessions.some((session) =>
+    session.taskId === task.id
+    && session.start >= dayStart
+    && session.start < dayEnd
+    && (session.end ?? session.start) > session.start
+    && (!session.logicalSessionId || session.sessionFinishedAt != null)
+  );
 }
 
 // Count of distinct calendar days within [windowStart, windowEnd) on which a
@@ -158,10 +164,12 @@ export function dailyPayoutOn(task, sessions, dayStart) {
 export function dailyPayoutDayCount(task, sessions, windowStart, windowEnd) {
   if (task.cadence !== "daily") return 0;
   const days = new Set();
-  for (const s of sessions) {
-    if (s.taskId !== task.id) continue;
-    if (s.start < windowStart || s.start >= windowEnd) continue;
-    const d = new Date(s.start);
+  for (const session of sessions) {
+    if (session.taskId !== task.id) continue;
+    if (session.start < windowStart || session.start >= windowEnd) continue;
+    if ((session.end ?? session.start) <= session.start) continue;
+    if (session.logicalSessionId && session.sessionFinishedAt == null) continue;
+    const d = new Date(session.start);
     d.setHours(0, 0, 0, 0);
     if (!repeatingTaskOccursOn(task, d.getTime())) continue;
     days.add(d.getTime());
@@ -286,12 +294,11 @@ export function estPct(task, taskTotal) {
 // bar's corner — it's now its own column next to this one (see taskRow in
 // render.js), so this only returns `sessionCount` for the caller to render
 // there instead of drawing it itself.
-export function buildCapacityBar(durations, estimateMin, { trackPx = 160 } = {}) {
+export function buildCapacityBar(durations, estimateMin, { trackPx = 160, sessionCount = durations.length } = {}) {
   if (!estimateMin) return null;
   const estimateMs = estimateMin * 60000;
   const total = durations.reduce((sum, d) => sum + d, 0);
   const over = total > estimateMs;
-  const sessionCount = durations.length;
   const sessionLabel = `${sessionCount} session${sessionCount === 1 ? "" : "s"}`;
 
   // "in" = within the estimate, "over" = past it. Deliberately not named/

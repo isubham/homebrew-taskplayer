@@ -3,6 +3,7 @@ import {
   PLANNER_BLOCK_KINDS,
   PLANNER_BLOCK_ID_PREFIXES,
   PLANNER_ACTIVE_COLOR,
+  PLANNER_BREAK_COLOR,
   PLANNER_ACTUAL_CONTEXT_DAYS,
   PLANNER_DATE_HEADING_FORMAT,
   PLANNER_DATE_SHORT_FORMAT,
@@ -10,6 +11,7 @@ import {
   PLANNER_COPY,
   TASK_CADENCE_DAILY,
 } from "../constants";
+import { buildLogicalSessions } from "../logical-sessions";
 import {
   addLocalDays,
   plannerDateKey,
@@ -29,6 +31,9 @@ export type PlannerBlock = {
   start: number;
   end: number;
   kind: PlannerBlockKind;
+  logicalSessionId?: string;
+  sessionFocusMs?: number;
+  sessionBreakMs?: number;
 };
 
 export type PlannerDeadline = { taskId: string; label: string; color: string };
@@ -136,38 +141,43 @@ export function buildPlannerDays(
     });
   }
 
-  for (const session of snapshot.sessions) {
-    if (session.start == null || (session.end || now) < actualContextStart) continue;
+  for (const session of buildLogicalSessions(snapshot, now)) {
     const task = tasks.get(session.taskId);
     const list = listForTask(task, lists);
-    addTimedBlock({
-      id: session.id,
-      listId: task?.listId,
-      taskId: task?.id,
-      label: task?.name || PLANNER_COPY.recordedWorkLabel,
-      detail: list?.name || "",
-      color: list?.color || PLANNER_FALLBACK_COLOR,
-      start: session.start,
-      end: session.end || now,
-      kind: PLANNER_BLOCK_KINDS.actual,
-    });
-  }
-
-  const run = snapshot.run;
-  if (run.phase === "work" && run.activeTaskId && run.runningStart) {
-    const task = tasks.get(run.activeTaskId);
-    const list = listForTask(task, lists);
-    addTimedBlock({
-      id: `${PLANNER_BLOCK_ID_PREFIXES.live}:${run.activeTaskId}:${run.runningStart}`,
-      listId: task?.listId,
-      taskId: task?.id,
-      label: task?.name || PLANNER_COPY.currentWorkLabel,
-      detail: list?.name || "",
-      color: list?.color || PLANNER_ACTIVE_COLOR,
-      start: run.runningStart,
-      end: now,
-      kind: PLANNER_BLOCK_KINDS.live,
-    });
+    for (const interval of session.focusIntervals) {
+      if (interval.end < actualContextStart) continue;
+      addTimedBlock({
+        id: interval.id || `${PLANNER_BLOCK_ID_PREFIXES.live}:${session.id}:${interval.start}`,
+        listId: task?.listId,
+        taskId: task?.id,
+        label: task?.name || PLANNER_COPY.recordedWorkLabel,
+        detail: list?.name || "",
+        color: list?.color || (interval.live ? PLANNER_ACTIVE_COLOR : PLANNER_FALLBACK_COLOR),
+        start: interval.start,
+        end: interval.end,
+        kind: interval.live ? PLANNER_BLOCK_KINDS.live : PLANNER_BLOCK_KINDS.actual,
+        logicalSessionId: session.id,
+        sessionFocusMs: session.focusMs,
+        sessionBreakMs: session.breakMs,
+      });
+    }
+    for (const interval of session.breakIntervals) {
+      if (interval.end < actualContextStart) continue;
+      addTimedBlock({
+        id: `${PLANNER_BLOCK_ID_PREFIXES.break}:${session.id}:${interval.start}`,
+        listId: task?.listId,
+        taskId: task?.id,
+        label: task?.name || PLANNER_COPY.currentWorkLabel,
+        detail: PLANNER_COPY.breakLabel,
+        color: PLANNER_BREAK_COLOR,
+        start: interval.start,
+        end: interval.end,
+        kind: PLANNER_BLOCK_KINDS.break,
+        logicalSessionId: session.id,
+        sessionFocusMs: session.focusMs,
+        sessionBreakMs: session.breakMs,
+      });
+    }
   }
 
   const order = Object.values(PLANNER_BLOCK_KINDS);

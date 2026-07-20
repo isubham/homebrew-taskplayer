@@ -46,12 +46,14 @@ use tray::*;
 
 mod auth_session;
 mod device;
+mod playback_pause;
 mod playback_service;
 mod sync_service;
 mod timer_diagnostics;
 
 use auth_session::*;
 use device::*;
+use playback_pause::*;
 use playback_service::*;
 use sync_service::*;
 use timer_diagnostics::*;
@@ -114,6 +116,7 @@ pub fn run() {
             add_session,
             update_session,
             delete_session,
+            delete_logical_session,
             suggest_automatic_plan,
             accept_automatic_plan,
             create_planned_session,
@@ -125,6 +128,7 @@ pub fn run() {
             import_data,
             play,
             stop,
+            finish_session,
             skip_break,
             start_break,
             resume_work,

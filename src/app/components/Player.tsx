@@ -1,30 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { Heart, History, Pause, Play, SkipForward } from "lucide-react";
+import { CircleStop, Heart, History, Pause, Play, SkipForward } from "lucide-react";
 import "./player.css";
-import { fmt, esc } from "../utils.jsx";
+import { fmt } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { useMusic } from "../../music.jsx";
-import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { useSessionNow } from "../hooks/use-session-now";
+import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE, SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 
 export function Player() {
   const { state, helpers, actions } = useApp();
   const { musicState, play: musicPlay, pause: musicPause, next: musicNext, toggleFavorite: musicToggleFavorite, setGenre: musicSetGenre, GENRES } = useMusic();
 
-  const [tick, setTick] = useState(0);
-  const isTimerTicking = !!(state.S?.run?.activeTaskId && state.S?.run?.phase);
-
-  useEffect(() => {
-    if (!isTimerTicking) return;
-    const interval = setInterval(() => {
-      setTick((t) => t + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isTimerTicking]);
+  const sessionNow = useSessionNow(state.S?.run?.activeSessionId);
 
   if (!state.S) return null;
 
   const run = state.S.run;
   const config = state.S.config;
+  const logicalSession = helpers.currentLogicalSession();
   const musicBlockedByRemoteSession = Boolean(
     run.activeTaskId
     && run.phase
@@ -51,6 +43,14 @@ export function Player() {
       <History size={PLAYER_HISTORY_ICON_SIZE} aria-hidden="true" />
     </button>
   );
+
+  const finishButton = () => (
+    <button className="pbtn finish-session-btn" onClick={actions.finishSession} title={SESSION_PLAYBACK_COPY.finishTitle} aria-label={SESSION_PLAYBACK_COPY.finishButton}>
+      <CircleStop size={PLAYER_HISTORY_ICON_SIZE} aria-hidden="true" />
+    </button>
+  );
+
+  const sessionActionButton = (taskId) => run.activeSessionId ? finishButton() : historyButton(taskId);
 
   const renderNowPlayingInfo = () => {
     const mirrored = running && run.deviceId && state.S.deviceId && run.deviceId !== state.S.deviceId;
@@ -95,10 +95,10 @@ export function Player() {
       let clockText;
       if (run.phase === "break") {
         const breakLen = (run.longBreak ? config.longBreakMin : config.breakMin) * 60000;
-        const rem = run.breakStart ? Math.max(0, breakLen - (Date.now() - run.breakStart)) : breakLen;
+        const rem = run.breakStart ? Math.max(0, breakLen - (sessionNow - run.breakStart)) : breakLen;
         clockText = `☕ ${fmt(rem)}`;
       } else if (run.phase === "work" && run.runningStart) {
-        clockText = fmt(Date.now() - run.runningStart);
+        clockText = fmt(sessionNow - run.runningStart);
       } else {
         clockText = "waiting";
       }
@@ -139,13 +139,13 @@ export function Player() {
         <>
           <div className="controls">
             {badge}
-            <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerResume)} title="Resume timer">▶</button>
-            {historyButton(task.id)}
+            <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerResume)} title={SESSION_PLAYBACK_COPY.resumeTitle}>▶</button>
+            {sessionActionButton(task.id)}
           </div>
           <div className="timeline">
-            <span className="clock">{fmt(helpers.taskTotal(task.id))}</span>
+            <span className="clock">{fmt(logicalSession?.focusMs ?? helpers.taskTotal(task.id))}</span>
             <div className="bar"><span style={{ width: 0 }} /></div>
-            <span className="clock">{timerTarget ? fmt(timerTarget) : "total"}</span>
+            <span className="clock">{logicalSession ? `${SESSION_PLAYBACK_COPY.breakLabel} ${fmt(logicalSession.breakMs)}` : timerTarget ? fmt(timerTarget) : "total"}</span>
           </div>
         </>
       );
@@ -153,7 +153,7 @@ export function Player() {
 
     if (run.phase === "break") {
       const breakLen = run.longBreak ? state.S.config.longBreakMin : state.S.config.breakMin;
-      const rem = Math.max(0, breakLen * 60000 - (Date.now() - run.breakStart));
+      const rem = Math.max(0, breakLen * 60000 - (sessionNow - run.breakStart));
       const pct = 100 - (rem / (breakLen * 60000)) * 100;
       const brkLabel = run.longBreak ? "☕☕" : "☕";
       return (
@@ -161,7 +161,7 @@ export function Player() {
           <div className="controls">
             {badge}
             <button className="pmain" onClick={actions.skipBreak} title="Skip break">⏭</button>
-            <button className="stopbtn" onClick={actions.stop}>■ End</button>
+            <button className="stopbtn" onClick={actions.finishSession}>{SESSION_PLAYBACK_COPY.finishButton}</button>
           </div>
           <div className="timeline">
             <span className="clock" id="liveclock" style={{ color: "var(--blue)" }}>{brkLabel} {fmt(rem)}</span>
@@ -181,7 +181,7 @@ export function Player() {
           <div className="controls">
             {badge}
             <button className="bigaction" onClick={actions.startBreak} title="Start break" style={{ background: "var(--blue)" }}>{btnLabel}</button>
-            <button className="stopbtn" onClick={actions.stop}>■ End</button>
+            <button className="stopbtn" onClick={actions.finishSession}>{SESSION_PLAYBACK_COPY.finishButton}</button>
           </div>
           <div className="timeline">
             <span className="clock" style={{ color: "var(--blue)" }}>Work session done</span>
@@ -198,7 +198,7 @@ export function Player() {
           <div className="controls">
             {badge}
             <button className="bigaction" onClick={actions.resumeWork} title="Start work" style={{ background: "var(--green)" }}>▶ Start work</button>
-            <button className="stopbtn" onClick={actions.stop}>■ End</button>
+            <button className="stopbtn" onClick={actions.finishSession}>{SESSION_PLAYBACK_COPY.finishButton}</button>
           </div>
           <div className="timeline">
             <span className="clock" style={{ color: "var(--green)" }}>Break's over</span>
@@ -209,7 +209,10 @@ export function Player() {
       );
     }
 
-    const elapsed = Date.now() - run.runningStart;
+    const liveSegmentMs = run.runningStart ? Math.max(0, sessionNow - run.runningStart) : 0;
+    const elapsed = config.mode === "pomodoro"
+      ? (run.pomodoroWorkMs || 0) + liveSegmentMs
+      : logicalSession?.focusMs ?? liveSegmentMs;
     const timerTarget = helpers.targetMs();
     const pct = timerTarget ? Math.min(100, (elapsed / timerTarget) * 100) : 0;
     const phaseText = config.mode === "pomodoro"
@@ -223,8 +226,8 @@ export function Player() {
       <>
         <div className="controls">
           {badge}
-          <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerToggle)} title="Stop &amp; log">⏸</button>
-          {historyButton(task.id)}
+          <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerToggle)} title={SESSION_PLAYBACK_COPY.pauseTitle}>⏸</button>
+          {finishButton()}
         </div>
         <div className="timeline">
           <span className="clock" id="liveclock">{fmt(elapsed)}</span>
@@ -271,7 +274,7 @@ export function Player() {
           <label className="m-genre" title={MUSIC_COPY.changeVibeTitle}>
             <span className="m-genre-current">{musicState.genreLabel}</span>
             <select value={musicState.genre || ""} onChange={(event) => musicSetGenre(event.target.value)} aria-label={MUSIC_COPY.changeVibeTitle}>
-              {Object.entries(GENRES).map(([key, value]) => (
+              {Object.entries(GENRES as Record<string, { label: string }>).map(([key, value]) => (
                 <option key={key} value={key}>{value.label}</option>
               ))}
             </select>

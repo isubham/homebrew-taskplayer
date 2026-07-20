@@ -193,9 +193,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   the task-list row with play, session, progress, and deterministic jewel controls.
 - The five life-area cards remain visible as a stable map; tasks without a life area appear in an
   additional Unsorted card so older or partially synced data is never hidden.
-- Repeating rewards are derived from whether a session started on a scheduled local calendar day;
-  work on an off-day does not create an extra scheduled-day reward. No streak or missed-day
-  history is stored.
+- Repeating rewards are derived from completed logical-session focus on a scheduled local calendar
+  day; pausing an open session does not pay early, and work on an off-day does not create an extra
+  scheduled-day reward. No streak or missed-day history is stored.
 - **Known gap:** the generic list-row checkbox still writes terminal `completed_at`, while
   Daily Jam and rewards use per-day sessions. Daily check/uncheck needs a dedicated per-day
   completion command so it resets correctly and does not remove the routine permanently.
@@ -219,11 +219,17 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Sessions and history — Shipped
 
-- Playing, stopping, or switching tasks logs sessions automatically.
-- Only one task can be active at a time.
-- Switching tasks closes the previous work segment before starting the next.
-- Session history shows start, end, and duration.
-- Task detail shows each session's date and explicit start–end range alongside its duration.
+- A session is one intentional work container for one task. Pausing closes and stores only the
+  current focus interval; resuming continues the same session in Open, Target, and Pomodoro modes.
+- Finish session is the only ordinary action that closes the logical session. While a session is
+  open, the player replaces its History shortcut with a point-of-performance Finish control.
+- Only one logical session can be open at a time. Starting a different task asks to finish the
+  current session first; accepting closes it and starts the selected task.
+- Session history groups its stored focus intervals into one entry. Break time is derived from
+  the gaps between focus intervals and from the final gap before Finish; focus totals never count
+  those breaks.
+- Task detail shows each session's date/range plus separate focus and break time. A grouped session
+  is deleted as one unit; its task can never be split accidentally across its focus intervals.
 - Sessions can be added, edited, and deleted manually. Edit Session starts with the session's
   current list and task; changing the list filters the task selector, and saving can reassign the
   recorded work while recalculating both task rollups. Add/Edit accepts validated 24-hour `HH:mm`
@@ -233,10 +239,11 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   Cancel, and backdrop dismissal remain safe through the modal's closing animation.
 - Manual add/edit commands recheck recorded and currently active session overlap in Rust while
   holding the local state and database locks, so a stale modal cannot create a local collision.
-- Task detail shows session count and time; Insights provides cross-task history.
-- Confirmed macOS workspace sleep/wake events close a running session at the sleep timestamp rather
-  than counting computer sleep as work. Ordinary scheduler delays never pause a task. The pause
-  diagnostic includes the measured sleep interval.
+- Manually recorded work is a finished one-interval logical session. Task-row session counts,
+  repeating-day counts, and history counts use logical sessions rather than focus-interval rows.
+- Confirmed macOS workspace sleep/wake events pause the current focus interval at the sleep
+  timestamp rather than counting computer sleep as work or finishing the logical session. Ordinary
+  scheduler delays never pause a task. The pause diagnostic includes the measured sleep interval.
 - **Known gap:** sessions created concurrently on devices that have not yet seen each other's
   writes can still meet as overlapping factual records after sync. Cross-device reconciliation is
   an upcoming-release TODO and must not silently delete either record.
@@ -249,7 +256,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   repeating-time bands, keeping the underlying allocation visible as calm container context. The
   offset is 30% in Today and 20% in the narrower seven-day view; live work retains stronger active
   styling.
-- Hovering a list-availability, repeating-task, recorded/live-session, or planned-session block
+- Focus intervals and their derived breaks appear as distinct actual-session blocks. Hovering a
+  list-availability, repeating-task, recorded/live-focus, break, or planned-session block
   shows one compact card with a linked title and exact start–end time. The link opens the owning
   list or task, while availability and repeating backgrounds still permit drag selection.
 - One-time tasks can be planned with a list-first, filtered task selector plus explicit local date,
@@ -295,22 +303,26 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Persistent player — Shipped
 
 - Bottom player shows the active/last task, list, live elapsed time, and task progress.
+- Pause preserves the logical session and accumulated focus. Resume continues it; Finish closes it.
+- An open session's Finish control occupies the History shortcut position, so closure is available
+  where the timer is being used without adding another competing control.
 - Its session progress bar is capped at 405px so the central playback state stays compact.
 - Live session and break progress interpolate continuously between timer updates, with an instant
   reduced-motion fallback.
 - Its workflow icon cycles the timer mode immediately without opening Settings; detailed mode
   lengths remain in Settings.
-- Play/pause/stop controls are available from task rows, player, keyboard, and tray.
+- Play/pause controls are available from task rows, player, keyboard, and tray. Finish is explicit
+  in the player; choosing another task offers a finish-and-start confirmation.
 - The bottom player omits a separate Lyrics shortcut; notes remain available from task detail and
   the Now Playing focus page.
-- Its workflow and task-history shortcuts share the same aligned control box; task history uses
-  the standard Lucide History icon in both paused and active work states.
+- Its workflow and task-history/Finish shortcuts share the same aligned control box. History uses
+  the Lucide History icon only when no session is open; an open session uses Circle Stop for Finish.
 - Another device’s live task is shown read-only with a “play here” takeover action.
 - Timer state continues while the main window is closed.
 
 ### Open mode — Shipped
 
-- Stopwatch runs until stopped.
+- Stopwatch focus runs until paused or finished; pauses remain inside the same logical session.
 - Optional quiet hourly check-in after each full hour of continuous work.
 - Check-in has no sound and uses supportive, non-punitive copy.
 
@@ -318,13 +330,15 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 - Configurable target length from 1 to 240 minutes.
 - A physical progress bar fills toward the target and pulses when reached.
-- One notification fires per work segment at the target.
+- One notification fires per logical session at the target, using accumulated focus across pauses.
 - Time continues counting after the target instead of forcing a stop.
 
 ### Pomodoro mode — Shipped
 
 - Configurable work, short-break, long-break, and cycles-before-long-break lengths.
 - Work blocks auto-log when their boundary is reached.
+- Manual pause/resume retains both the logical session and progress within the current work block;
+  pausing no longer creates a new Pomodoro session or restarts its countdown.
 - Work-to-break starts the break automatically and sends a notification without stealing focus.
 - Break-to-work starts the next work block automatically and sends another notification without
   forcing the main window forward.
@@ -340,8 +354,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   implementation.
 - Idle is white, active work is green, and break/awaiting state is yellow.
 - Active title shows the task name and live time; break state includes a coffee marker.
-- Tray menu exposes the current task, play/pause, focus-music play/pause, next track, Open,
-  and Quit.
+- Tray menu exposes the current task, play/pause/resume, Finish session, focus-music play/pause,
+  next track, Open, and Quit. Other recent tasks remain disabled until the open session is
+  finished, avoiding a silent task switch.
 - Focus-music tray controls work from idle: Play loads and starts music, Pause keeps the tray
   label synchronized, and Next loads an empty queue or advances the current queue. Their event
   listeners remain active across task and music state updates.
@@ -385,6 +400,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Current rank badge.
 - Jump Back In is the first section after the greeting, with up to six recently played distinct
   tasks. Aggregate time, completion, list, and jewel totals live on Insights instead.
+- When a session is open, its Jump Back In card shows a physical Focus/Break bar with both times;
+  the display stays bounded to that current point-of-performance context.
 - Daily Jam with today-only completion state, priority-ordered life-area cards, fixed-time cues,
   and the existing open/play controls at each task row.
 - Life balance for the trailing seven days.
@@ -444,8 +461,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Day view uses time-positioned session lanes and a current-time needle.
 - Week view groups sessions by day and task.
 - Month view shows daily density across the month.
-- Expandable task/session groups with tracked-time totals.
-- Uses real session shape and duration rather than only aggregate numbers.
+- Expandable task/session groups count logical sessions and show separate focus and break totals.
+- Day/week timelines render focus intervals and derived breaks distinctly while tracked-time
+  aggregates continue to include focus only.
 
 ## 10. Focus music
 
@@ -497,6 +515,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Ordered, versioned migrations run automatically through `PRAGMA user_version`.
 - Lists, tasks, sessions, configuration, run state, life-area priorities, and sync metadata are
   stored locally.
+- Session rows remain factual focus intervals and carry an optional logical-session id plus finish
+  timestamp. Breaks are derived from interval gaps instead of stored as another entity.
 - Deletes are soft tombstones so they can propagate across devices.
 
 ### Google sign-in and Supabase sync — Shipped
@@ -519,6 +539,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - After synced planner columns are added locally, a durable one-time remote-first backfill runs
   before any push. It restores fields an older client may have skipped without replacing unrelated
   local row edits, and retries automatically after transient failures.
+- Logical-session and run-state fields use the same additive backfill/capability contract; legacy
+  session rows remain readable as standalone finished sessions.
 
 ### Live session ownership — Shipped
 
@@ -527,7 +549,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Mirroring a remote session also silences this device's focus music, preventing two devices from
   playing the soundtrack for one work session.
 - Playing on another device takes ownership; taking over the same task can continue its current
-  position.
+  focus position, Pomodoro block progress, and logical-session identity.
 - Session ownership prevents duplicate timer transitions and most duplicate notifications.
 
 ## 12. Settings, data, and maintenance

@@ -109,7 +109,7 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
             let id = event.id().as_ref();
             if let Some(task_id) = id.strip_prefix("recent:") {
                 let state = app.state::<AppState>();
-                do_play(state.inner(), task_id, TIMER_PAUSE_TRIGGER_TRAY_RECENT);
+                let _ = do_play(state.inner(), task_id, TIMER_PAUSE_TRIGGER_TRAY_RECENT);
                 push(app);
                 return;
             }
@@ -143,9 +143,14 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
                             })
                         };
                         if let Some(id) = target {
-                            do_play(state.inner(), &id, TIMER_PAUSE_TRIGGER_TRAY_TOGGLE);
+                            let _ = do_play(state.inner(), &id, TIMER_PAUSE_TRIGGER_TRAY_TOGGLE);
                         }
                     }
+                    push(app);
+                }
+                TRAY_FINISH_SESSION_ID => {
+                    let state = app.state::<AppState>();
+                    do_finish_session(state.inner(), now_ms());
                     push(app);
                 }
                 // The actual <audio> element lives in the webview (music.js), so

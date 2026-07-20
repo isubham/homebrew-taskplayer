@@ -80,7 +80,8 @@ pub(crate) fn push(app: &AppHandle) {
 }
 
 pub(crate) fn build_tray_menu_hash(state: &AppState) -> String {
-    let active_id = state.run.lock().unwrap().active_task_id.clone();
+    let run = state.run.lock().unwrap().clone();
+    let active_id = run.active_task_id.clone();
     let tasks = state.db.lock().unwrap().tasks().unwrap_or_default();
     let lists = state.db.lock().unwrap().lists().unwrap_or_default();
     let recent = state.db.lock().unwrap().recent_task_ids(12);
@@ -100,6 +101,8 @@ pub(crate) fn build_tray_menu_hash(state: &AppState) -> String {
     } else {
         hash.push_str("active:none");
     }
+    hash.push_str("|session:");
+    hash.push_str(run.active_session_id.as_deref().unwrap_or("none"));
     hash.push_str("|music:");
     hash.push_str(if music_on { "on" } else { "off" });
 

@@ -54,7 +54,11 @@ pub(crate) fn spawn(app: &mut tauri::App) {
                         };
                         let (name, session_status, run_status) = {
                             let db = state.db.lock().unwrap();
-                            let session_result = db.add_session(&log);
+                            let session_result = db.add_session_interval(
+                                &log,
+                                run.active_session_id.as_deref(),
+                                None,
+                            );
                             let run_result = db.set_run(&run_clone);
                             (
                                 task_name_for_notification(&db, &log.task_id),

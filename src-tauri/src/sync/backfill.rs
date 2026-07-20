@@ -5,7 +5,13 @@ pub(super) fn backfill_schema(db: &Db, token: &str, marker: &str) -> Result<bool
     let needs_music = marker.contains("music");
     let needs_settings = marker.contains("user_settings") || marker.contains("takeover");
     let needs_planned_sessions = marker.contains("planned_sessions");
-    if !needs_planner && !needs_music && !needs_settings && !needs_planned_sessions {
+    let needs_logical_sessions = marker.contains("logical_sessions");
+    if !needs_planner
+        && !needs_music
+        && !needs_settings
+        && !needs_planned_sessions
+        && !needs_logical_sessions
+    {
         return Err(format!(
             "Sync paused: this client does not understand schema backfill {marker}."
         ));
@@ -23,6 +29,9 @@ pub(super) fn backfill_schema(db: &Db, token: &str, marker: &str) -> Result<bool
     }
     if needs_planned_sessions {
         changed |= backfill_planned_sessions(db, token)?;
+    }
+    if needs_logical_sessions {
+        changed |= backfill_logical_sessions(db, token)?;
     }
     finish(db, changed)
 }
@@ -77,6 +86,15 @@ fn backfill_planned_sessions(db: &Db, token: &str) -> Result<bool, String> {
     db.upsert_planned_sessions_from_remote(&sessions, false)
         .map_err(|error| error.to_string())?;
     Ok(changed)
+}
+
+fn backfill_logical_sessions(db: &Db, token: &str) -> Result<bool, String> {
+    let sessions = fetch_since::<RemoteSession>(token, "sessions", 0)?
+        .into_iter()
+        .map(RemoteSession::into_local)
+        .collect::<Vec<_>>();
+    db.backfill_logical_session_fields_from_remote(&sessions)
+        .map_err(|error| error.to_string())
 }
 
 fn finish(db: &Db, changed: bool) -> Result<bool, String> {

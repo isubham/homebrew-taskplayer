@@ -1,5 +1,6 @@
 use super::*;
 
+mod data;
 mod lists;
 mod music;
 mod planner;
@@ -10,6 +11,7 @@ mod settings;
 mod system;
 mod tasks;
 
+pub(crate) use data::*;
 pub(crate) use lists::*;
 pub(crate) use music::*;
 pub(crate) use planner::*;
@@ -33,6 +35,16 @@ pub(crate) fn reset_run_if_orphaned(state: &AppState, trigger: &str) {
     let mut run = state.run.lock().unwrap();
     let previous = run.clone();
     let mut changed = false;
+    let session_task_id = run
+        .active_task_id
+        .clone()
+        .or_else(|| run.last_task_id.clone());
+    if run.active_session_id.is_some()
+        && session_task_id.as_ref().is_some_and(|id| !ids.contains(id))
+    {
+        *run = RunState::default();
+        changed = true;
+    }
     if let Some(id) = run.active_task_id.clone() {
         if !ids.contains(&id) {
             *run = RunState::default();

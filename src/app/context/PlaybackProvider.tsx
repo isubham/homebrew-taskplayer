@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useRef, useCallback } from "react";
+import { createContext, useContext, useEffect, useRef, useCallback } from "react";
 import { useCore } from "./CoreProvider.jsx";
-import { TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { useUI } from "./UIProvider.jsx";
+import { SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -11,7 +12,8 @@ export function usePlayback() {
 }
 
 export function PlaybackProvider({ children }) {
-  const { S, apply } = useCore();
+  const { S, apply, helpers: { findTask } } = useCore();
+  const { actions: { uiConfirm, uiNote } } = useUI();
 
   const lastMusicPhaseRef = useRef(null);
   const lastMusicTaskIdRef = useRef(null);
@@ -45,12 +47,43 @@ export function PlaybackProvider({ children }) {
   }, [S]);
 
   const play = useCallback(async (id, trigger = TIMER_PLAY_TRIGGERS.unknown) => {
-    apply(await invoke("play", { taskId: id, trigger }));
-  }, [apply]);
+    try {
+      const run = S?.run;
+      const currentTaskId = run?.activeSessionId
+        ? run.activeTaskId || run.lastTaskId
+        : null;
+      if (currentTaskId && currentTaskId !== id) {
+        const task = findTask(id);
+        const confirmed = await uiConfirm(
+          SESSION_PLAYBACK_COPY.switchTitle,
+          SESSION_PLAYBACK_COPY.switchDescription(task?.name || SESSION_PLAYBACK_COPY.fallbackTaskName),
+          SESSION_PLAYBACK_COPY.switchConfirm,
+          false,
+        );
+        if (!confirmed) return false;
+        apply(await invoke("finish_session"));
+      }
+      apply(await invoke("play", { taskId: id, trigger }));
+      return true;
+    } catch (error) {
+      await uiNote(SESSION_PLAYBACK_COPY.commandErrorTitle, String(error));
+      return false;
+    }
+  }, [S, apply, findTask, uiConfirm, uiNote]);
 
   const stop = useCallback(async () => {
     apply(await invoke("stop"));
   }, [apply]);
+
+  const finishSession = useCallback(async () => {
+    try {
+      apply(await invoke("finish_session"));
+      return true;
+    } catch (error) {
+      await uiNote(SESSION_PLAYBACK_COPY.commandErrorTitle, String(error));
+      return false;
+    }
+  }, [apply, uiNote]);
 
   const skipBreak = useCallback(async () => {
     apply(await invoke("skip_break"));
@@ -66,7 +99,7 @@ export function PlaybackProvider({ children }) {
 
   return (
     <PlaybackContext.Provider value={{
-      actions: { play, stop, skipBreak, startBreak, resumeWork }
+      actions: { play, pause: stop, stop, finishSession, skipBreak, startBreak, resumeWork }
     }}>
       {children}
     </PlaybackContext.Provider>

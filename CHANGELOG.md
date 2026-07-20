@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 [Semantic Versioning](https://semver.org/). Add new work under **Unreleased**; during a release,
 move those entries into a dated version section.
 
+## Unreleased
+
+### Added
+
+- Added an explicit Finish session control in the bottom player and tray. Open, Target, and
+  Pomodoro work can now pause and resume inside one logical session, with starting another task
+  offering a clear finish-and-start confirmation.
+- Added separate Focus and Break visibility for the open session on Home and Now Playing, for
+  grouped session history in Insights and task detail, and as distinct blocks in Planner.
+
+### Changed
+
+- Pausing now stores a focus interval without counting or closing a new session. Breaks are derived
+  from interval gaps, session counts use the finished/open logical container, and tracked-time
+  totals continue to count focus only.
+- Repeating-task rewards now wait for Finish; pausing an open session no longer pays as though a
+  work unit had been completed.
+- Pomodoro pause/resume now retains progress in the current work block instead of restarting it.
+- Session and run-state sync use additive logical-session fields while legacy history and older
+  payloads remain compatible.
+
 ## 0.9.3 - 2026-07-18
 
 ### Removed

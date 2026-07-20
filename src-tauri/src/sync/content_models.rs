@@ -161,38 +161,3 @@ impl RemoteTask {
         }
     }
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) struct RemoteSession {
-    pub(super) id: String,
-    pub(super) user_id: String,
-    pub(super) task_id: String,
-    pub(super) start: i64,
-    pub(super) end: Option<i64>,
-    pub(super) updated_at: i64,
-    pub(super) deleted_at: Option<i64>,
-}
-
-impl RemoteSession {
-    pub(super) fn from_local(s: &Session, user_id: &str) -> Self {
-        RemoteSession {
-            id: s.id.clone(),
-            user_id: user_id.to_string(),
-            task_id: s.task_id.clone(),
-            start: s.start,
-            end: s.end,
-            updated_at: s.updated_at,
-            deleted_at: s.deleted_at,
-        }
-    }
-    pub(super) fn into_local(self) -> Session {
-        Session {
-            id: self.id,
-            task_id: self.task_id,
-            start: self.start,
-            end: self.end,
-            updated_at: self.updated_at,
-            deleted_at: self.deleted_at,
-        }
-    }
-}

@@ -1,30 +1,34 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { CalendarPlus, ChevronDown, Pencil } from "lucide-react";
-import { esc, fmt, toDateInputValue, jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
+import { fmt, toDateInputValue, jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { CADENCE_ICONS, DEPTH_ICONS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { CADENCE_ICONS, DEPTH_ICONS, LOGICAL_SESSION_STATUS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_COPY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { JewelDots } from "./jewel-dots.jsx";
 import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
 import { sessionRangeLabel } from "../session-time";
 import { validateTaskSchedule } from "../schedule-validation";
+import { useSessionNow } from "../hooks/use-session-now";
 
 export function TaskDetailModal() {
   const { state, helpers, actions } = useApp();
+  const now = useSessionNow(state.S?.run?.activeSessionId);
   const task = helpers.findTask(state.openTaskId);
+
+  // Hooks must be called unconditionally — before the early return guard
+  const [notes, setNotes] = useState("");
+  const [scheduleBlocked, setScheduleBlocked] = useState(false);
+
+  useEffect(() => {
+    setNotes(task?.description || "");
+  }, [task?.id, task?.description]);
+
   if (!task) return null;
 
   const listItem = helpers.list(task.listId) || { id: task.listId, name: "Unsorted", emoji: "•", color: UNTAGGED_LIST_COLOR, lifeArea: null };
-  const active = state.S.run.activeTaskId === task.id && state.S.run.phase;
-  const working = active && state.S.run.phase === "work" && state.S.run.runningStart;
-
-  const entries = helpers.taskSessions(task.id).map((entry) => ({ id: entry.id, start: entry.start, end: entry.end }));
-  if (working) entries.push({ start: state.S.run.runningStart, end: null, live: true });
-  entries.sort((a, b) => b.start - a.start);
-
-  const now = Date.now();
-  const sessionCount = helpers.taskSessions(task.id).length + (working ? 1 : 0);
+  const entries = helpers.logicalSessions(now).filter((entry) => entry.taskId === task.id);
+  const sessionCount = entries.length;
 
   const depthCaption = task.depth === "deep" ? "Long, focused, hard to interrupt."
     : task.depth === "shallow" ? "Quick, low-focus busywork."
@@ -40,13 +44,6 @@ export function TaskDetailModal() {
   const payout = jewelPayout(task);
   const area = listItem && listItem.lifeArea ? LIFE_AREAS.find((a) => a.key === listItem.lifeArea) : null;
   const earnsLabel = task.cadence === "daily" ? TASK_REPEAT_COPY.rewardTiming : "Earns on completion";
-
-  const [notes, setNotes] = useState("");
-  const [scheduleBlocked, setScheduleBlocked] = useState(false);
-
-  useEffect(() => {
-    setNotes(task.description || "");
-  }, [task.id, task.description]);
 
   return (
     <AnimatedModal onClose={() => actions.setOpenTaskId(null)} className="modal task-detail-two-column show" id="modal">
@@ -74,7 +71,7 @@ export function TaskDetailModal() {
               <textarea
                 className="lyrics-inline"
                 placeholder="What will finishing this feel like? Add the goal, a note, a link…"
-                rows="3"
+                rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 onBlur={(e) => actions.setLyricsInline(task.id, e.target.value)}
@@ -142,12 +139,10 @@ export function TaskDetailModal() {
                   <div className="detail-weekly-editor">
                     <WeeklyAvailabilityEditor
                       id={`taskDailyWindows-${task.id}`}
-                      initialWindows={task.dailyWindows || []}
+                      initialWindows={task.dailyWindows?.length ? task.dailyWindows : [1, 2, 3, 4, 5, 6, 7].map(weekday => ({ weekday, startMinute: 540, endMinute: 1020 }))}
                       onSave={(windows) => actions.setDailySchedule(task.id, windows)}
                       requireWeekday
                       daysAriaLabel={TASK_REPEAT_COPY.scheduleDaysAriaLabel}
-                      emptyMeansEveryDay
-                      everyDayLabel={TASK_REPEAT_COPY.everyDayOption}
                       inspectWindows={(candidate) => validateTaskSchedule(
                         candidate,
                         state.S.tasks
@@ -206,15 +201,17 @@ export function TaskDetailModal() {
 
               {entries.length ? (
                 entries.map((entry) => (
-                  <div key={entry.id || "live-session"} className={`entry ${entry.live ? "live" : ""}`}>
-                    <span className="when">{sessionRangeLabel(entry.start, entry.end)}{entry.live ? ` · ${SESSION_COPY.recordingLabel}` : ""}</span>
-                    <span className="dur">{fmt((entry.end ?? now) - entry.start)}</span>
-                    {entry.live ? (
+                  <div key={entry.id} className={`entry ${entry.status !== LOGICAL_SESSION_STATUS.finished ? "live" : ""}`}>
+                    <span className="when">{sessionRangeLabel(entry.start, entry.end)}{entry.status !== LOGICAL_SESSION_STATUS.finished ? ` · ${SESSION_PLAYBACK_COPY.statusLabels[entry.status]}` : ""}</span>
+                    <span className="dur">{SESSION_PLAYBACK_COPY.breakdownLabel(fmt(entry.focusMs), fmt(entry.breakMs))}</span>
+                    {entry.status !== LOGICAL_SESSION_STATUS.finished ? (
                       <span className="entry-del" />
                     ) : (
                       <>
-                        <button className="entry-edit" title="Edit session" onClick={() => actions.editSession(entry.id)}>✎</button>
-                        <button className="entry-del" title="Remove session" onClick={() => actions.deleteSession(entry.id)}>×</button>
+                        {entry.focusIntervals.filter((interval) => interval.id).length === 1 ? (
+                          <button className="entry-edit" title={SESSION_COPY.editFocusIntervalTitle} onClick={() => actions.editSession(entry.focusIntervals[0].id)}>✎</button>
+                        ) : <span className="entry-edit" />}
+                        <button className="entry-del" title={SESSION_COPY.removeLogicalTitle} onClick={() => entry.legacy ? actions.deleteSession(entry.id) : actions.deleteLogicalSession(entry.id)}>×</button>
                       </>
                     )}
                   </div>

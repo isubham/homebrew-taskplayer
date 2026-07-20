@@ -1,19 +1,13 @@
-import React from "react";
 import "./task-row.css";
 import { buildCapacityBar, deadlineDate, fmtHM, jewelPayout, LIFE_AREAS, repeatingTaskOccursOn } from "../utils.jsx";
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { Draggable } from "@hello-pangea/dnd";
-import { PLANNER_VIEW_KEY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { GripVertical } from "lucide-react";
+import { PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { TaskPlanningCue } from "./planner/task-planning-cue";
 
-const gripIcon = () => (
-  <svg viewBox="0 0 10 16" width="8" height="14" fill="currentColor" aria-hidden="true">
-    <circle cx="2" cy="2" r="1.3" /><circle cx="8" cy="2" r="1.3" />
-    <circle cx="2" cy="8" r="1.3" /><circle cx="8" cy="8" r="1.3" />
-    <circle cx="2" cy="14" r="1.3" /><circle cx="8" cy="14" r="1.3" />
-  </svg>
-);
+const gripIcon = () => <GripVertical size={PLANNER_ROW_ICON_SIZE} aria-hidden="true" />;
 
 export function JewelPayoutTemplate({ payout, areaColor, daily }) {
   if (!payout) return null;
@@ -84,25 +78,29 @@ export function TaskTableHead() {
 }
 
 export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal, attentionTaskIds, attentionReason, context = "list", isDragDisabled = false }) {
-  const { actions } = useApp();
+  const { actions, helpers } = useApp();
   const run = state.S.run;
   const owner = listItem || { id: task.listId, name: "Unsorted", lifeArea: null };
   const active = run.activeTaskId === task.id && run.phase;
+  const ongoing = run.activeSessionId && (run.activeTaskId || run.lastTaskId) === task.id;
   const working = active && run.phase === "work" && run.runningStart;
   const onBreak = active && ["break", "awaiting_break", "awaiting_work"].includes(run.phase);
   const elsewhere = active && run.deviceId && state.S.deviceId && run.deviceId !== state.S.deviceId;
 
   const durations = taskSessions(task.id).map((session) => (session.end ?? Date.now()) - session.start);
   if (working) durations.push(Date.now() - run.runningStart);
-  const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin) : null;
+  const logicalSessions = helpers.logicalSessions().filter((session) => session.taskId === task.id);
+  const sessionCount = logicalSessions.length;
+  const bar = task.estimateMin ? buildCapacityBar(durations, task.estimateMin, { sessionCount }) : null;
   const daily = task.cadence === "daily";
   const todayStart = new Date().setHours(0, 0, 0, 0);
   const scheduledToday = !daily || repeatingTaskOccursOn(task, todayStart);
   const todaySessions = daily ? taskSessions(task.id).filter((session) => session.start >= todayStart) : [];
   const todayMs = todaySessions.reduce((sum, session) => sum + ((session.end ?? Date.now()) - session.start), 0)
     + (daily && working && run.runningStart >= todayStart ? Date.now() - run.runningStart : 0);
-  const todaySessionCount = todaySessions.length + (daily && working && run.runningStart >= todayStart ? 1 : 0);
-  const sessionCount = bar ? bar.sessionCount : durations.length;
+  const todaySessionCount = logicalSessions.filter((session) =>
+    session.focusIntervals.some((interval) => interval.end > todayStart)
+  ).length;
   const inDailyJam = context === "dailyJam";
   const fixedTime = daily ? dailyTimeLabel(task) : "";
 
@@ -111,7 +109,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
       ? <span className="sess-count today-done" title={`${todaySessionCount} session${todaySessionCount === 1 ? "" : "s"} logged today`}>{todaySessionCount}</span>
       : <span className="sess-count sess-count-empty" title="No session logged today">–</span>
     : sessionCount
-      ? <span className="sess-count" title={`${bar ? bar.sessionLabel : `${sessionCount} session${sessionCount === 1 ? "" : "s"} logged`} logged`}>{sessionCount}</span>
+      ? <span className="sess-count" title={`${sessionCount} session${sessionCount === 1 ? "" : "s"} logged`}>{sessionCount}</span>
       : <span className="sess-count sess-count-empty" title="No sessions logged yet">–</span>;
 
   const progress = daily
@@ -132,7 +130,14 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
   const deadlinePct = attention ? Math.round(Math.max(0, Math.min(1, 1 - daysLeft / 7)) * 100) : 0;
   const playTitle = elsewhere
     ? `Playing on ${run.deviceName || "another device"} — click to play here`
-    : `Click to ${active ? "stop" : "start"}${payoutTitle ? ` — earns ${payoutTitle}${payoutWhen}` : ""}`;
+    : SESSION_PLAYBACK_COPY.taskPlayTitle(
+      active
+        ? SESSION_PLAYBACK_COPY.taskActionLabels.pause
+        : ongoing
+          ? SESSION_PLAYBACK_COPY.taskActionLabels.resume
+          : SESSION_PLAYBACK_COPY.taskActionLabels.start,
+      payoutTitle ? `${payoutTitle}${payoutWhen}` : "",
+    );
 
   const handleRowClick = () => {
     if (inDailyJam) {
@@ -167,14 +172,27 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
           {working ? <PlayingEqualizer className="task-playing-equalizer" /> : onBreak ? "☕" : index + 1}
         </span>
         <button
-          className="go"
+          className={fixedTime ? "go fixed-time-checkbox" : "go"}
           onClick={(e) => {
             e.stopPropagation();
-            actions.play(task.id, TIMER_PLAY_TRIGGERS.taskRow);
+            if (fixedTime) {
+              if (!todaySessionCount) {
+                actions.addFixedSession(task.id);
+              }
+            } else {
+              actions.play(task.id, TIMER_PLAY_TRIGGERS.taskRow);
+            }
           }}
-          title={playTitle}
+          title={fixedTime ? (todaySessionCount ? "Completed today" : "Complete scheduled session") : playTitle}
         >
-          {active && !elsewhere ? "⏸" : "▶"}
+          {fixedTime ? (
+            <input 
+              type="checkbox" 
+              checked={todaySessionCount > 0} 
+              readOnly 
+              style={{ cursor: 'pointer', margin: 0, width: '1.2em', height: '1.2em' }} 
+            />
+          ) : active && !elsewhere ? "⏸" : "▶"}
         </button>
       </td>
       <td className="tname">

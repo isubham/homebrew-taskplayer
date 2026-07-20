@@ -23,8 +23,14 @@
 ## Architecture guidelines
 
 - **Component boundaries & size constraint**: Aim to strictly limit React component files to around **150 lines**. Extract massive `useEffect` blocks into custom hooks (e.g., `useTauriSubscriptions`), separate state logic from UI markup, and maintain single responsibility. This reduces cognitive overload, minimizes AI token usage, and drastically improves maintainability.
+- **Rules of Hooks**: NEVER call React hooks (`useState`, `useEffect`, `useContext`, custom hooks like `useSessionNow`, etc.) conditionally or after an early return guard (e.g. `if (!data) return null;`). All hooks must be declared unconditionally at the very top level of the component body. Failing to do this causes hard crashes ("Rendered fewer hooks than expected") when state changes.
+- **Derived State (Minimize `useState`)**: Never put data in `useState` if it can be calculated from existing state or props during render. For example, if you have an array in state, do not keep a separate state for its length or a filtered version. Compute it locally (using `useMemo` only if it's computationally expensive).
+- **Avoid Stale Closures**: Whenever the next state depends on the previous state, always use the updater function form: `setCount(prev => prev + 1)` instead of `setCount(count + 1)`.
+- **Event Handlers over Effects**: Prefer placing logic in event handlers (e.g., `onClick`, `onSubmit`) rather than reacting to state changes inside a `useEffect`. Only use `useEffect` for synchronization with external systems (network, DOM APIs, subscriptions) or component lifecycle events.
+- **Avoid Barrel Files**: Do not use "barrel files" (e.g., `index.ts` files that re-export everything in a folder). Always use direct, explicit file imports (e.g., `import { Button } from './components/Button'`). This prevents AI agents from accidentally loading massive dependency chains into context, saving thousands of tokens per prompt.
 - **Rust shell boundaries**: Read [`docs/rust-module-map.md`](docs/rust-module-map.md) before editing `src-tauri/src`. Keep every Rust shell file below **200 lines after `rustfmt`**, preserve facade modules, and update the map whenever responsibility moves.
 - **Icons**: Never use inline SVG strings in React components. Use the `lucide-react` icon library to reduce visual noise.
+
 
 ## Backward compatibility — release constraint
 

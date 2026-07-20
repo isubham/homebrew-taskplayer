@@ -290,6 +290,16 @@ pub struct Session {
     /// None while running
     #[specta(type = Option<f64>)]
     pub end: Option<i64>,
+    /// Groups focus intervals that belong to one user-visible session.
+    /// Legacy rows remain `None` and are treated as standalone sessions.
+    #[serde(default)]
+    pub logical_session_id: Option<String>,
+    /// Wall-clock time at which the user explicitly finished the logical
+    /// session. Repeated on the group's focus rows so the grouping metadata
+    /// survives an individual interval being edited or removed.
+    #[serde(default)]
+    #[specta(type = Option<f64>)]
+    pub session_finished_at: Option<i64>,
     /// ms epoch of last change — drives cross-device sync (last-write-wins).
     #[serde(default)]
     #[specta(type = f64)]
@@ -416,6 +426,21 @@ pub struct RunState {
     pub phase: Option<String>,
     #[specta(type = Option<f64>)]
     pub break_start: Option<i64>,
+    /// The one logical session that pause/resume and Pomodoro phases append
+    /// focus intervals to. It remains set while paused, even though
+    /// `active_task_id` and `phase` are cleared for old-client safety.
+    #[serde(default)]
+    pub active_session_id: Option<String>,
+    /// Focus already persisted for the current logical session, excluding
+    /// the live `running_start..now` interval.
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub session_work_ms: i64,
+    /// Focus already completed in the current Pomodoro work block before a
+    /// manual pause. Reset only when that block reaches its break.
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub pomodoro_work_ms: i64,
     /// Last task that was playing — remembered after stop so the player can
     /// keep showing it and resume (Spotify-style). Mirrors active_task_id while
     /// running; retained when stopped. `#[serde(default)]` keeps old saved
@@ -442,7 +467,7 @@ pub struct RunState {
     /// Which device currently owns this session, for cross-device sync (see
     /// docs/session-sync-design.md) — `Db::get_device_id()`'s stable
     /// per-install id, stamped by `main.rs` (never by `timer.rs`, which stays
-    /// pure I/O-free) on every local play/stop/phase-transition. `None` means
+    /// pure I/O-free) on every local play/pause/finish/phase-transition. `None` means
     /// either a pre-migration local-only RunState or a fresh reset (e.g.
     /// `import_data`) — treated as "this device's own" by the reconciliation
     /// logic in `main.rs`, never as a foreign session. `#[serde(default)]`

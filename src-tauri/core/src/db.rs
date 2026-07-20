@@ -322,6 +322,38 @@ impl Db {
         Ok(changed)
     }
 
+    /// One-time field-level recovery for logical-session columns when the
+    /// pull cursor or a newer local edit would otherwise hide older remote
+    /// values. Existing non-null grouping data and unrelated local fields
+    /// remain authoritative.
+    pub fn backfill_logical_session_fields_from_remote(
+        &self,
+        sessions: &[Session],
+    ) -> rusqlite::Result<bool> {
+        self.upsert_from_remote(&[], &[], sessions)?;
+
+        let mut changed = !sessions.is_empty();
+        let tx = self.conn.unchecked_transaction()?;
+        for session in sessions {
+            if let Some(logical_session_id) = session.logical_session_id.as_deref() {
+                changed |= tx.execute(
+                    "UPDATE sessions SET logical_session_id=?1
+                     WHERE id=?2 AND logical_session_id IS NULL",
+                    params![logical_session_id, session.id],
+                )? > 0;
+            }
+            if let Some(finished_at) = session.session_finished_at {
+                changed |= tx.execute(
+                    "UPDATE sessions SET session_finished_at=?1
+                     WHERE id=?2 AND session_finished_at IS NULL",
+                    params![finished_at, session.id],
+                )? > 0;
+            }
+        }
+        tx.commit()?;
+        Ok(changed)
+    }
+
     pub fn delete_list(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
         self.conn.execute(
@@ -592,7 +624,7 @@ impl Db {
     pub fn sessions(&self) -> rusqlite::Result<Vec<Session>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id,task_id,start,end,updated_at FROM sessions WHERE deleted_at IS NULL ORDER BY start")?;
+            .prepare("SELECT id,task_id,start,end,updated_at,logical_session_id,session_finished_at FROM sessions WHERE deleted_at IS NULL ORDER BY start")?;
         let rows = stmt.query_map([], |r| {
             Ok(Session {
                 id: r.get(0)?,
@@ -600,6 +632,8 @@ impl Db {
                 start: r.get(2)?,
                 end: r.get(3)?,
                 updated_at: r.get(4)?,
+                logical_session_id: r.get(5)?,
+                session_finished_at: r.get(6)?,
                 deleted_at: None,
             })
         })?;
@@ -607,19 +641,62 @@ impl Db {
     }
 
     pub fn add_session(&self, log: &SessionLog) -> rusqlite::Result<Session> {
+        self.add_session_interval(log, None, None)
+    }
+
+    pub fn add_session_interval(
+        &self,
+        log: &SessionLog,
+        logical_session_id: Option<&str>,
+        session_finished_at: Option<i64>,
+    ) -> rusqlite::Result<Session> {
         let s = Session {
             id: new_id(),
             task_id: log.task_id.clone(),
             start: log.start,
             end: Some(log.end),
+            logical_session_id: logical_session_id.map(str::to_string),
+            session_finished_at,
             updated_at: now_ms(),
             deleted_at: None,
         };
         self.conn.execute(
-            "INSERT INTO sessions(id,task_id,start,end,updated_at) VALUES(?1,?2,?3,?4,?5)",
-            params![s.id, s.task_id, s.start, s.end, s.updated_at],
+            "INSERT INTO sessions(id,task_id,start,end,updated_at,logical_session_id,session_finished_at)
+             VALUES(?1,?2,?3,?4,?5,?6,?7)",
+            params![
+                s.id,
+                s.task_id,
+                s.start,
+                s.end,
+                s.updated_at,
+                s.logical_session_id,
+                s.session_finished_at
+            ],
         )?;
         Ok(s)
+    }
+
+    pub fn finish_logical_session(
+        &self,
+        logical_session_id: &str,
+        finished_at: i64,
+    ) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "UPDATE sessions
+             SET session_finished_at=?1,updated_at=?2
+             WHERE logical_session_id=?3 AND deleted_at IS NULL",
+            params![finished_at, now_ms(), logical_session_id],
+        )
+    }
+
+    pub fn delete_logical_session(&self, logical_session_id: &str) -> rusqlite::Result<()> {
+        let now = now_ms();
+        self.conn.execute(
+            "UPDATE sessions SET deleted_at=?1,updated_at=?1
+             WHERE logical_session_id=?2 AND deleted_at IS NULL",
+            params![now, logical_session_id],
+        )?;
+        Ok(())
     }
 
     pub fn add_recorded_session(
@@ -635,15 +712,18 @@ impl Db {
             task_id: log.task_id.clone(),
             start: log.start,
             end: Some(log.end),
+            logical_session_id: None,
+            session_finished_at: Some(log.end),
             updated_at: now_ms(),
             deleted_at: None,
         };
+        let logical_session_id = session.id.clone();
         let inserted = self.conn.execute(
-            "INSERT INTO sessions(id,task_id,start,end,updated_at)
-             SELECT ?1,?2,?3,?4,?5
+            "INSERT INTO sessions(id,task_id,start,end,updated_at,logical_session_id,session_finished_at)
+             SELECT ?1,?2,?3,?4,?5,?6,?7
              WHERE NOT EXISTS(
                SELECT 1 FROM sessions
-               WHERE deleted_at IS NULL AND start<?4 AND COALESCE(end,?6)>?3
+               WHERE deleted_at IS NULL AND start<?4 AND COALESCE(end,?8)>?3
              )",
             params![
                 session.id,
@@ -651,10 +731,15 @@ impl Db {
                 session.start,
                 session.end,
                 session.updated_at,
+                logical_session_id,
+                session.session_finished_at,
                 now
             ],
         )?;
-        Ok((inserted > 0).then_some(session))
+        Ok((inserted > 0).then(|| Session {
+            logical_session_id: Some(logical_session_id),
+            ..session
+        }))
     }
 
     pub fn delete_session(&self, id: &str) -> rusqlite::Result<()> {
@@ -691,7 +776,9 @@ impl Db {
         if end <= start || end > now {
             return Ok(false);
         }
-        Ok(self.conn.execute(
+        let tx = self.conn.unchecked_transaction()?;
+        let updated_at = now_ms();
+        let updated = tx.execute(
             "UPDATE sessions
              SET task_id=COALESCE(?1,task_id),start=?2,end=?3,updated_at=?4
              WHERE id=?5 AND deleted_at IS NULL
@@ -700,8 +787,37 @@ impl Db {
                  WHERE other.deleted_at IS NULL AND other.id<>?5
                    AND other.start<?3 AND COALESCE(other.end,?6)>?2
                )",
-            params![task_id, start, end, now_ms(), id, now],
-        )? > 0)
+            params![task_id, start, end, updated_at, id, now],
+        )? > 0;
+        if updated {
+            let group_end: Option<i64> = tx.query_row(
+                "SELECT MAX(COALESCE(end,start)) FROM sessions
+                 WHERE logical_session_id=(
+                   SELECT logical_session_id FROM sessions WHERE id=?1
+                 ) AND deleted_at IS NULL",
+                params![id],
+                |row| row.get(0),
+            )?;
+            let finish_floor = group_end.unwrap_or(end).max(end);
+            tx.execute(
+                "UPDATE sessions
+                 SET task_id=COALESCE(?1,task_id),
+                     session_finished_at=CASE
+                       WHEN (SELECT COUNT(*) FROM sessions AS grouped
+                             WHERE grouped.logical_session_id=sessions.logical_session_id
+                               AND grouped.deleted_at IS NULL)=1 THEN ?2
+                       WHEN session_finished_at IS NULL OR session_finished_at<?2 THEN ?2
+                       ELSE session_finished_at
+                     END,
+                     updated_at=?3
+                 WHERE logical_session_id=(
+                   SELECT logical_session_id FROM sessions WHERE id=?4
+                 ) AND deleted_at IS NULL",
+                params![task_id, finish_floor, updated_at, id],
+            )?;
+            tx.commit()?;
+        }
+        Ok(updated)
     }
 
     /// Task ids ordered by most-recently-played first (by latest session).
@@ -895,7 +1011,8 @@ impl Db {
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         let mut sstmt = self.conn.prepare(
-            "SELECT id,task_id,start,end,updated_at,deleted_at FROM sessions WHERE updated_at > ?1",
+            "SELECT id,task_id,start,end,updated_at,deleted_at,logical_session_id,session_finished_at
+             FROM sessions WHERE updated_at > ?1",
         )?;
         let sessions = sstmt
             .query_map(params![ts], |r| {
@@ -906,6 +1023,8 @@ impl Db {
                     end: r.get(3)?,
                     updated_at: r.get(4)?,
                     deleted_at: r.get(5)?,
+                    logical_session_id: r.get(6)?,
+                    session_finished_at: r.get(7)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -1049,18 +1168,29 @@ impl Db {
         }
         for s in sessions {
             let sql = if force {
-                "INSERT INTO sessions(id,task_id,start,end,updated_at,deleted_at) VALUES(?1,?2,?3,?4,?5,?6)
+                "INSERT INTO sessions(id,task_id,start,end,updated_at,deleted_at,logical_session_id,session_finished_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
                  ON CONFLICT(id) DO UPDATE SET task_id=excluded.task_id, start=excluded.start, end=excluded.end,
-                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at"
+                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                   logical_session_id=excluded.logical_session_id,session_finished_at=excluded.session_finished_at"
             } else {
-                "INSERT INTO sessions(id,task_id,start,end,updated_at,deleted_at) VALUES(?1,?2,?3,?4,?5,?6)
+                "INSERT INTO sessions(id,task_id,start,end,updated_at,deleted_at,logical_session_id,session_finished_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
                  ON CONFLICT(id) DO UPDATE SET task_id=excluded.task_id, start=excluded.start, end=excluded.end,
-                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at
+                   updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+                   logical_session_id=excluded.logical_session_id,session_finished_at=excluded.session_finished_at
                  WHERE excluded.updated_at > sessions.updated_at"
             };
             tx.execute(
                 sql,
-                params![s.id, s.task_id, s.start, s.end, s.updated_at, s.deleted_at],
+                params![
+                    s.id,
+                    s.task_id,
+                    s.start,
+                    s.end,
+                    s.updated_at,
+                    s.deleted_at,
+                    s.logical_session_id,
+                    s.session_finished_at
+                ],
             )?;
         }
         tx.commit()
@@ -1104,8 +1234,17 @@ impl Db {
         }
         for s in sessions {
             tx.execute(
-                "INSERT INTO sessions(id,task_id,start,end,updated_at) VALUES(?1,?2,?3,?4,?5)",
-                params![s.id, s.task_id, s.start, s.end, s.updated_at],
+                "INSERT INTO sessions(id,task_id,start,end,updated_at,logical_session_id,session_finished_at)
+                 VALUES(?1,?2,?3,?4,?5,?6,?7)",
+                params![
+                    s.id,
+                    s.task_id,
+                    s.start,
+                    s.end,
+                    s.updated_at,
+                    s.logical_session_id,
+                    s.session_finished_at
+                ],
             )?;
         }
         for planned in planned_sessions {
@@ -1474,14 +1613,14 @@ mod tests {
     }
 
     #[test]
-    fn play_stop_logs_session_via_timer() {
+    fn pause_logs_session_interval_via_timer() {
         let db = Db::open_in_memory().unwrap();
         let l = db.add_list("L").unwrap();
         let t = db.add_task(&l.id, "T", None).unwrap();
 
-        let (run, _) = timer::play(&RunState::default(), &t.id, 1_000);
+        let run = timer::begin(&RunState::default(), &t.id, "logical-a", 1_000);
         db.set_run(&run).unwrap();
-        let (run2, log) = timer::stop(&db.get_run(), 5_000);
+        let (run2, log) = timer::pause(&db.get_run(), 5_000);
         db.set_run(&run2).unwrap();
         let s = db.add_session(&log.unwrap()).unwrap();
         assert_eq!(s.end.unwrap() - s.start, 4_000);
@@ -1572,8 +1711,95 @@ mod tests {
         assert!(db
             .update_recorded_session(&first.id, None, 0, 100, 1_000)
             .unwrap());
-        assert_eq!(db.sessions().unwrap().len(), 2);
+        let sessions = db.sessions().unwrap();
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(
+            sessions
+                .iter()
+                .find(|session| session.id == first.id)
+                .and_then(|session| session.session_finished_at),
+            Some(100)
+        );
         assert_eq!(adjacent.start, 200);
+    }
+
+    #[test]
+    fn logical_session_groups_focus_intervals_and_moves_or_deletes_together() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("L").unwrap();
+        let first_task = db.add_task(&list.id, "First", None).unwrap();
+        let second_task = db.add_task(&list.id, "Second", None).unwrap();
+        let logical_id = "logical-1";
+        let first = db
+            .add_session_interval(
+                &SessionLog {
+                    task_id: first_task.id.clone(),
+                    start: 100,
+                    end: 200,
+                },
+                Some(logical_id),
+                None,
+            )
+            .unwrap();
+        db.add_session_interval(
+            &SessionLog {
+                task_id: first_task.id,
+                start: 300,
+                end: 400,
+            },
+            Some(logical_id),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(db.finish_logical_session(logical_id, 450).unwrap(), 2);
+        assert!(db
+            .update_recorded_session(&first.id, Some(&second_task.id), 100, 200, 1_000)
+            .unwrap());
+        let rows = db.sessions().unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| {
+            row.logical_session_id.as_deref() == Some(logical_id)
+                && row.session_finished_at == Some(450)
+                && row.task_id == second_task.id
+        }));
+
+        db.delete_logical_session(logical_id).unwrap();
+        assert!(db.sessions().unwrap().is_empty());
+    }
+
+    #[test]
+    fn logical_session_backfill_preserves_newer_local_interval_edits() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("L").unwrap();
+        let task = db.add_task(&list.id, "Local task", None).unwrap();
+        let local = db
+            .add_session(&SessionLog {
+                task_id: task.id,
+                start: 100,
+                end: 200,
+            })
+            .unwrap();
+        let remote = Session {
+            task_id: "remote-task".into(),
+            start: 500,
+            end: Some(600),
+            updated_at: local.updated_at.saturating_sub(1),
+            logical_session_id: Some("logical-remote".into()),
+            session_finished_at: Some(700),
+            ..local.clone()
+        };
+
+        assert!(db
+            .backfill_logical_session_fields_from_remote(&[remote])
+            .unwrap());
+        let merged = db.sessions().unwrap().pop().unwrap();
+        assert_eq!(merged.task_id, local.task_id);
+        assert_eq!(merged.start, local.start);
+        assert_eq!(merged.end, local.end);
+        assert_eq!(merged.updated_at, local.updated_at);
+        assert_eq!(merged.logical_session_id.as_deref(), Some("logical-remote"));
+        assert_eq!(merged.session_finished_at, Some(700));
     }
 
     #[test]
@@ -1963,7 +2189,7 @@ mod tests {
 
         assert_eq!(
             db.sync_schema_backfill().as_deref(),
-            Some("planner_music_user_settings_v1_planned_sessions_v1")
+            Some("planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1")
         );
         db.clear_sync_schema_backfill().unwrap();
         assert_eq!(db.sync_schema_backfill(), None);

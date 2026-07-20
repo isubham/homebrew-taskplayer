@@ -34,7 +34,7 @@ pub(crate) fn is_own(run: &RunState, device_id: &str) -> bool {
 
 /// Marks `run` as this device's own live session — stamps `device_id`/
 /// `device_name` and bumps `updated_at` to now. Called after every LOCAL
-/// play/stop/phase-transition (never inside `timer.rs`, which stays pure and
+/// play/pause/finish/phase-transition (never inside `timer.rs`, which stays pure and
 /// I/O-free) so the next push cycle picks the change up and other devices
 /// can tell this session apart from their own. Deliberately unconditional
 /// (not "only if it wasn't already ours") — every local mutation reasserts
@@ -49,7 +49,7 @@ pub(crate) fn stamp_own(run: &mut RunState, device_id: &str, device_name: &str) 
 /// If `run` is currently mirroring another device's session, returns a
 /// sanitized clone with the active/phase/timing fields cleared (but
 /// `cycles_completed`/`last_task_id` preserved) — safe to feed into
-/// `timer::play`/`timer::stop` so a local action never fabricates a bogus
+/// timer transitions so a local action never fabricates a bogus
 /// completed `Session` for work that happened (or is mid-flight) on someone
 /// else's device. Returns `run` unchanged if it's already this device's own.
 pub(crate) fn as_local_baseline(run: &RunState, device_id: &str) -> RunState {
@@ -61,6 +61,9 @@ pub(crate) fn as_local_baseline(run: &RunState, device_id: &str) -> RunState {
             running_start: None,
             phase: None,
             break_start: None,
+            active_session_id: None,
+            session_work_ms: 0,
+            pomodoro_work_ms: 0,
             last_task_id: run.last_task_id.clone(),
             cycles_completed: run.cycles_completed,
             long_break: false,
@@ -109,11 +112,15 @@ pub(crate) fn reconcile_run_after_sync(state: &AppState) {
                 TIMER_WRITE_STATUS_NOT_APPLICABLE.to_string()
             } else {
                 let db = state.db.lock().unwrap();
-                timer_write_status(&db.add_session(&taskplayer_core::SessionLog {
-                    task_id,
-                    start,
-                    end: pause_at,
-                }))
+                timer_write_status(&db.add_session_interval(
+                    &taskplayer_core::SessionLog {
+                        task_id,
+                        start,
+                        end: pause_at,
+                    },
+                    run.active_session_id.as_deref(),
+                    None,
+                ))
             };
             log_timer_pause(
                 state,

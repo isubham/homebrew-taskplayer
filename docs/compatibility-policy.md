@@ -1,6 +1,6 @@
 # Backward compatibility policy
 
-Last reviewed: 2026-07-15
+Last reviewed: 2026-07-19
 
 TaskPlayer is local-first and may have several desktop versions connected to the same Supabase
 account. A release must not corrupt newer fields, make a supported older client unable to sync,
@@ -50,6 +50,7 @@ Current capabilities:
 - `apple_music_takeover_v1`
 - `music_player_takeover_v2`
 - `planned_sessions_v1`
+- `logical_sessions_v1`
 
 ## Serialization rules
 
@@ -78,8 +79,8 @@ The compatibility workflow runs on pull requests and `main`:
 - upgrades fixtures from every prior SQLite migration version and verifies their data;
 - verifies current models accept old Supabase/JSON payloads;
 - creates a fresh Supabase database from migration history;
-- simulates old-client list/task upserts and verifies new planner fields and separate planned
-  sessions survive;
+- simulates old-client list/task/session/run-state upserts and verifies planner, planned-session,
+  and logical-session fields survive;
 - runs the current Rust test suites and formatting check.
 
 Run the local portion with:

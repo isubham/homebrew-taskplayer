@@ -48,6 +48,8 @@ create table if not exists public.sessions (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   task_id text not null, start bigint not null, "end" bigint,
+  logical_session_id text,
+  session_finished_at bigint,
   updated_at bigint not null default 0,
   deleted_at bigint
 );
@@ -89,6 +91,9 @@ create table if not exists public.run_state (
   running_start bigint,
   phase text,
   break_start bigint,
+  active_session_id text,
+  session_work_ms bigint not null default 0,
+  pomodoro_work_ms bigint not null default 0,
   last_task_id text,
   cycles_completed bigint not null default 0,
   long_break boolean not null default false,

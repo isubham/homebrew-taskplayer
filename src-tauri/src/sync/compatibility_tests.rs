@@ -19,6 +19,26 @@ mod compatibility_tests {
 
         assert_eq!(state.cycles_completed, 0);
         assert!(!state.long_break);
+        assert_eq!(state.active_session_id, None);
+        assert_eq!(state.session_work_ms, 0);
+        assert_eq!(state.pomodoro_work_ms, 0);
+    }
+
+    #[test]
+    fn accepts_old_session_without_logical_session_fields() {
+        let session: RemoteSession = serde_json::from_value(serde_json::json!({
+            "id": "session-1",
+            "user_id": "user-1",
+            "task_id": "task-1",
+            "start": 1000,
+            "end": 2000,
+            "updated_at": 2000,
+            "deleted_at": null
+        }))
+        .unwrap();
+
+        assert_eq!(session.logical_session_id, None);
+        assert_eq!(session.session_finished_at, None);
     }
 
     #[test]

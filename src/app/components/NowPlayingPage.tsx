@@ -1,31 +1,26 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { fmt, fmtHM, fmtEst, repeatingTaskOccursOn } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { TASK_REPEAT_COPY, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { SessionBreakdown } from "./session-breakdown";
+import { useSessionNow } from "../hooks/use-session-now";
 
 export function NowPlayingPage() {
   const { state, helpers, actions } = useApp();
   const run = state.S?.run;
+  const sessionNow = useSessionNow(run?.activeSessionId);
+  const logicalSession = helpers.currentLogicalSession();
   const running = run?.activeTaskId && run.phase ? state.S.tasks.find(t => t.id === run.activeTaskId) : null;
   let task = running || (run?.lastTaskId ? state.S.tasks.find(t => t.id === run.lastTaskId) : null);
   if (!running && task?.completedAt) task = null;
 
   const [notes, setNotes] = useState("");
-  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (task) {
       setNotes(task.description || "");
     }
   }, [task?.id, task?.description]);
-
-  useEffect(() => {
-    if (!running) return;
-    const interval = setInterval(() => {
-      setTick((t) => t + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [running]);
 
   if (!task) {
     return (
@@ -57,7 +52,8 @@ export function NowPlayingPage() {
       return (
         <section className="focus-progress-section">
           <div className="focus-section-label">Current session</div>
-          <div className="focus-time">Paused</div>
+          <div className="focus-time">{SESSION_PLAYBACK_COPY.pausedLabel}</div>
+          {logicalSession ? <SessionBreakdown focusMs={logicalSession.focusMs} breakMs={logicalSession.breakMs} /> : null}
           <div className="focus-progress-note">Resume from the player when you are ready.</div>
         </section>
       );
@@ -65,7 +61,7 @@ export function NowPlayingPage() {
 
     if (run.phase === "break") {
       const target = (run.longBreak ? config.longBreakMin : config.breakMin) * 60000;
-      const elapsed = run.breakStart ? Math.max(0, Date.now() - run.breakStart) : 0;
+      const elapsed = run.breakStart ? Math.max(0, sessionNow - run.breakStart) : 0;
       const pct = Math.min(100, (elapsed / target) * 100);
       return (
         <section className="focus-progress-section">
@@ -74,6 +70,7 @@ export function NowPlayingPage() {
           <div className="focus-meter break" role="img" aria-label={`${Math.round(pct)}% of break elapsed`}>
             <span style={{ width: `${pct}%` }} />
           </div>
+          {logicalSession ? <SessionBreakdown focusMs={logicalSession.focusMs} breakMs={logicalSession.breakMs} /> : null}
           <div className="focus-progress-note">The player keeps the break controls within reach.</div>
         </section>
       );
@@ -90,7 +87,10 @@ export function NowPlayingPage() {
       );
     }
 
-    const elapsed = run.runningStart ? Math.max(0, Date.now() - run.runningStart) : 0;
+    const liveSegmentMs = run.runningStart ? Math.max(0, sessionNow - run.runningStart) : 0;
+    const elapsed = config.mode === "pomodoro"
+      ? (run.pomodoroWorkMs || 0) + liveSegmentMs
+      : logicalSession?.focusMs ?? liveSegmentMs;
     if (config.mode === "open") {
       return (
         <section className="focus-progress-section">
@@ -127,9 +127,10 @@ export function NowPlayingPage() {
   };
 
   const renderTaskProgress = () => {
-    const now = Date.now();
+    const now = sessionNow;
     const working = !!(running && run.phase === "work" && run.runningStart);
     const sessions = helpers.taskSessions(task.id);
+    const taskLogicalSessions = helpers.logicalSessions(now).filter((session) => session.taskId === task.id);
     const isDaily = task.cadence === "daily";
     const todayStart = new Date(now).setHours(0, 0, 0, 0);
     const scheduledToday = !isDaily || repeatingTaskOccursOn(task, todayStart);
@@ -142,7 +143,9 @@ export function NowPlayingPage() {
     }, 0);
     const liveMs = working ? Math.max(0, now - Math.max(run.runningStart, isDaily ? todayStart : 0)) : 0;
     const total = completedMs + liveMs;
-    const count = relevant.length + (working ? 1 : 0);
+    const count = isDaily
+      ? taskLogicalSessions.filter((session) => session.focusIntervals.some((interval) => interval.end > todayStart)).length
+      : taskLogicalSessions.length;
     const estimate = !isDaily && task.estimateMin ? task.estimateMin * 60000 : null;
     const pct = estimate ? Math.min(100, (total / estimate) * 100) : null;
     const title = isDaily && !scheduledToday && !working
@@ -173,10 +176,10 @@ export function NowPlayingPage() {
   };
 
   return (
-    <div className="now-playing-page" style={{ "--accent": listItem.color, "--accent-soft": `${listItem.color}88`, "--accent-softer": `${listItem.color}22` }}>
+    <div className="now-playing-page" style={{ "--accent": listItem.color, "--accent-soft": `${listItem.color}88`, "--accent-softer": `${listItem.color}22` } as CSSProperties}>
       <section className="focus-context-card">
         <div className="focus-identity">
-          <div className="focus-cover" style={{ "--cover": listItem.color, "--cover-soft": `${listItem.color}88` }}>{listItem.emoji}</div>
+          <div className="focus-cover" style={{ "--cover": listItem.color, "--cover-soft": `${listItem.color}88` } as CSSProperties}>{listItem.emoji}</div>
           <div className="focus-identity-copy">
             <div className="focus-list"><span id="focusListName">{listItem.name}</span> <span aria-hidden="true">›</span></div>
             <h1 id="focusTaskName">{task.name}</h1>

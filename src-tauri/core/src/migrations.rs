@@ -421,6 +421,28 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "021_logical_sessions",
+        run: |conn| {
+            add_column(conn, "sessions", "logical_session_id", "TEXT")?;
+            add_column(conn, "sessions", "session_finished_at", "INTEGER")?;
+            conn.execute_batch(
+                "CREATE INDEX IF NOT EXISTS idx_sessions_logical_session
+                   ON sessions(logical_session_id);",
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES(
+                   'sync_schema_backfill','logical_sessions_v1'
+                 ) ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN instr(value,'logical_sessions_v1') > 0 THEN value
+                   WHEN value='' THEN 'logical_sessions_v1'
+                   ELSE value || '_logical_sessions_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -524,7 +546,7 @@ mod compatibility_tests {
                 |row| row.get::<_, String>(0)
             )
             .unwrap(),
-            "planner_music_user_settings_v1_planned_sessions_v1"
+            "planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1"
         );
         assert_eq!(
             conn.query_row("SELECT COUNT(*) FROM planned_sessions", [], |row| {

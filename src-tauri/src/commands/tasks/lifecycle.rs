@@ -34,22 +34,26 @@ pub(crate) fn reorder_life_areas(
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn set_done(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
-    // completing the active task stops its timer first (logs the segment).
-    // The `is_active` bool must be computed in its own `let` statement —
+    // Completing the task finishes its ongoing logical session first.
+    // The open-session check must be computed in its own `let` statement —
     // binding it here drops the `state.run` MutexGuard immediately. Inlining
     // the lock directly into the `if` condition would keep that temporary
     // guard alive for the whole if-body (Rust extends a temporary's scope to
     // the enclosing statement, which for `if cond { block }` used as a
-    // statement is the entire construct), so `do_stop`'s own `state.run.lock()`
+    // statement is the entire construct), so `do_finish_session`'s own `state.run.lock()`
     // below would deadlock against itself whenever the task being completed
     // is the one currently running.
-    let is_active = state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str());
-    if is_active {
-        do_stop(
-            state.inner(),
-            TIMER_PAUSE_REASON_TASK_COMPLETED,
-            TIMER_PAUSE_TRIGGER_TASK_LIFECYCLE,
-        );
+    let has_open_session = {
+        let run = state.run.lock().unwrap();
+        run.active_session_id.is_some()
+            && run
+                .active_task_id
+                .as_deref()
+                .or(run.last_task_id.as_deref())
+                == Some(id.as_str())
+    };
+    if has_open_session {
+        do_finish_session(state.inner(), now_ms());
     }
     {
         let db = state.db.lock().unwrap();
@@ -133,15 +137,19 @@ pub(crate) fn set_task_impact(
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn delete_task(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
-    // see the comment in `set_done` — this bool must be its own `let`
-    // statement so the `state.run` guard drops before `do_stop` re-locks it.
-    let is_active = state.run.lock().unwrap().active_task_id.as_deref() == Some(id.as_str());
-    if is_active {
-        do_stop(
-            state.inner(),
-            TIMER_PAUSE_REASON_TASK_DELETED,
-            TIMER_PAUSE_TRIGGER_TASK_LIFECYCLE,
-        );
+    // See the comment in `set_done`: the guard must drop before Finish
+    // acquires the run lock again.
+    let has_open_session = {
+        let run = state.run.lock().unwrap();
+        run.active_session_id.is_some()
+            && run
+                .active_task_id
+                .as_deref()
+                .or(run.last_task_id.as_deref())
+                == Some(id.as_str())
+    };
+    if has_open_session {
+        do_finish_session(state.inner(), now_ms());
     }
     {
         let db = state.db.lock().unwrap();

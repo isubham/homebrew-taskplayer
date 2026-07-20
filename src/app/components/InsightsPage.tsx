@@ -1,34 +1,19 @@
 import React, { useState } from "react";
 import _ from "lodash";
-import { esc, fmt, fmtLong, fmtHM, whenLabel, LIFE_AREAS } from "../utils.jsx";
+import { fmt, fmtLong, fmtHM, LIFE_AREAS } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { INSIGHTS_ICON_SIZE, TRACK_PX, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { INSIGHTS_HERO_ICON_SIZE, INSIGHTS_ICON_SIZE, LOGICAL_SESSION_STATUS, PLANNER_MILLISECONDS_PER_DAY, SESSION_COPY, SESSION_INTERVAL_KIND, SESSION_PLAYBACK_COPY, TRACK_PX, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { BarChart2 } from "lucide-react";
-
-const INSIGHTS_SVG = (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <line x1="18" y1="20" x2="18" y2="10" />
-    <line x1="12" y1="20" x2="12" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="14" />
-  </svg>
-);
-
-const INSIGHTS_SVG_HERO = (
-  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <line x1="18" y1="20" x2="18" y2="10" />
-    <line x1="12" y1="20" x2="12" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="14" />
-  </svg>
-);
+import { useSessionNow } from "../hooks/use-session-now";
 
 export function InsightsPage() {
   const { state, helpers, actions } = useApp();
   const [expandedSessionGroups, setExpandedSessionGroups] = useState(new Set());
   const [insightsPeriod, setInsightsPeriod] = useState("day"); // 'day', 'week', 'month'
+  const now = useSessionNow(state.S?.run?.activeSessionId);
 
   if (!state.S) return null;
-  const now = Date.now();
 
   const toggleSessionGroup = (scopeKey, taskId) => {
     const key = `${scopeKey}:${taskId}`;
@@ -41,7 +26,7 @@ export function InsightsPage() {
   const dayLabel = (ts) => {
     const date = new Date(ts);
     const today = new Date();
-    const yesterday = new Date(today - 86400000);
+    const yesterday = new Date(today.getTime() - PLANNER_MILLISECONDS_PER_DAY);
     if (date.toDateString() === today.toDateString()) return "Today";
     if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
     return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
@@ -55,49 +40,48 @@ export function InsightsPage() {
     return d.getTime();
   };
 
-  // Build items array
-  const items = state.S.sessions.map((session) => ({
-    id: session.id,
-    taskId: session.taskId,
-    start: session.start,
-    end: session.end,
-  }));
-  const run = state.S.run;
-  if (run.activeTaskId && run.phase === "work" && run.runningStart) {
-    items.push({ id: null, taskId: run.activeTaskId, start: run.runningStart, end: null, live: true });
-  }
-  items.sort((a, b) => b.start - a.start);
-
-
+  const items = helpers.logicalSessions(now);
 
   const renderRowActions = (item) => {
-    if (item.live || !item.id) {
+    if (item.status !== LOGICAL_SESSION_STATUS.finished) {
       return <span className="entry-del" />;
     }
+    const storedFocus = item.focusIntervals.filter((interval) => interval.id);
     return (
       <>
-        <button className="entry-edit" title="Edit session" onClick={() => actions.editSession(item.id)}>✎</button>
-        <button className="entry-del" title="Remove session" onClick={() => actions.deleteSession(item.id)}>×</button>
+        {storedFocus.length === 1 ? (
+          <button className="entry-edit" title={SESSION_COPY.editFocusIntervalTitle} onClick={() => actions.editSession(storedFocus[0].id)}>✎</button>
+        ) : <span className="entry-edit" />}
+        <button
+          className="entry-del"
+          title={SESSION_COPY.removeLogicalTitle}
+          onClick={() => item.legacy ? actions.deleteSession(item.id) : actions.deleteLogicalSession(item.id)}
+        >×</button>
       </>
     );
   };
 
   const buildTrackAndRuler = (periodItems, periodStart, periodMs, majorMs, minorMs, labels, nowInRange) => {
-    const segs = periodItems.map((item, idx) => {
+    const timelineItems = periodItems.flatMap((item) => [
+      ...item.focusIntervals.map((interval) => ({ ...interval, taskId: item.taskId })),
+      ...item.breakIntervals.map((interval) => ({ ...interval, taskId: item.taskId })),
+    ]);
+    const segs = timelineItems.map((item, idx) => {
       const task = helpers.findTask(item.taskId);
       const listItem = task ? helpers.list(task.listId) : null;
       const startFrac = Math.max(0, (item.start - periodStart) / periodMs);
-      const endFrac = Math.min(1, ((item.end ?? now) - periodStart) / periodMs);
+      const endFrac = Math.min(1, (item.end - periodStart) / periodMs);
       const left = startFrac * TRACK_PX;
       const width = Math.max(2, (endFrac - startFrac) * TRACK_PX);
-      const label = task ? task.name : "(deleted task)";
-      const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${item.end ? new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}`;
-      const title = `${label} · ${range} · ${fmt((item.end ?? now) - item.start)}`;
+      const label = task ? task.name : SESSION_PLAYBACK_COPY.deletedTaskLabel;
+      const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+      const breakInterval = item.kind === SESSION_INTERVAL_KIND.break;
+      const title = `${label} · ${breakInterval ? SESSION_PLAYBACK_COPY.breakLabel : SESSION_PLAYBACK_COPY.focusLabel} · ${range} · ${fmt(item.end - item.start)}`;
       return (
         <i
           key={idx}
-          className={`seg${item.live ? " live" : ""}`}
-          style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, background: listItem ? listItem.color : "#555" }}
+          className={`seg${item.live ? " live" : ""}${breakInterval ? " break" : ""}`}
+          style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, background: breakInterval ? "var(--blue)" : listItem ? listItem.color : UNTAGGED_LIST_COLOR }}
           title={title}
         />
       );
@@ -131,7 +115,7 @@ export function InsightsPage() {
   };
 
   const buildDayLanes = (dayItems, dayStart, nowInRange) => {
-    const periodMs = 86400000;
+    const periodMs = PLANNER_MILLISECONDS_PER_DAY;
     const laneMap = new Map();
     for (const item of dayItems) {
       const task = helpers.findTask(item.taskId);
@@ -164,21 +148,25 @@ export function InsightsPage() {
       const top = i * LANE_H + (LANE_H - NOTE_H) / 2;
       lane.items.forEach((item, idx) => {
         const task = helpers.findTask(item.taskId);
-        const startFrac = Math.max(0, (item.start - dayStart) / periodMs);
-        const endFrac = Math.min(1, ((item.end ?? now) - dayStart) / periodMs);
-        const left = startFrac * LANE_TRACK_PX;
-        const width = Math.max(3, (endFrac - startFrac) * LANE_TRACK_PX);
-        const label = task ? task.name : "(deleted task)";
-        const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${item.end ? new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "now"}`;
-        const title = `${label} · ${range} · ${fmt((item.end ?? now) - item.start)}`;
-        notes.push(
-          <i
-            key={`${key}-${idx}`}
-            className={`lane-note${item.live ? " live" : ""}`}
-            style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, top: `${top}px`, height: `${NOTE_H}px`, background: lane.color }}
-            title={title}
-          />
-        );
+        const intervals = [...item.focusIntervals, ...item.breakIntervals];
+        intervals.forEach((interval, intervalIndex) => {
+          const startFrac = Math.max(0, (interval.start - dayStart) / periodMs);
+          const endFrac = Math.min(1, (interval.end - dayStart) / periodMs);
+          const left = startFrac * LANE_TRACK_PX;
+          const width = Math.max(3, (endFrac - startFrac) * LANE_TRACK_PX);
+          const label = task ? task.name : SESSION_PLAYBACK_COPY.deletedTaskLabel;
+          const range = `${new Date(interval.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${new Date(interval.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+          const breakInterval = interval.kind === SESSION_INTERVAL_KIND.break;
+          const title = `${label} · ${breakInterval ? SESSION_PLAYBACK_COPY.breakLabel : SESSION_PLAYBACK_COPY.focusLabel} · ${range} · ${fmt(interval.end - interval.start)}`;
+          notes.push(
+            <i
+              key={`${key}-${idx}-${intervalIndex}`}
+              className={`lane-note${interval.live ? " live" : ""}${breakInterval ? " break" : ""}`}
+              style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, top: `${top}px`, height: `${NOTE_H}px`, background: breakInterval ? "var(--blue)" : lane.color }}
+              title={title}
+            />
+          );
+        });
       });
     });
 
@@ -217,9 +205,9 @@ export function InsightsPage() {
   const buildMonthRuler = (monthItems, monthStart, daysInMonth) => {
     const dayTotals = new Map();
     for (const item of monthItems) {
-      const dayIdx = Math.floor((item.start - monthStart) / 86400000);
+      const dayIdx = Math.floor((item.start - monthStart) / PLANNER_MILLISECONDS_PER_DAY);
       if (dayIdx < 0 || dayIdx >= daysInMonth) continue;
-      const dur = (item.end ?? now) - item.start;
+      const dur = item.focusMs;
       const entry = dayTotals.get(dayIdx) || { total: 0, byList: new Map() };
       entry.total += dur;
       const task = helpers.findTask(item.taskId);
@@ -235,7 +223,7 @@ export function InsightsPage() {
       const entry = dayTotals.get(d);
       const left = d * dayWidth + dayWidth * 0.15;
       const width = Math.max(3, dayWidth * 0.7);
-      const dateLabel = new Date(monthStart + d * 86400000).toLocaleDateString([], { month: "short", day: "numeric" });
+      const dateLabel = new Date(monthStart + d * PLANNER_MILLISECONDS_PER_DAY).toLocaleDateString([], { month: "short", day: "numeric" });
       if (!entry || entry.total <= 0) {
         bars.push(
           <span
@@ -276,10 +264,10 @@ export function InsightsPage() {
     }
     for (let d = offsetToMonday; d < daysInMonth; d += 7) {
       majors.push(<span key={d} className="mweek" style={{ left: `${((d / daysInMonth) * TRACK_PX).toFixed(1)}px` }} />);
-      labels.push(new Date(monthStart + d * 86400000).toLocaleDateString([], { month: "short", day: "numeric" }));
+      labels.push(new Date(monthStart + d * PLANNER_MILLISECONDS_PER_DAY).toLocaleDateString([], { month: "short", day: "numeric" }));
     }
 
-    const periodMs = daysInMonth * 86400000;
+    const periodMs = daysInMonth * PLANNER_MILLISECONDS_PER_DAY;
     const monthNowInRange = now >= monthStart && now < monthStart + periodMs;
     const nowNeedle = monthNowInRange ? (
       <span className="now-line" style={{ left: `${(((now - monthStart) / periodMs) * TRACK_PX).toFixed(1)}px`, top: "-4px", bottom: "-2px" }} />
@@ -304,7 +292,7 @@ export function InsightsPage() {
     const taskGroups = _.orderBy(
       _.values(grouped),
       [
-        (group) => _.sumBy(group, (item) => (item.end ?? now) - item.start)
+        (group) => _.sumBy(group, (item) => item.focusMs)
       ],
       ["desc"]
     );
@@ -313,9 +301,9 @@ export function InsightsPage() {
       const taskId = groupItems[0].taskId;
       const task = helpers.findTask(taskId);
       const listItem = task ? helpers.list(task.listId) : null;
-      const groupTotal = _.sumBy(groupItems, (item) => (item.end ?? now) - item.start);
-      const anyLive = groupItems.some((item) => item.live);
-      const name = `${task ? task.name : "(deleted task)"}${anyLive ? " · recording…" : ""}`;
+      const groupTotal = _.sumBy(groupItems, (item) => item.focusMs);
+      const anyLive = groupItems.some((item) => item.status === LOGICAL_SESSION_STATUS.focus);
+      const name = `${task ? task.name : SESSION_PLAYBACK_COPY.deletedTaskLabel}${anyLive ? ` · ${SESSION_COPY.recordingLabel}` : ""}`;
       const groupKey = `${scopeKey}:${taskId}`;
       const expanded = expandedSessionGroups.has(groupKey);
 
@@ -328,7 +316,7 @@ export function InsightsPage() {
               return (
                 <div key={idx} className="sub-sess">
                   <span className="sub-range">{range}</span>
-                  <span className="sub-dur">{fmt((item.end ?? now) - item.start)}</span>
+                  <span className="sub-dur">{SESSION_PLAYBACK_COPY.breakdownLabel(fmt(item.focusMs), fmt(item.breakMs))}</span>
                   {renderRowActions(item)}
                 </div>
               );
@@ -342,7 +330,7 @@ export function InsightsPage() {
         const days = _.orderBy(
           _.map(dayGroups, (items) => ({
             ts: items[0].start,
-            total: _.sumBy(items, (item) => (item.end ?? now) - item.start)
+            total: _.sumBy(items, (item) => item.focusMs)
           })),
           ["ts"],
           ["desc"]
@@ -401,7 +389,7 @@ export function InsightsPage() {
     }
 
     if (insightsPeriod === "week") {
-      const weekMs = 7 * 86400000;
+      const weekMs = 7 * PLANNER_MILLISECONDS_PER_DAY;
       const weeks = new Map();
       for (const item of items) {
         const ws = weekStartOf(item.start);
@@ -413,7 +401,7 @@ export function InsightsPage() {
 
       return weekKeys.map((ws) => {
         const weekItems = weeks.get(ws);
-        const total = weekItems.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const total = weekItems.reduce((sum, item) => sum + item.focusMs, 0);
         const label = ws === nowWeekStart ? "This week" : ws === nowWeekStart - weekMs ? "Last week" : `Week of ${new Date(ws).toLocaleDateString([], { month: "short", day: "numeric" })}`;
         return (
           <section key={ws} className="sess-group">
@@ -421,7 +409,7 @@ export function InsightsPage() {
               <h4>{label}</h4>
               <span className="sess-total">{fmtLong(total)}</span>
             </div>
-            {buildTrackAndRuler(weekItems, ws, weekMs, 86400000, 21600000, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"], ws === nowWeekStart)}
+            {buildTrackAndRuler(weekItems, ws, weekMs, PLANNER_MILLISECONDS_PER_DAY, PLANNER_MILLISECONDS_PER_DAY / 4, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"], ws === nowWeekStart)}
             {buildTaskRollup(`w${ws}`, weekItems, "day")}
           </section>
         );
@@ -451,7 +439,7 @@ export function InsightsPage() {
         const monthStart = new Date(y, m, 1).getTime();
         const daysInMonth = new Date(y, m + 1, 0).getDate();
         const monthItems = months.get(key);
-        const total = monthItems.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+        const total = monthItems.reduce((sum, item) => sum + item.focusMs, 0);
         const label = key === nowKey ? "This month" : key === lastKey ? "Last month" : new Date(y, m, 1).toLocaleDateString([], { month: "long", year: "numeric" });
         return (
           <section key={key} className="sess-group">
@@ -484,7 +472,7 @@ export function InsightsPage() {
     const todayKey = dayKey(now);
 
     return groups.map((group) => {
-      const total = group.items.reduce((sum, item) => sum + ((item.end ?? now) - item.start), 0);
+      const total = group.items.reduce((sum, item) => sum + item.focusMs, 0);
       const dayStart = new Date(group.ts);
       dayStart.setHours(0, 0, 0, 0);
       return (
@@ -510,7 +498,7 @@ export function InsightsPage() {
     <>
       <StickyHeader icon={<BarChart2 size={INSIGHTS_ICON_SIZE} />} name="Insights" />
       <div className="hdr" data-tauri-drag-region>
-        <div className="cover" style={{ background: "linear-gradient(135deg,#2e7d4f,#0c3f26)" }}>{INSIGHTS_SVG_HERO}</div>
+        <div className="cover" style={{ background: "linear-gradient(135deg,#2e7d4f,#0c3f26)" }}><BarChart2 size={INSIGHTS_HERO_ICON_SIZE} aria-hidden="true" /></div>
         <div className="info">
           <small>History</small>
           <h1>Insights</h1>

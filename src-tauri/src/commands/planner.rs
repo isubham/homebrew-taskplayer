@@ -159,11 +159,15 @@ pub(crate) fn start_planned_session(
         if !eligible {
             return Err(PLANNED_SESSION_INVALID_MSG.to_string());
         }
-        db.delete_planned_session(&id)
-            .map_err(|error| error.to_string())?;
         planned.task_id
     };
-    do_play(state.inner(), &task_id, TIMER_PAUSE_TRIGGER_PLANNED_SESSION);
+    do_play(state.inner(), &task_id, TIMER_PAUSE_TRIGGER_PLANNED_SESSION)?;
+    state
+        .db
+        .lock()
+        .unwrap()
+        .delete_planned_session(&id)
+        .map_err(|error| error.to_string())?;
     push(&app);
     Ok(build_snapshot(state.inner()))
 }

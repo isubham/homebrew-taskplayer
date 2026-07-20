@@ -40,10 +40,12 @@ mod tests {
             task_id: "a".into(),
             start: 0,
             end: Some(1000),
+            logical_session_id: None,
+            session_finished_at: None,
             updated_at: 0,
             deleted_at: None,
         }];
-        let (run, _) = timer::play(&RunState::default(), "a", 2000);
+        let run = timer::begin(&RunState::default(), "a", "logical-a", 2000);
         // 1000 logged + live (5000-2000)=3000
         assert_eq!(task_total_ms(&sessions, &run, "a", 5000), 4000);
     }

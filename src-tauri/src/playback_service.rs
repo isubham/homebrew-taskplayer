@@ -1,7 +1,7 @@
 use super::*;
 
 // ---- timer mutations (lock order: run -> db) ----
-pub(crate) fn do_play(state: &AppState, task_id: &str, trigger: &str) {
+pub(crate) fn do_play(state: &AppState, task_id: &str, trigger: &str) -> Result<(), String> {
     let now = now_ms();
     let mut run = state.run.lock().unwrap();
     let previous = run.clone();
@@ -10,36 +10,69 @@ pub(crate) fn do_play(state: &AppState, task_id: &str, trigger: &str) {
     // the SAME task — continue in place (keep running_start/break_start)
     // rather than restarting the clock at 0:00. Spotify-style "play here"
     // resumes the same position; it doesn't replay the track from the top.
-    // Only applies to "work"/"break" (a real countdown in progress) — an
-    // "awaiting_break"/"awaiting_work" mirror falls through to the normal
-    // fresh-start path below, since there's no live countdown to preserve.
+    // Only this branch applies to "work"/"break" so their original phase
+    // timestamps survive. A paused/legacy awaiting state resumes focus in
+    // the same logical session in the branch below.
     // See docs/session-sync-design.md §4.4.
     if !is_own(&run, &state.device_id)
         && run.active_task_id.as_deref() == Some(task_id)
         && matches!(run.phase.as_deref(), Some("work") | Some("break"))
     {
         let mut nr = run.clone();
+        if nr.active_session_id.is_none() {
+            nr.active_session_id = Some(taskplayer_core::new_id());
+        }
         stamp_own(&mut nr, &state.device_id, &state.device_name);
         *run = nr;
         let _ = state.db.lock().unwrap().set_run(&run);
-        return;
+        return Ok(());
+    }
+
+    let open_task_id = run
+        .active_task_id
+        .as_deref()
+        .or(run.last_task_id.as_deref());
+    if !is_own(&run, &state.device_id)
+        && run.active_session_id.is_some()
+        && open_task_id == Some(task_id)
+    {
+        let mut next = timer::resume(&run, task_id, now);
+        stamp_own(&mut next, &state.device_id, &state.device_name);
+        *run = next;
+        let _ = state.db.lock().unwrap().set_run(&run);
+        return Ok(());
+    }
+    if run.active_session_id.is_some() && open_task_id != Some(task_id) {
+        return Err(ONGOING_SESSION_TASK_CONFLICT_MSG.to_string());
     }
 
     let baseline = as_local_baseline(&run, &state.device_id);
-    let (mut nr, log) = timer::play(&baseline, task_id, now);
-    let pause_reason = previous.active_task_id.as_deref().and_then(|active_id| {
-        if nr.active_task_id.is_none() {
-            Some(TIMER_PAUSE_REASON_SAME_TASK_TOGGLE)
-        } else if active_id != task_id {
-            Some(TIMER_PAUSE_REASON_TASK_SWITCH)
+    let session_task_id = baseline
+        .active_task_id
+        .as_deref()
+        .or(baseline.last_task_id.as_deref());
+    if baseline.active_session_id.is_some() && session_task_id != Some(task_id) {
+        return Err(ONGOING_SESSION_TASK_CONFLICT_MSG.to_string());
+    }
+    let (mut nr, log, pause_reason) =
+        if baseline.active_task_id.as_deref() == Some(task_id) && baseline.phase.is_some() {
+            let (next, log) = timer::pause(&baseline, now);
+            (next, log, Some(TIMER_PAUSE_REASON_SAME_TASK_TOGGLE))
+        } else if baseline.active_session_id.is_some() {
+            (timer::resume(&baseline, task_id, now), None, None)
         } else {
-            None
-        }
-    });
+            (
+                timer::begin(&baseline, task_id, &taskplayer_core::new_id(), now),
+                None,
+                None,
+            )
+        };
     stamp_own(&mut nr, &state.device_id, &state.device_name);
     *run = nr;
     let db = state.db.lock().unwrap();
-    let session_result = log.as_ref().map(|item| db.add_session(item));
+    let session_result = log
+        .as_ref()
+        .map(|item| db.add_session_interval(item, previous.active_session_id.as_deref(), None));
     let run_result = db.set_run(&run);
     if let Some(reason) = pause_reason {
         let session_status = session_result
@@ -58,78 +91,48 @@ pub(crate) fn do_play(state: &AppState, task_id: &str, trigger: &str) {
             &run_status,
         );
     }
+    Ok(())
 }
 
-pub(crate) fn do_stop(state: &AppState, reason: &str, trigger: &str) {
-    do_stop_at(state, now_ms(), reason, trigger);
-}
-
-/// Same as `do_stop`, but logs the work segment as ending at `at_ms` instead
-/// of "right now". Used when we detect the machine was asleep: the session
-/// gets closed out at the last moment we know it was actually awake, so the
-/// time spent asleep never gets counted as tracked work.
-pub(crate) fn do_stop_at(state: &AppState, at_ms: i64, reason: &str, trigger: &str) {
-    persist_stop(state, at_ms, reason, trigger, None);
-}
-
-pub(crate) fn do_stop_after_confirmed_sleep(
-    state: &AppState,
-    sleep_started_at: i64,
-    sleep_interval_ms: i64,
-) {
-    persist_stop(
-        state,
-        sleep_started_at,
-        TIMER_PAUSE_REASON_SYSTEM_SLEEP,
-        TIMER_PAUSE_TRIGGER_MACOS_WORKSPACE,
-        Some(sleep_interval_ms),
-    );
-}
-
-fn persist_stop(
-    state: &AppState,
-    at_ms: i64,
-    reason: &str,
-    trigger: &str,
-    sleep_interval_ms: Option<i64>,
-) {
+pub(crate) fn do_finish_session(state: &AppState, at_ms: i64) {
     let mut run = state.run.lock().unwrap();
-    let previous = run.clone();
+    let logical_session_id = run.active_session_id.clone();
+    let session_task_id = run
+        .active_task_id
+        .clone()
+        .or_else(|| run.last_task_id.clone());
+    let owned = is_own(&run, &state.device_id);
     let baseline = as_local_baseline(&run, &state.device_id);
-    let (mut nr, log) = timer::stop(&baseline, at_ms);
-    stamp_own(&mut nr, &state.device_id, &state.device_name);
-    *run = nr;
+    let (mut next, log) = timer::finish(&baseline, at_ms);
+    stamp_own(&mut next, &state.device_id, &state.device_name);
+    *run = next;
     let db = state.db.lock().unwrap();
-    let session_result = log.as_ref().map(|item| db.add_session(item));
-    let run_result = db.set_run(&run);
-    let session_status = session_result
-        .as_ref()
-        .map(timer_write_status)
-        .unwrap_or_else(|| TIMER_WRITE_STATUS_NOT_APPLICABLE.to_string());
-    let run_status = timer_write_status(&run_result);
-    drop(db);
-    if let Some(interval_ms) = sleep_interval_ms {
-        log_timer_pause_after_sleep(
-            state,
-            reason,
-            trigger,
-            &previous,
-            at_ms,
-            interval_ms,
-            &session_status,
-            &run_status,
-        );
-    } else {
-        log_timer_pause(
-            state,
-            reason,
-            trigger,
-            &previous,
-            at_ms,
-            &session_status,
-            &run_status,
-        );
+    if let Some(logical_session_id) = logical_session_id.as_deref() {
+        if owned {
+            if let Some(segment) = log.as_ref() {
+                let _ = db.add_session_interval(segment, Some(logical_session_id), Some(at_ms));
+            }
+        }
+        let finished_rows = db
+            .finish_logical_session(logical_session_id, at_ms)
+            .unwrap_or(0);
+        if finished_rows == 0 {
+            if let Some(task_id) = session_task_id {
+                let _ = db.add_session_interval(
+                    &taskplayer_core::SessionLog {
+                        task_id,
+                        start: at_ms,
+                        end: at_ms,
+                    },
+                    Some(logical_session_id),
+                    Some(at_ms),
+                );
+            }
+        }
+    } else if let Some(segment) = log.as_ref() {
+        let _ = db.add_session(segment);
     }
+    let _ = db.set_run(&run);
 }
 
 pub(crate) fn reset_run_after_import(state: &AppState) {

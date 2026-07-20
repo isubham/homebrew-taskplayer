@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
 import { ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS } from "../constants.jsx";
 import { buildDailyJamAttentionEntries } from "../daily-jam-attention";
+import { buildLogicalSessions } from "../logical-sessions";
 
 const CoreContext = createContext(null);
 
@@ -23,6 +24,13 @@ export function CoreProvider({ children }) {
   const findTask = useCallback((id) => S?.tasks.find((task) => task.id === id), [S]);
   const tasksForList = useCallback((lid) => S?.tasks.filter((task) => task.listId === lid) || [], [S]);
   const taskSessions = useCallback((id) => S?.sessions.filter((session) => session.taskId === id) || [], [S]);
+  const logicalSessions = useCallback((now = Date.now()) => S ? buildLogicalSessions(S, now) : [], [S]);
+  const currentLogicalSession = useCallback((now = Date.now()) => {
+    const activeSessionId = S?.run?.activeSessionId;
+    return activeSessionId
+      ? logicalSessions(now).find((session) => session.id === activeSessionId) || null
+      : null;
+  }, [S, logicalSessions]);
 
   const taskTotal = useCallback((id) => {
     const now = Date.now();
@@ -375,13 +383,25 @@ export function CoreProvider({ children }) {
     const run = S.run;
     const liveTaskId = run.activeTaskId && run.phase === "work" && run.runningStart ? run.activeTaskId : null;
     if (liveTaskId) lastPlayedAt.set(liveTaskId, now);
+    const ongoingTaskId = run.activeSessionId ? run.activeTaskId || run.lastTaskId : null;
+    if (ongoingTaskId) lastPlayedAt.set(ongoingTaskId, now);
+    const latestLogicalSession = new Map();
+    for (const session of logicalSessions(now)) {
+      if (!latestLogicalSession.has(session.taskId)) latestLogicalSession.set(session.taskId, session);
+    }
 
     return Array.from(lastPlayedAt.entries())
-      .map(([taskId, at]) => ({ task: findTask(taskId), at, live: taskId === liveTaskId }))
+      .map(([taskId, at]) => ({
+        task: findTask(taskId),
+        at,
+        live: taskId === liveTaskId,
+        ongoing: taskId === ongoingTaskId,
+        logicalSession: latestLogicalSession.get(taskId) || null,
+      }))
       .filter((entry) => entry.task && !entry.task.completedAt && !isAgainstTask(entry.task))
       .sort((a, b) => b.at - a.at)
       .slice(0, limit);
-  }, [S, findTask, isAgainstTask]);
+  }, [S, findTask, isAgainstTask, logicalSessions]);
 
   const dailyJamTasks = useCallback(() => {
     if (!S) return [];
@@ -439,7 +459,7 @@ export function CoreProvider({ children }) {
       S,
       apply,
       helpers: {
-        list, findTask, tasksForList, taskSessions, taskTotal, listTotal,
+        list, findTask, tasksForList, taskSessions, logicalSessions, currentLogicalSession, taskTotal, listTotal,
         listEstimateTotal, targetMs, modeLabel, modeGlyph, isAgainstTask, todayTotalMs,
         todayMsForTask, todayJewels, lifetimeJewelsNet, lifetimeJewelsByArea, buildRankInfo,
         lifeBalanceScores, againstContributors, lifeBalanceDailyGrid, recentTasks,

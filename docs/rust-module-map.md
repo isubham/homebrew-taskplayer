@@ -21,7 +21,8 @@ persistence logic remains in `src-tauri/core`.
 | File | Responsibility |
 |---|---|
 | `device.rs` | Device identity, run ownership, and post-sync reconciliation. |
-| `playback_service.rs` | Internal play/stop mutations and session persistence. |
+| `playback_pause.rs` | Pause persistence, including confirmed-sleep boundaries and diagnostics. |
+| `playback_service.rs` | Internal play, resume, finish, and logical-session persistence. |
 | `timer_diagnostics.rs` | Structured timer-pause diagnostics and persistence outcomes. |
 | `system_sleep.rs` | Confirmed macOS workspace sleep/wake observation. |
 | `snapshot.rs` | Builds frontend `Snapshot`/`Status` values and display helpers. |
@@ -51,10 +52,11 @@ persistence logic remains in `src-tauri/core`.
 |---|---|
 | `sync/compatibility.rs` | Backend capability/version contract validation. |
 | `sync/backfill.rs` | Durable field backfills after schema-aware client upgrades. |
-| `sync/content_models.rs` | List, task, priority, and session wire models. |
+| `sync/content_models.rs` | List, task, and life-area-priority wire models. |
 | `sync/music_models.rs` | Focus-music favorite wire model. |
 | `sync/planner_models.rs` | Planned-session wire model. |
 | `sync/runtime_models.rs` | Run-state and configuration wire models. |
+| `sync/session_models.rs` | Recorded focus-interval and logical-session wire model. |
 | `sync/transport.rs` | Generic Supabase REST fetch/upsert helpers. |
 | `sync/push.rs` | Local-to-remote serialization and cursor advancement. |
 | `sync/pull.rs` | Remote-to-local collection and singleton application. |
@@ -75,10 +77,11 @@ persistence logic remains in `src-tauri/core`.
 
 | File | Responsibility |
 |---|---|
+| `commands/data.rs` | Backup import/export and log-file reveal commands. |
 | `commands/lists.rs` | List CRUD, style, availability, and snapshot command. |
 | `commands/tasks/details.rs` | Task creation, metadata, scheduling, and movement. |
 | `commands/tasks/lifecycle.rs` | Ordering, completion, impact, estimates, and deletion. |
-| `commands/sessions.rs` | Session editing plus backup import/export and logs. |
+| `commands/sessions.rs` | Recorded and logical-session editing commands. |
 | `commands/playback.rs` | Timer play, stop, break, and resume commands. |
 | `commands/settings.rs` | Timer settings, auth, sync, zoom, and sound commands. |
 | `commands/schedule.rs` | Computes deduplicated daily/list schedule notices. |

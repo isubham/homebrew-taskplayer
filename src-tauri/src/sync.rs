@@ -27,6 +27,7 @@ mod planner_models;
 mod pull;
 mod push;
 mod runtime_models;
+mod session_models;
 mod transport;
 
 use backfill::*;
@@ -37,6 +38,7 @@ use planner_models::*;
 use pull::*;
 use push::*;
 use runtime_models::*;
+use session_models::*;
 use transport::*;
 
 /// Pushes local changes, then pulls remote changes using last-write-wins.

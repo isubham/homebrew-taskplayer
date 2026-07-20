@@ -4,6 +4,8 @@ Status: historical research and planning notes. Shipped behavior has evolved; se
 [`features.md`](features.md) for the authoritative current Pomodoro behavior. In particular,
 Pomodoro phase boundaries now start the next break/work phase automatically, superseding older
 acceptance criteria below that refer to `awaiting_break`, `awaiting_work`, or manual start clicks.
+Pausing now stores a focus interval without closing the logical session, and resuming preserves
+progress in the current Pomodoro work block. An explicit Finish session action closes the session.
 
 Source: gap analysis against Pomodoro Technique history, current research (Biwer et al.
 2023; Ogut 2025 meta-analysis; MDPI 2025 Flowtime comparison; ADHD-specific literature),

@@ -1,17 +1,17 @@
 import { useCallback } from "react";
 import { commands, type PlannedSession, type Snapshot } from "../bindings";
-import { PLANNER_COPY, SESSION_COPY } from "../constants";
+import { PLANNER_COPY, SESSION_COPY, SESSION_PLAYBACK_COPY } from "../constants";
 import { esc } from "../utils";
 
 type PlannerActions = {
   apply: (snapshot: Snapshot) => void;
-  uiConfirm: (title: string, message: string, confirmText: string) => Promise<boolean>;
+  uiConfirm: (title: string, message: string, confirmText: string, danger?: boolean) => Promise<boolean>;
   uiNote: (title: string, message: string, confirmText: string) => Promise<unknown>;
 };
 
 type SessionRange = { start: number; end: number };
 
-export function usePlannerCommands(actions: PlannerActions) {
+export function usePlannerCommands(actions: PlannerActions, snapshot: Snapshot) {
   const run = useCallback(async (command: ReturnType<typeof commands.createPlannedSession>) => {
     try {
       const result = await command;
@@ -42,7 +42,32 @@ export function usePlannerCommands(actions: PlannerActions) {
     return confirmed ? run(commands.deletePlannedSession(plan.id)) : false;
   }, [actions, run]);
 
-  const start = useCallback((plan: PlannedSession) => run(commands.startPlannedSession(plan.id)), [run]);
+  const start = useCallback(async (plan: PlannedSession) => {
+    const openTaskId = snapshot.run.activeSessionId
+      ? snapshot.run.activeTaskId || snapshot.run.lastTaskId
+      : null;
+    if (openTaskId === plan.taskId && snapshot.run.phase) {
+      return run(commands.deletePlannedSession(plan.id));
+    }
+    if (openTaskId && openTaskId !== plan.taskId) {
+      const task = snapshot.tasks.find((item) => item.id === plan.taskId);
+      const confirmed = await actions.uiConfirm(
+        SESSION_PLAYBACK_COPY.switchTitle,
+        SESSION_PLAYBACK_COPY.switchDescription(task?.name || SESSION_PLAYBACK_COPY.fallbackTaskName),
+        SESSION_PLAYBACK_COPY.switchConfirm,
+        false,
+      );
+      if (!confirmed) return false;
+      try {
+        actions.apply(await commands.finishSession());
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await actions.uiNote(SESSION_PLAYBACK_COPY.commandErrorTitle, esc(message), PLANNER_COPY.dismissButton);
+        return false;
+      }
+    }
+    return run(commands.startPlannedSession(plan.id));
+  }, [actions, run, snapshot]);
 
   const record = useCallback(async (taskId: string, range: SessionRange) => {
     try {

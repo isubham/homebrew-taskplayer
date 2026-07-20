@@ -11,19 +11,30 @@ pub(crate) fn send_tick_notifications(
     // Unlike the pomodoro transitions above, neither of these
     // changes the run state — target mode deliberately keeps
     // counting past the target, and open mode has no boundary at
-    // all. They're pure notifications, deduped per work segment
-    // via `session_notify` (keyed on `running_start`, so a new
-    // session re-arms them). Both fire only while actually in
+    // all. They're pure notifications, deduped per logical session
+    // via `session_notify`, so a new session re-arms them without
+    // pause/resume duplicates. Both fire only while actually in
     // the "work" phase, and both go through run_on_main_thread
     // for the same macOS notification-center thread-safety
     // reason as ToBreak/ToWork above.
     if run.phase.as_deref() == Some("work") {
         if let (Some(start), Some(task_id)) = (run.running_start, run.active_task_id.clone()) {
-            let elapsed = now - start;
+            let elapsed = timer::work_elapsed(run, now);
+            let session_key = run
+                .active_session_id
+                .clone()
+                .unwrap_or_else(|| start.to_string());
             if config.mode == "target" {
-                let already = state.session_notify.lock().unwrap().target_fired_for == Some(start);
+                let already = state
+                    .session_notify
+                    .lock()
+                    .unwrap()
+                    .target_fired_for
+                    .as_deref()
+                    == Some(session_key.as_str());
                 if !already && elapsed >= config.target_min * 60_000 {
-                    state.session_notify.lock().unwrap().target_fired_for = Some(start);
+                    state.session_notify.lock().unwrap().target_fired_for =
+                        Some(session_key.clone());
                     let name = {
                         let db = state.db.lock().unwrap();
                         task_name_for_notification(&db, &task_id)
@@ -38,31 +49,33 @@ pub(crate) fn send_tick_notifications(
                     let target_min = config.target_min;
                     let sound = config.break_sound.clone();
                     let _ = handle.run_on_main_thread(move || {
-                                    match notif_handle
-                                        .notification()
-                                        .builder()
-                                        .title("Target reached 🎯")
-                                        .body(format!(
-                                            "Session complete — {target_min} minutes on \"{name}\". Wrap up, or keep going: the clock's still counting."
-                                        ))
-                                        .sound(sound)
-                                        .show()
-                                    {
-                                        Ok(()) => {}
-                                        Err(e) => log_line(format!("notification show() failed (target reached): {e}")),
-                                    }
-                                });
+                        match notif_handle
+                            .notification()
+                            .builder()
+                            .title(TARGET_REACHED_NOTIFICATION_TITLE)
+                            .body(target_reached_notification_body(target_min, &name))
+                            .sound(sound)
+                            .show()
+                        {
+                            Ok(()) => {}
+                            Err(e) => log_line(format!(
+                                "notification show() failed (target reached): {e}"
+                            )),
+                        }
+                    });
                 }
             } else if config.mode == "open" && config.hourly_nudge {
                 let hours = elapsed / 3_600_000;
                 let due = {
                     let sn = state.session_notify.lock().unwrap();
-                    hours >= 1 && (sn.nudge_fired_for != Some(start) || sn.nudge_hours < hours)
+                    hours >= 1
+                        && (sn.nudge_fired_for.as_deref() != Some(session_key.as_str())
+                            || sn.nudge_hours < hours)
                 };
                 if due {
                     {
                         let mut sn = state.session_notify.lock().unwrap();
-                        sn.nudge_fired_for = Some(start);
+                        sn.nudge_fired_for = Some(session_key);
                         sn.nudge_hours = hours;
                     }
                     let name = {

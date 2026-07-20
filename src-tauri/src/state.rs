@@ -43,8 +43,8 @@ pub(crate) struct AppState {
     /// OS app-data directory — also where the SQLite file and session.json live.
     pub(crate) data_dir: PathBuf,
     /// Dedupe state for the tick loop's non-pomodoro notifications (target
-    /// reached, open-mode hourly check-in). Keyed on `running_start`, so a
-    /// new work segment automatically re-arms both. Purely in-memory: after
+    /// reached, open-mode hourly check-in). Keyed on logical session id, so
+    /// pause/resume never fires the same cue twice. Purely in-memory: after
     /// an app restart the worst case is one repeated notification, not a
     /// missed one, so it isn't worth persisting.
     pub(crate) session_notify: Mutex<SessionNotify>,
@@ -53,12 +53,11 @@ pub(crate) struct AppState {
 /// See `AppState::session_notify`.
 #[derive(Default)]
 pub(crate) struct SessionNotify {
-    /// `running_start` of the work segment whose target-reached notification
-    /// already fired (target mode).
-    pub(crate) target_fired_for: Option<i64>,
-    /// `running_start` of the segment the hourly check-in last fired for,
-    /// plus how many full hours had elapsed when it did (open mode).
-    pub(crate) nudge_fired_for: Option<i64>,
+    /// Logical session whose target-reached notification already fired.
+    pub(crate) target_fired_for: Option<String>,
+    /// Logical session the hourly check-in last fired for, plus how many full
+    /// focused hours had elapsed when it did (open mode).
+    pub(crate) nudge_fired_for: Option<String>,
     pub(crate) nudge_hours: i64,
     /// Schedule reminders are evaluated once per ten-second bucket and
     /// deduped per concrete weekday occurrence. The ledger is intentionally

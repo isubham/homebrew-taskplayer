@@ -7,16 +7,16 @@ pub(crate) fn play(
     state: State<AppState>,
     task_id: String,
     trigger: Option<String>,
-) -> Snapshot {
+) -> Result<Snapshot, String> {
     do_play(
         state.inner(),
         &task_id,
         trigger
             .as_deref()
             .unwrap_or(TIMER_PAUSE_TRIGGER_FRONTEND_PLAY),
-    );
+    )?;
     push(&app);
-    build_snapshot(state.inner())
+    Ok(build_snapshot(state.inner()))
 }
 
 #[specta::specta]
@@ -27,6 +27,14 @@ pub(crate) fn stop(app: AppHandle, state: State<AppState>) -> Snapshot {
         TIMER_PAUSE_REASON_EXPLICIT_STOP,
         TIMER_PAUSE_TRIGGER_FRONTEND_STOP,
     );
+    push(&app);
+    build_snapshot(state.inner())
+}
+
+#[specta::specta]
+#[tauri::command]
+pub(crate) fn finish_session(app: AppHandle, state: State<AppState>) -> Snapshot {
+    do_finish_session(state.inner(), now_ms());
     push(&app);
     build_snapshot(state.inner())
 }

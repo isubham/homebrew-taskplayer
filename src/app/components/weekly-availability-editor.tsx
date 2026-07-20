@@ -13,8 +13,6 @@ export function WeeklyAvailabilityEditor({
   onSave,
   requireWeekday = false,
   daysAriaLabel = "Available days",
-  emptyMeansEveryDay = false,
-  everyDayLabel = "Every day",
   inspectWindows,
   onBlockingChange,
 }) {
@@ -100,16 +98,6 @@ export function WeeklyAvailabilityEditor({
 
   return (
     <div className="weekly-editor simple-availability" id={id} data-day-mode="simple">
-      {emptyMeansEveryDay ? (
-        <button
-          type="button"
-          className="repeat-every-day"
-          aria-pressed={rows.every((row) => !row.weekdays.length)}
-          onClick={selectEveryDay}
-        >
-          {everyDayLabel}
-        </button>
-      ) : null}
       <div className="simple-availability-list" data-window-list>
         {rows.map((row, rowIdx) => (
           <WeeklyWindowRow
@@ -117,7 +105,7 @@ export function WeeklyAvailabilityEditor({
             row={row}
             rowIndex={rowIdx}
             daysAriaLabel={daysAriaLabel}
-            hideTime={emptyMeansEveryDay && !row.weekdays.length}
+            hideTime={false}
             onWeekdayChange={handleWeekdayChange}
             onTimeChange={handleTimeChange}
             onRemove={removeRow}
@@ -137,7 +125,6 @@ export function WeeklyAvailabilityEditor({
         type="button"
         className="linkbtn blue weekly-window-add"
         onClick={addRow}
-        hidden={emptyMeansEveryDay && rows.every((row) => !row.weekdays.length)}
       >
         ＋ Add another time
       </button>

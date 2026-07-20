@@ -71,13 +71,13 @@ export function UIProvider({ children }) {
     });
   }, [uiForm]);
 
-  const uiConfirm = useCallback((title, message, confirmText = "Delete") => {
+  const uiConfirm = useCallback((title, message, confirmText = "Delete", danger = true) => {
     return new Promise((resolve) => {
       uiForm({
         type: "confirm",
         title,
         confirmText,
-        danger: true,
+        danger,
         message,
         resolve,
       });

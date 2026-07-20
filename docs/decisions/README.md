@@ -31,6 +31,7 @@ would otherwise be repeatedly debated. Do not create one for routine implementat
 | [0015](0015-planned-sessions-separate-from-history.md) | Accepted | Keep future plans separate from recorded work sessions |
 | [0016](0016-automatic-planning-requires-preview.md) | Accepted | Require preview and acceptance for deterministic automatic planning |
 | [0017](0017-confirmed-system-sleep-events.md) | Accepted | Pause timers only for confirmed macOS system sleep |
+| [0018](0018-logical-sessions-group-focus-intervals.md) | Accepted | Group focus intervals into explicit-finish logical sessions and derive breaks |
 
 ## Creating a record
 

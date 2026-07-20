@@ -16,6 +16,7 @@ import {
 } from "../../constants";
 import type { PlannerBlock as PlannerBlockModel } from "../../planner/planner-model";
 import { plannerMinuteInDay, plannerTimeLabel } from "../../planner/planner-time";
+import { fmtLong } from "../../utils";
 
 type PlannerBlockProps = {
   block: PlannerBlockModel;
@@ -29,6 +30,7 @@ type PlannerBlockProps = {
 
 const kindLabel = (kind: PlannerBlockModel["kind"]) => {
   if (kind === PLANNER_BLOCK_KINDS.actual) return PLANNER_COPY.actualLabel;
+  if (kind === PLANNER_BLOCK_KINDS.break) return PLANNER_COPY.breakLabel;
   if (kind === PLANNER_BLOCK_KINDS.live) return PLANNER_COPY.liveLabel;
   if (kind === PLANNER_BLOCK_KINDS.routine) return PLANNER_COPY.routineLabel;
   if (kind === PLANNER_BLOCK_KINDS.availability) return PLANNER_COPY.availabilityLabel;
@@ -43,7 +45,8 @@ export function PlannerBlock({ block, dayStart, onEdit, onEditActual, onOpenRefe
   const height = Math.max(PLANNER_MIN_BLOCK_HEIGHT_PX, naturalHeight);
   const planned = block.kind === PLANNER_BLOCK_KINDS.planned;
   const actual = block.kind === PLANNER_BLOCK_KINDS.actual;
-  const dragBlocking = planned || actual || block.kind === PLANNER_BLOCK_KINDS.live;
+  const sessionBreak = block.kind === PLANNER_BLOCK_KINDS.break;
+  const dragBlocking = planned || actual || sessionBreak || block.kind === PLANNER_BLOCK_KINDS.live;
   const range = PLANNER_COPY.timeRangeLabel(plannerTimeLabel(block.start), plannerTimeLabel(block.end));
   const referenceTitle = block.kind === PLANNER_BLOCK_KINDS.availability && block.detail
     ? block.detail
@@ -128,6 +131,9 @@ export function PlannerBlock({ block, dayStart, onEdit, onEditActual, onOpenRefe
             </button>
           ) : <strong>{referenceTitle}</strong>}
           <span>{range}</span>
+          {block.sessionFocusMs != null && block.sessionBreakMs != null ? (
+            <span>{PLANNER_COPY.actualLabel} {fmtLong(block.sessionFocusMs)} · {PLANNER_COPY.breakLabel} {fmtLong(block.sessionBreakMs)}</span>
+          ) : null}
         </div>,
         document.body,
       ) : null}

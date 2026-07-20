@@ -9,6 +9,12 @@ pub(super) struct RemoteRunState {
     pub(super) running_start: Option<i64>,
     pub(super) phase: Option<String>,
     pub(super) break_start: Option<i64>,
+    #[serde(default)]
+    pub(super) active_session_id: Option<String>,
+    #[serde(default)]
+    pub(super) session_work_ms: i64,
+    #[serde(default)]
+    pub(super) pomodoro_work_ms: i64,
     pub(super) last_task_id: Option<String>,
     #[serde(default)]
     pub(super) cycles_completed: i64,
@@ -32,6 +38,9 @@ impl RemoteRunState {
             running_start: r.running_start,
             phase: r.phase.clone(),
             break_start: r.break_start,
+            active_session_id: r.active_session_id.clone(),
+            session_work_ms: r.session_work_ms,
+            pomodoro_work_ms: r.pomodoro_work_ms,
             last_task_id: r.last_task_id.clone(),
             cycles_completed: r.cycles_completed,
             long_break: r.long_break,
@@ -44,6 +53,9 @@ impl RemoteRunState {
             running_start: self.running_start,
             phase: self.phase,
             break_start: self.break_start,
+            active_session_id: self.active_session_id,
+            session_work_ms: self.session_work_ms,
+            pomodoro_work_ms: self.pomodoro_work_ms,
             last_task_id: self.last_task_id,
             cycles_completed: self.cycles_completed,
             long_break: self.long_break,

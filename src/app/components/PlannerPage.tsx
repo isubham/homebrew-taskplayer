@@ -38,7 +38,7 @@ export function PlannerPage() {
   const [recordEditor, setRecordEditor] = useState<RecordEditorState | null>(null);
   const modalRevision = useRef(PLANNER_MODAL_INITIAL_REVISION);
   const nextModalRevision = () => (modalRevision.current += PLANNER_MODAL_REVISION_STEP);
-  const planner = usePlannerCommands(actions);
+  const planner = usePlannerCommands(actions, state.S);
   const dayCount = mode === PLANNER_VIEW_MODES.today ? 1 : PLANNER_DAY_COUNT;
 
   useEffect(() => {

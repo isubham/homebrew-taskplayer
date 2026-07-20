@@ -12,9 +12,8 @@ import { validateTaskSchedule } from "../schedule-validation";
 
 export function NewTaskModal() {
   const { state, helpers, actions } = useApp();
-  const listItem = helpers.list(state.activeListId);
-  if (!listItem) return null;
 
+  // All hooks must run unconditionally — before any early return
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
   const [depth, setDepth] = useState("");
@@ -23,12 +22,14 @@ export function NewTaskModal() {
   const [minSession, setMinSession] = useState("30");
   const [maxSession, setMaxSession] = useState("90");
   const [estimate, setEstimate] = useState("0.5");
-  const [dailyWindows, setDailyWindows] = useState([]);
+  const [dailyWindows, setDailyWindows] = useState(() => [1, 2, 3, 4, 5, 6, 7].map(weekday => ({ weekday, startMinute: 540, endMinute: 1020 })));
   const [listId, setListId] = useState(state.activeListId);
   const [scheduleBlocked, setScheduleBlocked] = useState(false);
-
   const [impactTier, setImpactTier] = useState("");
-  const [impactSign, setImpactSign] = useState(listItem.lifeDirection === "decrease" ? -1 : 1);
+  const [impactSign, setImpactSign] = useState(() => {
+    const l = helpers.list(state.activeListId);
+    return l?.lifeDirection === "decrease" ? -1 : 1;
+  });
   const [explicitSign, setExplicitSign] = useState(false);
 
   useEffect(() => {
@@ -37,6 +38,9 @@ export function NewTaskModal() {
       setImpactSign(selectedList.lifeDirection === "decrease" ? -1 : 1);
     }
   }, [listId, explicitSign, helpers]);
+
+  const listItem = helpers.list(state.activeListId);
+  if (!listItem) return null;
 
   const getPayout = () => {
     const tier = IMPACT_TIERS[impactTier];
@@ -175,8 +179,6 @@ export function NewTaskModal() {
                       onSave={(nextWindows) => setDailyWindows(nextWindows)}
                       requireWeekday
                       daysAriaLabel={TASK_REPEAT_COPY.scheduleDaysAriaLabel}
-                      emptyMeansEveryDay
-                      everyDayLabel={TASK_REPEAT_COPY.everyDayOption}
                       inspectWindows={(candidate) => validateTaskSchedule(
                         candidate,
                         state.S.tasks

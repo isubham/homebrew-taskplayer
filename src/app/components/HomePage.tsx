@@ -1,18 +1,15 @@
-import React from "react";
 import { fmtLong, fmtHM, LIFE_AREAS, timeAgo, IMPACT_TIERS } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { DailyJam } from "./daily-jam.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { DAILY_JAM_COPY, RECENT_TASKS_SIZE, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { DAILY_JAM_COPY, HOME_ICON_SIZE, LOGICAL_SESSION_STATUS, RECENT_TASKS_SIZE, SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { visibleDailyJamAttentionCount } from "../daily-jam-attention";
 import { NextPlannedBlock } from "./planner/next-planned-block";
+import { SessionBreakdown } from "./session-breakdown";
+import { useSessionNow } from "../hooks/use-session-now";
+import { House } from "lucide-react";
 
-const HOME_SVG = (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3 11l9-8 9 8" />
-    <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" />
-  </svg>
-);
+const HOME_ICON = <House size={HOME_ICON_SIZE} aria-hidden="true" />;
 
 // Radar Chart Component
 function LifeRadar({ scores, against, selectedAgainst, onSelectAgainst }) {
@@ -236,6 +233,7 @@ function LifeBalanceGrid({ lifeBalanceDailyGrid, selectedGridCell, onSelectCell,
 
 export function HomePage() {
   const { state, helpers, actions, setSelectedAgainstArea, setSelectedGridCell, setLifeBalanceAgainst } = useApp();
+  useSessionNow(state.S?.run?.activeSessionId);
 
   const radarScores = helpers.lifeBalanceScores();
   const hasLifeTags = state.S?.lists.some((listItem) => listItem.lifeArea);
@@ -290,7 +288,7 @@ export function HomePage() {
 
   return (
     <>
-      <StickyHeader icon={HOME_SVG} name="Home" />
+      <StickyHeader icon={HOME_ICON} name="Home" />
       <div className="hdr" data-tauri-drag-region>
         <div className="cover" style={{ background: "linear-gradient(135deg,#3a3a3a,#1c1c1c)" }}>{greetingEmojiText()}</div>
         <div className="info">
@@ -305,9 +303,13 @@ export function HomePage() {
           <div className="jb-grid">
             {jump.length ? (
               jump.map((entry, idx) => {
-                const { task, at, live } = entry;
+                const { task, at, live, ongoing, logicalSession } = entry;
                 const listItem = helpers.list(task.listId);
-                const meta = live ? <span style={{ color: "var(--green)" }}>now · recording</span> : timeAgo(at);
+                const meta = live
+                  ? <span style={{ color: "var(--green)" }}>{SESSION_PLAYBACK_COPY.recordingNowLabel}</span>
+                  : ongoing
+                    ? <span>{logicalSession?.status === LOGICAL_SESSION_STATUS.break ? SESSION_PLAYBACK_COPY.breakLabel : SESSION_PLAYBACK_COPY.pausedLabel}</span>
+                    : timeAgo(at);
                 return (
                   <div
                     key={idx}
@@ -322,6 +324,7 @@ export function HomePage() {
                     <div className="jb-body">
                       <div className="jb-name">{task.name}</div>
                       <div className="jb-meta">{listItem ? listItem.name + " · " : ""}{meta}</div>
+                      {ongoing && logicalSession ? <SessionBreakdown compact focusMs={logicalSession.focusMs} breakMs={logicalSession.breakMs} /> : null}
                     </div>
                     <button
                       className="jb-play"
@@ -329,7 +332,11 @@ export function HomePage() {
                         e.stopPropagation();
                         actions.play(task.id, TIMER_PLAY_TRIGGERS.homeDailyJam);
                       }}
-                      title={live ? "Stop" : "Start"}
+                      title={live
+                        ? SESSION_PLAYBACK_COPY.pauseTitle
+                        : ongoing
+                          ? SESSION_PLAYBACK_COPY.resumeTitle
+                          : SESSION_PLAYBACK_COPY.startTitle}
                     >
                       {live ? "⏸" : "▶"}
                     </button>

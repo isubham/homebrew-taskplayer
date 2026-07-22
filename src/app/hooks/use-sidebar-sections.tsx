@@ -35,7 +35,7 @@ export function useSidebarSections(state) {
     if (untagged && untagged.length) {
       sections.push({
         key: SIDEBAR_UNSORTED_KEY,
-        dropArea: "",
+        dropArea: SIDEBAR_UNSORTED_KEY,
         label: SIDEBAR_COPY.unsortedLabel,
         color: "var(--muted)",
         items: untagged,

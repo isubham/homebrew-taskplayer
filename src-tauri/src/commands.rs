@@ -2,6 +2,7 @@ use super::*;
 
 mod data;
 mod lists;
+mod metrics;
 mod music;
 mod planner;
 mod playback;
@@ -13,6 +14,7 @@ mod tasks;
 
 pub(crate) use data::*;
 pub(crate) use lists::*;
+pub(crate) use metrics::*;
 pub(crate) use music::*;
 pub(crate) use planner::*;
 pub(crate) use playback::*;

@@ -560,3 +560,13 @@ export const ALBUM_PALETTE = ["#509bf5", "#e8b923", "#8d67ab", "#e13300", "#2785
 // Sync Messages
 export const TOAST_SYNCING = "Syncing data...";
 export const TOAST_SYNC_COMPLETE = "Sync complete";
+
+// Onboarding Welcome
+export const ONBOARDING_WELCOME = {
+  title: "Welcome to TaskPlayer",
+  subtitle: "Unlock your potential and conquer your day effortlessly.",
+  signIn: "Sign In",
+  signUp: "Sign Up",
+  continueAsGuest: "Continue as Guest",
+};
+

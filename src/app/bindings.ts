@@ -5,6 +5,8 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	getSnapshot: () => __TAURI_INVOKE<Snapshot>("get_snapshot"),
+	getLifeBalanceScores: () => typedError<LifeBalanceScore[], string>(__TAURI_INVOKE("get_life_balance_scores")),
+	getRankInfo: () => typedError<RankInfo, string>(__TAURI_INVOKE("get_rank_info")),
 	addList: (name: string) => __TAURI_INVOKE<Snapshot>("add_list", { name }),
 	renameList: (id: string, name: string) => __TAURI_INVOKE<Snapshot>("rename_list", { id, name }),
 	setListStyle: (id: string, emoji: string, color: string) => __TAURI_INVOKE<Snapshot>("set_list_style", { id, emoji, color }),
@@ -87,7 +89,7 @@ export const commands = {
 	 *  the rest of the flow asynchronously and calls `push()` once signed in.
 	 */
 	signInGoogle: () => typedError<null, string>(__TAURI_INVOKE("sign_in_google")),
-	signOut: () => __TAURI_INVOKE<Snapshot>("sign_out"),
+	signOut: (clearData: boolean) => typedError<Snapshot, string>(__TAURI_INVOKE("sign_out", { clearData })),
 	/**
 	 *  Fire-and-forget, like `sign_in_google` — the eventual `push()`/`refresh()`
 	 *  inside `run_sync` notifies the frontend once the sync finishes.
@@ -185,6 +187,16 @@ export type LifeAreaPriority = {
 	updatedAt: number | null,
 };
 
+export type LifeBalanceScore = {
+	key: string,
+	label: string,
+	color: string,
+	ms: number,
+	pct: number,
+	negMs: number,
+	negPct: number,
+};
+
 /**
  *  A saved focus-music track. The complete playback metadata is stored so a
  *  favorite remains playable without re-running an Audius search on another
@@ -224,6 +236,20 @@ export type PlannedSession = {
 	start: number | null,
 	end: number | null,
 	updatedAt?: number | null,
+};
+
+export type RankTier = {
+	key: string,
+	label: string,
+	sub: string,
+	min: number,
+};
+
+export type RankInfo = {
+	current: RankTier,
+	next: RankTier | null,
+	progress: number | null,
+	rawTotal: number,
 };
 
 export type RunState = {

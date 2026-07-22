@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./styles.css";
 import { MusicProvider } from "./music.jsx";
 import { AppProvider } from "./app/context/AppContext.jsx";
 import { App } from "./app/App.jsx";

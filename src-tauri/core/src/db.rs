@@ -1456,6 +1456,18 @@ impl Db {
         self.delete_meta("sync_schema_backfill")
     }
 
+    pub fn clear_all_data(&self) -> rusqlite::Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM tasks", [])?;
+        tx.execute("DELETE FROM lists", [])?;
+        tx.execute("DELETE FROM sessions", [])?;
+        tx.execute("DELETE FROM planned_sessions", [])?;
+        tx.execute("DELETE FROM life_area_priorities", [])?;
+        tx.execute("DELETE FROM music_favorites", [])?;
+        tx.execute("DELETE FROM meta WHERE key IN ('user_settings', 'config', 'sync_pull_cursor', 'sync_schema_backfill', 'sync_push_cursor', 'push_cursor')", [])?;
+        tx.commit()
+    }
+
     // ---- Snapshot ----
     pub fn snapshot(&self) -> rusqlite::Result<Snapshot> {
         Ok(Snapshot {

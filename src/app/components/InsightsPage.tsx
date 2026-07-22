@@ -11,7 +11,7 @@ export function InsightsPage() {
   const { state, helpers, actions } = useApp();
   const [expandedSessionGroups, setExpandedSessionGroups] = useState(new Set());
   const [insightsPeriod, setInsightsPeriod] = useState("day"); // 'day', 'week', 'month'
-  const now = useSessionNow(state.S?.run?.activeSessionId);
+  const now = useSessionNow(state.S?.run?.activeSessionId, 60000);
 
   if (!state.S) return null;
 

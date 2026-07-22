@@ -1,3 +1,4 @@
+import React, { useMemo } from "react";
 import { fmtLong, fmtHM, LIFE_AREAS, timeAgo, IMPACT_TIERS } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { DailyJam } from "./daily-jam.jsx";
@@ -233,21 +234,21 @@ function LifeBalanceGrid({ lifeBalanceDailyGrid, selectedGridCell, onSelectCell,
 
 export function HomePage() {
   const { state, helpers, actions, setSelectedAgainstArea, setSelectedGridCell, setLifeBalanceAgainst } = useApp();
-  useSessionNow(state.S?.run?.activeSessionId);
+  useSessionNow(state.S?.run?.activeSessionId, 60000);
 
-  const radarScores = helpers.lifeBalanceScores();
+  const radarScores = useMemo(() => helpers.lifeBalanceScores(), [helpers, state.S]);
   const hasLifeTags = state.S?.lists.some((listItem) => listItem.lifeArea);
   const hasAgainst = radarScores.some((s) => s.negPct > 0);
   const againstOn = state.lifeBalanceAgainst;
-  const dailyEntries = helpers.dailyJamTasks();
-  const scheduledDailyEntries = dailyEntries.filter((entry) => entry.scheduledToday);
+  const dailyEntries = useMemo(() => helpers.dailyJamTasks(), [helpers, state.S]);
+  const scheduledDailyEntries = useMemo(() => dailyEntries.filter((entry) => entry.scheduledToday), [dailyEntries]);
   const dailyDoneCount = scheduledDailyEntries.filter((entry) => entry.doneToday).length;
   const dailyPct = scheduledDailyEntries.length ? Math.round((dailyDoneCount / scheduledDailyEntries.length) * 100) : 0;
   const dailyAttentionCount = visibleDailyJamAttentionCount(dailyEntries);
-  const jump = helpers.recentTasks(RECENT_TASKS_SIZE);
+  const jump = useMemo(() => helpers.recentTasks(RECENT_TASKS_SIZE), [helpers, state.S]);
 
   const todayMs = helpers.todayTotalMs();
-  const rankInfo = helpers.buildRankInfo();
+  const rankInfo = useMemo(() => helpers.buildRankInfo(), [helpers, state.S]);
 
   const greetingText = () => {
     const h = new Date().getHours();

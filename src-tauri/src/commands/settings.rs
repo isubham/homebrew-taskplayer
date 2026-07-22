@@ -108,16 +108,19 @@ pub(crate) fn sign_in_google(app: AppHandle, state: State<AppState>) -> Result<(
 
 #[specta::specta]
 #[tauri::command]
-pub(crate) fn sign_out(app: AppHandle, state: State<AppState>) -> Snapshot {
+pub(crate) fn sign_out(app: AppHandle, state: State<AppState>, clear_data: bool) -> Result<Snapshot, String> {
     auth::clear_refresh_token(&state.data_dir);
     *state.access_token.lock().unwrap() = None;
     *state.sync_status.lock().unwrap() = SyncStatus::default();
     {
         let db = state.db.lock().unwrap();
         let _ = db.set_account(None::<&AccountInfo>);
+        if clear_data {
+            db.clear_all_data().map_err(|e| format!("Failed to clear data: {}", e))?;
+        }
     }
     push(&app);
-    build_snapshot(state.inner())
+    Ok(build_snapshot(state.inner()))
 }
 
 /// Fire-and-forget, like `sign_in_google` — the eventual `push()`/`refresh()`

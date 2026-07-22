@@ -7,6 +7,7 @@ pub(crate) fn export_debug_bindings() {
         let builder =
             tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
                 get_snapshot,
+                get_life_balance_scores,
                 add_list,
                 rename_list,
                 set_list_style,
@@ -88,6 +89,8 @@ mod tests {
         let builder =
             tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
                 get_snapshot,
+                get_life_balance_scores,
+                get_rank_info,
                 add_list,
                 rename_list,
                 set_list_style,

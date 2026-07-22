@@ -90,6 +90,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
+            get_life_balance_scores,
+            get_rank_info,
             add_list,
             rename_list,
             set_list_style,
@@ -124,6 +126,7 @@ pub fn run() {
             delete_planned_session,
             start_planned_session,
             export_data,
+            save_asrs_answers,
             reveal_logs,
             import_data,
             play,

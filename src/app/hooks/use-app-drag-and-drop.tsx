@@ -31,7 +31,8 @@ export function useAppDragAndDrop(state, helpers, actions, sections) {
       });
       
       if (source.droppableId !== destination.droppableId) {
-         await actions.setListArea(listId, destination.droppableId);
+         const targetArea = destination.droppableId === "__unsorted__" ? "" : destination.droppableId;
+         await actions.setListArea(listId, targetArea);
       }
       const ids = allLists.map(l => l.id).filter(Boolean);
       await actions.reorderLists(ids);

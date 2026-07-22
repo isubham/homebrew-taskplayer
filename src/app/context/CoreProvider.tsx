@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
 import { ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS } from "../constants.jsx";
 import { buildDailyJamAttentionEntries } from "../daily-jam-attention";
 import { buildLogicalSessions } from "../logical-sessions";
+import { commands } from "../bindings";
 
 const CoreContext = createContext(null);
 
@@ -14,11 +15,27 @@ export function useCore() {
 
 export function CoreProvider({ children }) {
   const [S, setS] = useState(null);
+  const [lifeBalanceScoresData, setLifeBalanceScoresData] = useState(
+    LIFE_AREAS.map((area) => ({ ...area, ms: 0, pct: 0, negMs: 0, negPct: 0 }))
+  );
+  const [rankInfoData, setRankInfoData] = useState(null);
 
   const apply = useCallback((snap) => {
     if (!snap) return;
     setS(snap);
   }, []);
+
+  useEffect(() => {
+    if (!S) return;
+    let mounted = true;
+    commands.getLifeBalanceScores().then((res) => {
+      if (mounted && res.status === "ok") setLifeBalanceScoresData(res.data);
+    });
+    commands.getRankInfo().then((res) => {
+      if (mounted && res.status === "ok") setRankInfoData(res.data);
+    });
+    return () => { mounted = false; };
+  }, [S]);
 
   const list = useCallback((id) => S?.lists.find((item) => item.id === id), [S]);
   const findTask = useCallback((id) => S?.tasks.find((task) => task.id === id), [S]);
@@ -163,74 +180,12 @@ export function CoreProvider({ children }) {
   }, [S, list]);
 
   const buildRankInfo = useCallback(() => {
-    if (!S) return null;
-    const byArea = lifetimeJewelsByArea();
-    const hasLifeTags = S.lists.some((listItem) => listItem.lifeArea);
-    const rawTotal = Array.from(byArea.values()).reduce((sum, v) => sum + v, 0);
-    const balancedScoreFor = (tier) => {
-      if (!hasLifeTags) return rawTotal;
-      const cap = tier.min * RANK_AREA_CAP_RATIO;
-      let total = 0;
-      for (const v of byArea.values()) total += Math.min(v, cap);
-      return total;
-    };
-    let current = RANKS[0];
-    for (let i = 1; i < RANKS.length; i++) {
-      if (balancedScoreFor(RANKS[i]) >= RANKS[i].min - 1e-6) current = RANKS[i];
-      else break;
-    }
-    const currentIdx = RANKS.indexOf(current);
-    const next = RANKS[currentIdx + 1] || null;
-    const progress = next ? Math.min(balancedScoreFor(next), next.min) : null;
-    return { current, next, progress, rawTotal };
-  }, [S, lifetimeJewelsByArea]);
+    return rankInfoData;
+  }, [rankInfoData]);
 
   const lifeBalanceScores = useCallback(() => {
-    const empty = LIFE_AREAS.map((area) => ({ ...area, ms: 0, pct: 0, negMs: 0, negPct: 0 }));
-    if (!S) return empty;
-    const now = Date.now();
-    const windowStart = now - 7 * 24 * 60 * 60 * 1000;
-    const posMs = new Map(LIFE_AREAS.map((area) => [area.key, 0]));
-    const negMs = new Map(LIFE_AREAS.map((area) => [area.key, 0]));
-    const addPos = (key, ms) => posMs.set(key, posMs.get(key) + ms);
-    const addNeg = (key, ms) => negMs.set(key, negMs.get(key) + ms);
-    for (const listItem of S.lists) {
-      if (!listItem.lifeArea || !posMs.has(listItem.lifeArea)) continue;
-      let timeMs = 0;
-      for (const task of tasksForList(listItem.id)) {
-        const payout = jewelPayout(task);
-        if (payout && task.cadence === "daily") {
-          const days = dailyPayoutDayCount(task, S.sessions, windowStart, now);
-          if (days > 0) {
-            const swing = payout.amount * IMPACT_WEIGHT_TO_MS * days;
-            if (swing >= 0) addPos(listItem.lifeArea, swing);
-            else addNeg(listItem.lifeArea, -swing);
-          }
-          continue;
-        }
-        if (payout && task.completedAt && task.completedAt >= windowStart && task.completedAt <= now) {
-          const swing = payout.amount * IMPACT_WEIGHT_TO_MS;
-          if (swing >= 0) addPos(listItem.lifeArea, swing);
-          else addNeg(listItem.lifeArea, -swing);
-          continue;
-        }
-        for (const session of taskSessions(task.id)) {
-          const segStart = Math.max(session.start, windowStart);
-          const segEnd = Math.min(session.end ?? now, now);
-          timeMs += Math.max(0, segEnd - segStart);
-        }
-      }
-      if (listItem.lifeDirection === "decrease") addNeg(listItem.lifeArea, timeMs);
-      else addPos(listItem.lifeArea, timeMs);
-    }
-    return LIFE_AREAS.map((area) => {
-      const neg = negMs.get(area.key);
-      const net = posMs.get(area.key) - neg;
-      const pct = Math.max(0, Math.min(100, Math.round((net / LIFE_BALANCE_CAP_MS) * 100)));
-      const negPct = Math.max(0, Math.min(100, Math.round((neg / LIFE_BALANCE_CAP_MS) * 100)));
-      return { ...area, ms: net, pct, negMs: neg, negPct };
-    });
-  }, [S, tasksForList, taskSessions]);
+    return lifeBalanceScoresData;
+  }, [lifeBalanceScoresData]);
 
   const againstContributors = useCallback((areaKey) => {
     if (!S) return [];

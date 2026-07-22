@@ -11,7 +11,18 @@ pub(crate) fn run_sync(app: &AppHandle) {
         return;
     };
 
-    state.sync_status.lock().unwrap().syncing = true;
+    {
+        let mut status = state.sync_status.lock().unwrap();
+        if status.syncing {
+            return;
+        }
+        if let Some(last_sync) = status.last_synced_at {
+            if now_ms() - last_sync < 5000 {
+                return;
+            }
+        }
+        status.syncing = true;
+    }
     push(app);
 
     let mut result = {
@@ -99,7 +110,13 @@ pub(crate) fn run_login_sync(app: &AppHandle) {
         return;
     }
 
-    state.sync_status.lock().unwrap().syncing = true;
+    {
+        let mut status = state.sync_status.lock().unwrap();
+        if status.syncing {
+            return;
+        }
+        status.syncing = true;
+    }
     push(app);
 
     let mut result = {

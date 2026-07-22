@@ -102,3 +102,37 @@ pub(crate) fn import_data(
     push(&app);
     Ok(build_snapshot(state.inner()))
 }
+
+#[specta::specta]
+#[tauri::command]
+pub(crate) fn save_asrs_answers(state: State<AppState>, answers: Vec<i32>) -> Result<(), String> {
+    let access_token = match &*state.access_token.lock().unwrap() {
+        Some(s) => s.token.clone(),
+        None => return Ok(()),
+    };
+
+    use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
+
+    let client = reqwest::blocking::Client::new();
+    let url = format!("{}/rest/v1/asrs_responses", SUPABASE_URL);
+
+    let payload = serde_json::json!({
+        "answers": answers
+    });
+
+    let res = client
+        .post(&url)
+        .header("apikey", SUPABASE_PUBLISHABLE_KEY)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .json(&payload)
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if !res.status().is_success() {
+        return Err(format!("Failed to save answers: HTTP {}", res.status()));
+    }
+
+    Ok(())
+}

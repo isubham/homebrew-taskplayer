@@ -49,3 +49,37 @@ body{
 #app{display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);grid-template-rows:52px 1fr 80px;
   grid-template-areas:"topbar topbar" "side main" "player player";height:100vh;
   background:#000;gap:10px;padding:10px}
+
+/* Onboarding Modal */
+@keyframes forestWaves {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.onboarding-overlay { 
+  background: linear-gradient(-45deg, #093028, #237a57, #0b4832, #1a6046) !important;
+  background-size: 400% 400% !important;
+  animation: forestWaves 18s ease infinite;
+  backdrop-filter: blur(20px); 
+  -webkit-backdrop-filter: blur(20px); 
+}
+.full-page-onboarding { width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; color: #fff; }
+.ob-title { font-size: 32px; font-weight: 500; line-height: 1.4; text-align: center; max-width: 800px; margin-bottom: 40px; text-wrap: balance; }
+.ob-subtitle { font-size: 18px; color: rgba(255, 255, 255, 0.7); text-align: center; margin-bottom: 32px; max-width: 600px; line-height: 1.5; }
+.ob-glass-btn { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 16px 24px; color: #fff; font-size: 18px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; width: 100%; max-width: 400px; display: block; margin: 0 auto 12px auto; }
+.ob-glass-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); transform: translateY(-1px); }
+.ob-glass-btn.primary { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.5); }
+.ob-glass-btn.primary:hover { background: rgba(255, 255, 255, 0.35); }
+.ob-progress-container { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 200px; height: 4px; background: rgba(255, 255, 255, 0.15); border-radius: 2px; overflow: hidden; }
+.ob-progress-fill { height: 100%; background: #fff; border-radius: 2px; transition: width 0.4s ease; }
+
+/* Tour Overlay */
+.ob-split-layout { display: grid; grid-template-columns: 1fr 1fr; width: 100vw; height: 100vh; max-width: 1200px; padding: 40px; }
+.ob-left-col { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding-right: 40px; position: relative; z-index: 2; }
+.ob-right-col { display: flex; justify-content: center; align-items: center; position: relative; z-index: 1; }
+.tour-mask { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); transition: clip-path 0.3s ease; }
+.tour-highlight { position: absolute; border: 2px solid var(--blue); border-radius: 8px; box-shadow: 0 0 15px rgba(80, 155, 245, 0.5); pointer-events: none; transition: all 0.3s ease; }
+.tour-tooltip { position: absolute; background: var(--bg2); color: var(--text); padding: 16px; border-radius: 8px; width: 280px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid var(--line); transition: all 0.3s ease; display: flex; flex-direction: column; gap: 8px; }
+.tour-tooltip h3 { margin: 0; font-size: 16px; }
+.tour-tooltip p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.4; }
+.tour-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }

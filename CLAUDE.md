@@ -6,6 +6,10 @@
 - Responses: concise and direct; minimal formatting; cut words that don't change the meaning.
 - Full/growing record: `memory/preferences.md`.
 
+## Architecture guidelines
+
+- **No heavy calculations in React:** Never perform CPU-intensive synchronous operations (like iterating over all historical sessions or tasks to aggregate data) inside React components or hooks (e.g. `CoreProvider`). These block the UI thread and cause severe jitter/frame drops. Instead, offload these aggregations to the Rust backend (`src-tauri/src/commands/metrics.rs` or similar) and fetch the pre-computed results asynchronously via Tauri IPC.
+
 ## ADHD design rules — do not break these
 
 These are hard constraints on this app's design, derived from Russell A. Barkley's *Taking Charge

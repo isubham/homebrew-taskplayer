@@ -40,3 +40,7 @@ concepts/
 dist_verify/.env
 
 output/
+
+.pnpm/
+.pnpm-store/
+

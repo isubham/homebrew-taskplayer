@@ -429,8 +429,8 @@ export function DatabaseProvider({ children }) {
     }
   }, [uiNote]);
 
-  const signOut = useCallback(async () => {
-    apply(await invoke("sign_out"));
+  const signOut = useCallback(async (clearData) => {
+    apply(await invoke("sign_out", { clearData }));
   }, [apply]);
 
   const fullSync = useCallback(async () => {

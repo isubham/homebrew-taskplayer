@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 [Semantic Versioning](https://semver.org/). Add new work under **Unreleased**; during a release,
 move those entries into a dated version section.
 
+## [Unreleased]
+
+### Added
+
+- Added an interactive `ZenRiverAnimation` to the onboarding welcome screen, rendered as a full-bleed animated background landscape utilizing the app's signature calm teal and dark theme color scheme. This includes a realistic silhouette of a person sitting on a bench under a tree writing in a notebook (representing focus and planning), next to an animated hourglass with trickling sand (representing physical time), with slow-moving mist clouds and green/teal maple leaves falling over morphing river waves.
+- Added a centered glassmorphic card layout on the welcome screen on top of the background animation.
+- Widened the onboarding welcome screen "Sign In" and "Sign Up" buttons and added a "Continue as Guest" option to bypass Google OAuth and proceed locally.
+- Moved onboarding welcome screen text to central constants in `constants.tsx` to prevent hardcoded strings.
+
 ## 0.9.4 - 2026-07-20 
 
 ### Added

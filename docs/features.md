@@ -84,6 +84,14 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Life-area reorder feedback explains the relationship created by the move.
 - The entire application is built using React components (including the top bar, sidebar, pages, overlays, and player). Re-renders patch those surfaces in place, preserving their DOM identity and automatically escaping displayed task/list text.
 
+### Onboarding and first-run screening — Shipped
+
+- Persistent first-run onboarding screen to guide new users.
+- The welcome screen features a full-bleed animated background landscape (`ZenRiverAnimation`) using the app's signature calm teal and dark theme color scheme. Centered on top of it is a glassmorphic card containing the welcome copy, wide Sign In/Sign Up buttons, and a "Continue as Guest" link to bypass remote auth and proceed with local setup.
+- The `ZenRiverAnimation` background features a realistic silhouette of a person sitting on a rustic bench under a swaying tree writing in a notebook (representing focus and planning), next to an animated hourglass with trickling sand (representing physical time), with slow-moving mist clouds and green/teal maple leaves falling over morphing river waves.
+- Fully externalized welcome screen copywriting stored centrally to prevent hardcoding.
+- Integration with ASRS v1.1 ADHD screening questions to customize list/music preferences based on focus screening results.
+
 ## 2. Lists and life areas
 
 ### List management — Shipped

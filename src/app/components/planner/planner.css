@@ -58,13 +58,48 @@
 .planner-block-copy strong{font-size:11px;line-height:1.2}
 .planner-block-copy span{font-size:9px;margin-top:2px;font-variant-numeric:tabular-nums}
 .planner-block-copy small{font-size:9px;color:rgba(255,255,255,.7);margin-top:1px}
-.planner-block-availability{left:2px;right:2px;z-index:0;background:color-mix(in srgb,var(--planner-block-color) 8%,transparent);border:1px dashed color-mix(in srgb,var(--planner-block-color) 35%,transparent);color:color-mix(in srgb,var(--planner-block-color) 70%,var(--muted))}
+.planner-block-availability{
+  left:2px;right:2px;z-index:0;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      color-mix(in srgb,var(--planner-block-color) 10%,transparent) 0px,
+      color-mix(in srgb,var(--planner-block-color) 10%,transparent) 2px,
+      transparent 2px,
+      transparent 10px
+    );
+  border-left:2px solid color-mix(in srgb,var(--planner-block-color) 40%,transparent);
+  border-top:none;border-right:none;border-bottom:none;
+  color:color-mix(in srgb,var(--planner-block-color) 70%,var(--muted));
+}
 .planner-block-availability .planner-block-copy span,.planner-block-availability .planner-block-copy small{display:none}
 .planner-block-availability .planner-block-copy strong{font-size:9px;font-weight:500}
-.planner-block-routine{z-index:1;background:color-mix(in srgb,var(--planner-block-color) 18%,var(--bg2));border-style:dashed;opacity:.75}
+.planner-block-routine{
+  z-index:1;opacity:.8;
+  background:
+    repeating-linear-gradient(
+      -55deg,
+      color-mix(in srgb,var(--planner-block-color) 20%,var(--bg2)) 0px,
+      color-mix(in srgb,var(--planner-block-color) 20%,var(--bg2)) 3px,
+      color-mix(in srgb,var(--planner-block-color) 8%,var(--bg2)) 3px,
+      color-mix(in srgb,var(--planner-block-color) 8%,var(--bg2)) 10px
+    );
+  border-left:3px solid color-mix(in srgb,var(--planner-block-color) 55%,transparent);
+  border-top:none;border-right:none;border-bottom:none;
+}
 .planner-block-actual,.planner-block-break,.planner-block-planned,.planner-block-live{left:var(--planner-session-offset);right:var(--planner-block-gap)}
 .planner-block-actual{z-index:2;opacity:.5;background:color-mix(in srgb,var(--planner-block-color) 30%,var(--bg2));cursor:pointer}
-.planner-block-break{z-index:2;opacity:.58;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--planner-block-color) 24%,var(--bg2)) 0 6px,color-mix(in srgb,var(--planner-block-color) 10%,var(--bg2)) 6px 12px);border-left-style:dashed}
+.planner-block-break{z-index:2;opacity:.58;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--planner-block-color) 24%,var(--bg2)) 0 5px,color-mix(in srgb,var(--planner-block-color) 8%,var(--bg2)) 5px 11px);border-left:3px solid color-mix(in srgb,var(--planner-block-color) 50%,transparent);border-top:none;border-right:none;border-bottom:none}
+/* Stacked-layer effect: planned/actual/live blocks show a card shadow behind them to indicate they overlap an availability or routine block */
+.planner-block-planned::before,.planner-block-actual::before,.planner-block-live::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:6px;
+  box-shadow:-4px 4px 0 0 color-mix(in srgb,var(--planner-block-color) 22%,transparent), -8px 8px 0 0 color-mix(in srgb,var(--planner-block-color) 10%,transparent);
+  pointer-events:none;
+  z-index:-1;
+}
 .planner-block-actual:hover,.planner-block-actual:focus-visible{opacity:.72;filter:brightness(1.12);outline:1px solid var(--planner-block-color);outline-offset:1px}
 .planner-block-live{z-index:4;box-shadow:0 0 0 1px var(--green-hi);animation:pulse 1.2s ease-in-out infinite}
 .planner-block-planned{z-index:3;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.22)}

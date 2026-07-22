@@ -6,6 +6,8 @@ import { MainContent } from "./components/MainContent.jsx";
 import { Player } from "./components/Player.jsx";
 import { Overlays } from "./components/Overlays.jsx";
 import { AddSessionModal } from "./components/add-session-modal.jsx";
+import { OnboardingModal } from "./components/onboarding.jsx";
+import { TourOverlay } from "./components/tour-overlay.jsx";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
 import { INSIGHTS_ICON_SIZE, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
@@ -73,11 +75,11 @@ export function App() {
         <aside className="side">
           <div className="side-fixed">
             <div id="pinnedNav">
-              <div className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
+              <div data-tour-id="planner-nav" className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
                 <span className="li-icon"><CalendarDays size={PLANNER_ICON_SIZE} /></span>
                 <span className="li-label">{PLANNER_COPY.navigationLabel}</span>
               </div>
-              <div className={`list-item ${state.view === "insights" ? "active" : ""}`} onClick={() => actions.navigate({ view: "insights" })} title="Session history & analytics">
+              <div data-tour-id="insights-nav" className={`list-item ${state.view === "insights" ? "active" : ""}`} onClick={() => actions.navigate({ view: "insights" })} title="Session history & analytics">
                 <span className="li-icon"><BarChart2 size={INSIGHTS_ICON_SIZE} /></span>
                 <span className="li-label">Insights</span>
               </div>
@@ -98,12 +100,12 @@ export function App() {
               </div>
             </div>
           </div>
-          <div className="side-scroll">
+          <div className="side-scroll" data-tour-id="sidebar-lists">
             <div id="lists">
               <Sidebar sections={sections} collapsed={state.sidebarCollapsed} rowForList={sidebarListRowForState} />
             </div>
           </div>
-          <button className="add-btn" onClick={() => actions.addList()}>＋ New list</button>
+          <button data-tour-id="add-list-btn" className="add-btn" onClick={() => actions.addList()}>＋ New list</button>
         </aside>
 
         <input type="file" id="importFile" accept=".json,application/json" style={{ display: "none" }} />
@@ -145,6 +147,10 @@ export function App() {
         <AnimatePresence>
           {state.dialog?.type === "session" && <AddSessionModal key="session-dialog" />}
         </AnimatePresence>
+
+        {/* Onboarding and Tour overlays */}
+        {!state.hasCompletedOnboarding && <OnboardingModal />}
+        {state.hasCompletedOnboarding && !state.hasCompletedTour && <TourOverlay />}
 
         <AnimatePresence>
           {state.dialog && state.dialog.type !== "session" && (

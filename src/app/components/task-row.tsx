@@ -102,7 +102,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
     session.focusIntervals.some((interval) => interval.end > todayStart)
   ).length;
   const inDailyJam = context === "dailyJam";
-  const fixedTime = daily ? dailyTimeLabel(task) : "";
+  const fixedTime = daily && scheduledToday ? dailyTimeLabel(task) : "";
 
   const sessionsCell = daily
     ? todaySessionCount

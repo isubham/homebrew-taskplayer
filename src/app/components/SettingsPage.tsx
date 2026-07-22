@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { whenLabel } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
+import { AnimatedModal } from "./motion-transitions.jsx";
 import { KEYBOARD_SETTINGS_COPY, MUSIC_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
 import { SettingsNavigation } from "./settings-navigation";
 import { FocusMusicToggle } from "./focus-music-toggle";
@@ -23,6 +24,7 @@ function SettingsAlbum({ icon, color, title, subtitle, children }) {
 
 export function SettingsPage() {
   const { state, actions } = useApp();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [workflowConfigMode, setWorkflowConfigMode] = useState(() => state.S?.config?.mode || "open");
   const [activeSettingsSection, setActiveSettingsSection] = useState(() => {
     const saved = localStorage.getItem(SETTINGS_SECTION_STORAGE_KEY);
@@ -69,7 +71,7 @@ export function SettingsPage() {
           </div>
         </div>
         <div className="setrow">
-          <button className="pill" onClick={actions.signOut}>Sign out</button>
+          <button className="pill" onClick={() => setShowLogoutModal(true)}>Sign out</button>
         </div>
       </>
     );
@@ -322,7 +324,13 @@ export function SettingsPage() {
   // Diagnostics Section
   const renderDiagnosticsSection = () => (
     <>
-      <h4>Backup &amp; restore</h4>
+      <h4>Onboarding &amp; guide</h4>
+      <p className="hint" style={{ marginTop: 0 }}>Re-run the initial app onboarding or tool guide.</p>
+      <div className="setrow">
+        <button className="pill" onClick={() => actions.setHasCompletedOnboarding(false)}>👋 Start onboarding</button>
+        <button className="pill" onClick={() => actions.setHasCompletedTour(false)}>🧭 Show tool guide</button>
+      </div>
+      <h4 style={{ marginTop: "20px" }}>Backup &amp; restore</h4>
       <p className="hint" style={{ marginTop: 0 }}>Back up everything — lists, tasks, and session history — to a JSON file, or restore from one.</p>
       <div className="setrow">
         <button className="pill" onClick={actions.exportData}>⤓ Export data</button>
@@ -361,6 +369,34 @@ export function SettingsPage() {
     );
   };
 
+  const renderLogoutModal = () => {
+    if (!showLogoutModal) return null;
+    return (
+      <AnimatedModal id="logout-modal" onClose={() => setShowLogoutModal(false)} className="modal dlg show">
+        <div className="dtitle">Sign out</div>
+        <div className="dbody" style={{ textAlign: "left", paddingBottom: "24px", paddingTop: "8px" }}>
+          Are you sure you want to sign out?
+        </div>
+        <div className="dfoot" style={{ justifyContent: "flex-end", gap: "8px" }}>
+          <button className="pill" onClick={() => setShowLogoutModal(false)}>
+            Cancel
+          </button>
+          <button className="pill primary danger" style={{ backgroundColor: "#d93025", borderColor: "#d93025", color: "white" }} onClick={async () => {
+            try {
+              await actions.signOut(true);
+              actions.setHasCompletedOnboarding(false);
+              window.location.reload();
+            } catch (err) {
+              actions.uiNote("Sign out error", String(err));
+            }
+          }}>
+            Sign Out
+          </button>
+        </div>
+      </AnimatedModal>
+    );
+  };
+
   const settingsSections = SETTINGS_SECTIONS.map((section) => (
     section.key === "account" ? { ...section, subtitle: acctSubtitle } : { ...section }
   ));
@@ -382,6 +418,7 @@ export function SettingsPage() {
 
   return (
     <>
+      {renderLogoutModal()}
       <StickyHeader icon="⚙" name="Settings" />
       <div className="hdr" data-tauri-drag-region>
         <div className="cover" style={{ background: "linear-gradient(135deg,#5a5a5a,#2e2e2e)" }}>⚙</div>

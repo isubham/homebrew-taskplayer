@@ -25,6 +25,23 @@ export function SettingsProvider({ children }) {
   const [sessionGroupsCollapsed, setSessionGroupsCollapsed] = useState({});
   const [soundOptions, setSoundOptions] = useState([]);
 
+  const [hasCompletedOnboarding, setHasCompletedOnboardingState] = useState(() => {
+    return localStorage.getItem("tp.onboardingComplete") === "1";
+  });
+  const [hasCompletedTour, setHasCompletedTourState] = useState(() => {
+    return localStorage.getItem("tp.tourComplete") === "1";
+  });
+
+  const setHasCompletedOnboarding = useCallback((val) => {
+    setHasCompletedOnboardingState(val);
+    localStorage.setItem("tp.onboardingComplete", val ? "1" : "0");
+  }, []);
+
+  const setHasCompletedTour = useCallback((val) => {
+    setHasCompletedTourState(val);
+    localStorage.setItem("tp.tourComplete", val ? "1" : "0");
+  }, []);
+
   // Zoom management
   const [zoomLevel, setZoomLevelState] = useState(() => {
     try {
@@ -68,11 +85,13 @@ export function SettingsProvider({ children }) {
     <SettingsContext.Provider value={{
       state: {
         sidebarCollapsed, lifeBalanceAgainst, keybindings, insightsPeriod,
-        sessionGroupsCollapsed, zoomLevel, soundOptions
+        sessionGroupsCollapsed, zoomLevel, soundOptions,
+        hasCompletedOnboarding, hasCompletedTour
       },
       actions: {
         setSidebarCollapsed, setLifeBalanceAgainst, setKeybindings, toggleKeybindings,
-        setInsightsPeriod, setSessionGroupsCollapsed, setZoom
+        setInsightsPeriod, setSessionGroupsCollapsed, setZoom,
+        setHasCompletedOnboarding, setHasCompletedTour
       }
     }}>
       {children}

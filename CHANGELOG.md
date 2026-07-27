@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 [Semantic Versioning](https://semver.org/). Add new work under **Unreleased**; during a release,
 move those entries into a dated version section.
 
-## 0.9.6 - 2026-07-27
+## 0.9.7 - 2026-07-27
 
 ### Changed
 

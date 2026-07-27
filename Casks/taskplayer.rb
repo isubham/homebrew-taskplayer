@@ -1,6 +1,6 @@
 cask "taskplayer" do
-  version "0.9.5"
-  sha256 "f1339aab4c6c0375fdad2290139cbf603e27b1b6c5ad8f3746cb125ed034ec18"
+  version "0.9.6"
+  sha256 "c854e8297b64afad31822f48859d170584a85c846635be752ffcc8f7f518e8a3"
 
   url "https://github.com/isubham/homebrew-taskplayer/releases/download/v#{version}/TaskPlayer.app.tar.gz"
   name "TaskPlayer"

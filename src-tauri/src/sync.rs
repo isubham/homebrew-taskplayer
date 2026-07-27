@@ -42,13 +42,17 @@ use session_models::*;
 use transport::*;
 
 /// Pushes local changes, then pulls remote changes using last-write-wins.
-pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, String> {
+pub fn sync_once(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> Result<bool, String> {
     ensure_backend_compatible(access_token)?;
-    if let Some(backfill) = db.sync_schema_backfill() {
-        return backfill_schema(db, access_token, &backfill);
+    let backfill = {
+        let db = db_mutex.lock().unwrap();
+        db.sync_schema_backfill()
+    };
+    if let Some(backfill) = backfill {
+        return backfill_schema(db_mutex, access_token, &backfill);
     }
-    push(db, access_token, user_id)?;
-    pull(db, access_token, false)
+    push(db_mutex, access_token, user_id)?;
+    pull(db_mutex, access_token, false)
 }
 
 /// The one-time sync run immediately after a fresh sign-in (see
@@ -68,11 +72,14 @@ pub fn sync_once(db: &Db, access_token: &str, user_id: &str) -> Result<bool, Str
 /// while disconnected. A row that only exists locally (never reached the
 /// server at all) is untouched by the forced pull and still syncs up
 /// normally on the next regular cycle.
-pub fn sync_login(db: &Db, access_token: &str) -> Result<bool, String> {
+pub fn sync_login(db_mutex: &Mutex<Db>, access_token: &str) -> Result<bool, String> {
     ensure_backend_compatible(access_token)?;
-    let changed = pull(db, access_token, true)?;
-    db.clear_sync_schema_backfill()
-        .map_err(|error| error.to_string())?;
+    let changed = pull(db_mutex, access_token, true)?;
+    {
+        let db = db_mutex.lock().unwrap();
+        db.clear_sync_schema_backfill()
+            .map_err(|error| error.to_string())?;
+    }
     Ok(changed)
 }
 

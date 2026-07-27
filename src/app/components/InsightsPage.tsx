@@ -1,16 +1,21 @@
 import React, { useState } from "react";
 import _ from "lodash";
-import { fmt, fmtLong, fmtHM, LIFE_AREAS } from "../utils.jsx";
+import { fmt, fmtLong, fmtHM, isTaskTerminallyCompleted, LIFE_AREAS } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { INSIGHTS_HERO_ICON_SIZE, INSIGHTS_ICON_SIZE, LOGICAL_SESSION_STATUS, PLANNER_MILLISECONDS_PER_DAY, SESSION_COPY, SESSION_INTERVAL_KIND, SESSION_PLAYBACK_COPY, TRACK_PX, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { INSIGHTS_HERO_ICON_SIZE, INSIGHTS_ICON_SIZE, LOGICAL_SESSION_STATUS, PLANNER_MILLISECONDS_PER_DAY, SESSION_COPY, SESSION_INTERVAL_KIND, SESSION_PLAYBACK_COPY, SESSIONS_PAGE_COPY, TRACK_PX, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { BarChart2 } from "lucide-react";
 import { useSessionNow } from "../hooks/use-session-now";
+import { localDateValue } from "../session-time";
+import { SessionWeekLifeAreaChart } from "./session-week-life-area-chart";
+import { SessionMonthLifeAreaChart } from "./session-month-life-area-chart";
 
 export function InsightsPage() {
   const { state, helpers, actions } = useApp();
   const [expandedSessionGroups, setExpandedSessionGroups] = useState(new Set());
   const [insightsPeriod, setInsightsPeriod] = useState("day"); // 'day', 'week', 'month'
+  const [selectedWeekDayStart, setSelectedWeekDayStart] = useState(null);
+  const [selectedMonthWeek, setSelectedMonthWeek] = useState(null);
   const now = useSessionNow(state.S?.run?.activeSessionId, 60000);
 
   if (!state.S) return null;
@@ -57,59 +62,6 @@ export function InsightsPage() {
           title={SESSION_COPY.removeLogicalTitle}
           onClick={() => item.legacy ? actions.deleteSession(item.id) : actions.deleteLogicalSession(item.id)}
         >×</button>
-      </>
-    );
-  };
-
-  const buildTrackAndRuler = (periodItems, periodStart, periodMs, majorMs, minorMs, labels, nowInRange) => {
-    const timelineItems = periodItems.flatMap((item) => [
-      ...item.focusIntervals.map((interval) => ({ ...interval, taskId: item.taskId })),
-      ...item.breakIntervals.map((interval) => ({ ...interval, taskId: item.taskId })),
-    ]);
-    const segs = timelineItems.map((item, idx) => {
-      const task = helpers.findTask(item.taskId);
-      const listItem = task ? helpers.list(task.listId) : null;
-      const startFrac = Math.max(0, (item.start - periodStart) / periodMs);
-      const endFrac = Math.min(1, (item.end - periodStart) / periodMs);
-      const left = startFrac * TRACK_PX;
-      const width = Math.max(2, (endFrac - startFrac) * TRACK_PX);
-      const label = task ? task.name : SESSION_PLAYBACK_COPY.deletedTaskLabel;
-      const range = `${new Date(item.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${new Date(item.end).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-      const breakInterval = item.kind === SESSION_INTERVAL_KIND.break;
-      const title = `${label} · ${breakInterval ? SESSION_PLAYBACK_COPY.breakLabel : SESSION_PLAYBACK_COPY.focusLabel} · ${range} · ${fmt(item.end - item.start)}`;
-      return (
-        <i
-          key={idx}
-          className={`seg${item.live ? " live" : ""}${breakInterval ? " break" : ""}`}
-          style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, background: breakInterval ? "var(--blue)" : listItem ? listItem.color : UNTAGGED_LIST_COLOR }}
-          title={title}
-        />
-      );
-    });
-
-    const nowNeedle = nowInRange ? (
-      <span className="now-line" style={{ left: `${(((now - periodStart) / periodMs) * TRACK_PX).toFixed(1)}px` }} />
-    ) : null;
-
-    const ticks = [];
-    for (let ms = minorMs; ms < periodMs; ms += minorMs) {
-      const isMajor = ms % majorMs === 0;
-      ticks.push(
-        <i
-          key={ms}
-          className={`rtick${isMajor ? " major" : ""}`}
-          style={{ left: `${((ms / periodMs) * TRACK_PX).toFixed(1)}px` }}
-        />
-      );
-    }
-
-    return (
-      <>
-        <div className="daybar" style={{ width: `${TRACK_PX}px` }}>{segs}{nowNeedle}</div>
-        <div className="dayruler" style={{ width: `${TRACK_PX}px` }}>{ticks}</div>
-        <div className="ticks" style={{ width: `${TRACK_PX}px` }}>
-          {labels.map((l, i) => <span key={i}>{l}</span>)}
-        </div>
       </>
     );
   };
@@ -202,90 +154,7 @@ export function InsightsPage() {
     );
   };
 
-  const buildMonthRuler = (monthItems, monthStart, daysInMonth) => {
-    const dayTotals = new Map();
-    for (const item of monthItems) {
-      const dayIdx = Math.floor((item.start - monthStart) / PLANNER_MILLISECONDS_PER_DAY);
-      if (dayIdx < 0 || dayIdx >= daysInMonth) continue;
-      const dur = item.focusMs;
-      const entry = dayTotals.get(dayIdx) || { total: 0, byList: new Map() };
-      entry.total += dur;
-      const task = helpers.findTask(item.taskId);
-      const listId = task ? task.listId : "none";
-      entry.byList.set(listId, (entry.byList.get(listId) || 0) + dur);
-      dayTotals.set(dayIdx, entry);
-    }
-    const maxTotal = Math.max(1, ...Array.from(dayTotals.values()).map((e) => e.total));
-    const dayWidth = TRACK_PX / daysInMonth;
 
-    const bars = [];
-    for (let d = 0; d < daysInMonth; d++) {
-      const entry = dayTotals.get(d);
-      const left = d * dayWidth + dayWidth * 0.15;
-      const width = Math.max(3, dayWidth * 0.7);
-      const dateLabel = new Date(monthStart + d * PLANNER_MILLISECONDS_PER_DAY).toLocaleDateString([], { month: "short", day: "numeric" });
-      if (!entry || entry.total <= 0) {
-        bars.push(
-          <span
-            key={d}
-            className="mday"
-            style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, height: "2px", background: "#3a3a3a" }}
-            title={`${dateLabel} · no tracked time`}
-          />
-        );
-        continue;
-      }
-      let bestList = null, bestMs = -1;
-      for (const [listId, ms] of entry.byList) {
-        if (ms > bestMs) {
-          bestMs = ms;
-          bestList = listId;
-        }
-      }
-      const listItem = bestList && bestList !== "none" ? helpers.list(bestList) : null;
-      const height = Math.max(3, Math.round((entry.total / maxTotal) * 22));
-      bars.push(
-        <span
-          key={d}
-          className="mday"
-          style={{ left: `${left.toFixed(1)}px`, width: `${width.toFixed(1)}px`, height: `${height}px`, background: listItem ? listItem.color : "#888" }}
-          title={`${dateLabel} · ${fmtLong(entry.total)}`}
-        />
-      );
-    }
-
-    const firstDow = new Date(monthStart).getDay();
-    const offsetToMonday = (8 - firstDow) % 7;
-    const majors = [];
-    const labels = [];
-    if (offsetToMonday !== 0) {
-      majors.push(<span key="start" className="mweek" style={{ left: "0px" }} />);
-      labels.push(new Date(monthStart).toLocaleDateString([], { month: "short", day: "numeric" }));
-    }
-    for (let d = offsetToMonday; d < daysInMonth; d += 7) {
-      majors.push(<span key={d} className="mweek" style={{ left: `${((d / daysInMonth) * TRACK_PX).toFixed(1)}px` }} />);
-      labels.push(new Date(monthStart + d * PLANNER_MILLISECONDS_PER_DAY).toLocaleDateString([], { month: "short", day: "numeric" }));
-    }
-
-    const periodMs = daysInMonth * PLANNER_MILLISECONDS_PER_DAY;
-    const monthNowInRange = now >= monthStart && now < monthStart + periodMs;
-    const nowNeedle = monthNowInRange ? (
-      <span className="now-line" style={{ left: `${(((now - monthStart) / periodMs) * TRACK_PX).toFixed(1)}px`, top: "-4px", bottom: "-2px" }} />
-    ) : null;
-
-    return (
-      <>
-        <div className="monthruler" style={{ width: `${TRACK_PX}px` }}>
-          {majors}
-          {bars}
-          {nowNeedle}
-        </div>
-        <div className="ticks" style={{ width: `${TRACK_PX}px` }}>
-          {labels.map((l, i) => <span key={i}>{l}</span>)}
-        </div>
-      </>
-    );
-  };
 
   const buildTaskRollup = (scopeKey, scopeItems, granularity) => {
     const grouped = _.groupBy(scopeItems, (item) => item.taskId ?? "");
@@ -401,16 +270,44 @@ export function InsightsPage() {
 
       return weekKeys.map((ws) => {
         const weekItems = weeks.get(ws);
+        const weekEnd = ws + weekMs;
+        const selectedDayInWeek = selectedWeekDayStart >= ws && selectedWeekDayStart < weekEnd
+          ? selectedWeekDayStart
+          : null;
+        const selectedDayEnd = selectedDayInWeek == null
+          ? null
+          : new Date(new Date(selectedDayInWeek).setDate(new Date(selectedDayInWeek).getDate() + 1)).getTime();
+        const visibleItems = selectedDayInWeek == null
+          ? weekItems
+          : weekItems.filter((item) => item.focusIntervals.some(
+              (interval) => interval.start < selectedDayEnd && interval.end > selectedDayInWeek,
+            ));
         const total = weekItems.reduce((sum, item) => sum + item.focusMs, 0);
         const label = ws === nowWeekStart ? "This week" : ws === nowWeekStart - weekMs ? "Last week" : `Week of ${new Date(ws).toLocaleDateString([], { month: "short", day: "numeric" })}`;
+        const sessionListLabel = selectedDayInWeek == null
+          ? SESSIONS_PAGE_COPY.weekChartAllSessionsLabel
+          : SESSIONS_PAGE_COPY.weekChartSelectedSessionsLabel(
+              new Date(selectedDayInWeek).toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+              }),
+            );
         return (
-          <section key={ws} className="sess-group">
+          <section key={ws} className="sess-group week-sess-group">
             <div className="sess-head">
               <h4>{label}</h4>
               <span className="sess-total">{fmtLong(total)}</span>
             </div>
-            {buildTrackAndRuler(weekItems, ws, weekMs, PLANNER_MILLISECONDS_PER_DAY, PLANNER_MILLISECONDS_PER_DAY / 4, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"], ws === nowWeekStart)}
-            {buildTaskRollup(`w${ws}`, weekItems, "day")}
+            <SessionWeekLifeAreaChart
+              weekStart={ws}
+              items={weekItems}
+              helpers={helpers}
+              selectedDayStart={selectedDayInWeek}
+              onSelectDay={setSelectedWeekDayStart}
+            />
+            <div className="week-session-filter-label">{sessionListLabel}</div>
+            {buildTaskRollup(`w${ws}`, visibleItems, selectedDayInWeek == null ? "day" : "session")}
           </section>
         );
       });
@@ -437,18 +334,45 @@ export function InsightsPage() {
       return monthKeys.map((key) => {
         const [y, m] = key.split("-").map(Number);
         const monthStart = new Date(y, m, 1).getTime();
-        const daysInMonth = new Date(y, m + 1, 0).getDate();
         const monthItems = months.get(key);
+        
+        const visibleItems = selectedMonthWeek == null
+          ? monthItems
+          : monthItems.filter((item) => item.focusIntervals.some(
+              (interval) => interval.start < selectedMonthWeek.end && interval.end > selectedMonthWeek.start,
+            ));
+        
         const total = monthItems.reduce((sum, item) => sum + item.focusMs, 0);
         const label = key === nowKey ? "This month" : key === lastKey ? "Last month" : new Date(y, m, 1).toLocaleDateString([], { month: "long", year: "numeric" });
+        
+        let sessionListLabel = "All sessions in month";
+        if (selectedMonthWeek != null) {
+          const d1 = new Date(selectedMonthWeek.start);
+          const d2 = new Date(selectedMonthWeek.end - 1);
+          const opts = { month: "short", day: "numeric" };
+          
+          if (d1.getTime() === new Date(d2.getFullYear(), d2.getMonth(), d2.getDate(), d1.getHours(), d1.getMinutes(), d1.getSeconds(), d1.getMilliseconds()).getTime()) {
+            sessionListLabel = `Sessions on ${d1.toLocaleDateString(undefined, opts)}`;
+          } else {
+            sessionListLabel = `Sessions from ${d1.toLocaleDateString(undefined, opts)} to ${d2.toLocaleDateString(undefined, opts)}`;
+          }
+        }
+            
         return (
           <section key={key} className="sess-group">
             <div className="sess-head">
               <h4>{label}</h4>
               <span className="sess-total">{fmtLong(total)}</span>
             </div>
-            {buildMonthRuler(monthItems, monthStart, daysInMonth)}
-            {buildTaskRollup(`m${key}`, monthItems, "day")}
+            <SessionMonthLifeAreaChart
+              monthStart={monthStart}
+              items={monthItems}
+              helpers={helpers}
+              selectedWeek={selectedMonthWeek}
+              onSelectWeek={setSelectedMonthWeek}
+            />
+            <div className="week-session-filter-label">{sessionListLabel}</div>
+            {buildTaskRollup(`m${key}`, visibleItems, selectedMonthWeek == null ? "day" : "session")}
           </section>
         );
       });
@@ -490,24 +414,26 @@ export function InsightsPage() {
 
   const todayMs = helpers.todayTotalMs();
   const allMs = state.S.lists.reduce((sum, listItem) => sum + helpers.listTotal(listItem.id), 0);
-  const doneCount = state.S.tasks.filter((task) => task.completedAt).length;
+  const doneCount = state.S.tasks.filter(isTaskTerminallyCompleted).length;
   const todayJewelCount = helpers.todayJewels();
   const allTimeJewelCount = helpers.lifetimeJewelsNet();
+  const trackedDayCount = new Set(items.map((item) => localDateValue(item.start))).size;
 
   return (
     <>
-      <StickyHeader icon={<BarChart2 size={INSIGHTS_ICON_SIZE} />} name="Insights" />
+      <StickyHeader icon={<BarChart2 size={INSIGHTS_ICON_SIZE} />} name={SESSIONS_PAGE_COPY.label} />
       <div className="hdr" data-tauri-drag-region>
         <div className="cover" style={{ background: "linear-gradient(135deg,#2e7d4f,#0c3f26)" }}><BarChart2 size={INSIGHTS_HERO_ICON_SIZE} aria-hidden="true" /></div>
         <div className="info">
           <small>History</small>
-          <h1>Insights</h1>
+          <h1>{SESSIONS_PAGE_COPY.label}</h1>
           <div className="sub">{items.length} session{items.length === 1 ? "" : "s"} across all tasks</div>
         </div>
       </div>
       <div className="insights-summary">
         <div className="hs-stat"><div className="hs-num">{fmtHM(todayMs)}</div><div className="hs-label">Today</div></div>
         <div className="hs-stat"><div className="hs-num">{fmtHM(allMs)}</div><div className="hs-label">All time</div></div>
+        <div className="hs-stat"><div className="hs-num">{trackedDayCount}</div><div className="hs-label">{SESSIONS_PAGE_COPY.trackedDaysLabel}</div></div>
         <div className="hs-stat"><div className="hs-num">{doneCount}</div><div className="hs-label">Completed</div></div>
         <div className="hs-stat"><div className="hs-num">{state.S.lists.length}</div><div className="hs-label">Lists</div></div>
         <div className="hs-stat"><div className="hs-num">{todayJewelCount > 0 ? "+" : ""}{todayJewelCount}</div><div className="hs-label">Jewels today</div></div>
@@ -515,9 +441,9 @@ export function InsightsPage() {
       </div>
       <div className="insights-page">
         <div className="period-tabs">
-          <button className={insightsPeriod === "day" ? "active" : ""} onClick={() => setInsightsPeriod("day")}>Day</button>
-          <button className={insightsPeriod === "week" ? "active" : ""} onClick={() => setInsightsPeriod("week")}>Week</button>
-          <button className={insightsPeriod === "month" ? "active" : ""} onClick={() => setInsightsPeriod("month")}>Month</button>
+          <button className={insightsPeriod === "day" ? "active" : ""} onClick={() => { setInsightsPeriod("day"); setSelectedWeekDayStart(null); setSelectedMonthWeek(null); }}>Day</button>
+          <button className={insightsPeriod === "week" ? "active" : ""} onClick={() => { setInsightsPeriod("week"); setSelectedMonthWeek(null); }}>Week</button>
+          <button className={insightsPeriod === "month" ? "active" : ""} onClick={() => { setInsightsPeriod("month"); setSelectedWeekDayStart(null); }}>Month</button>
         </div>
         {renderPeriodContent()}
       </div>

@@ -25,9 +25,10 @@ type PlannerCalendarProps = {
   onOpenReference: (listId: string, taskId?: string) => void;
   onStart: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdateRange: (blockKind: string, blockId: string, taskId: string, range: { start: number; end: number }) => void;
 };
 
-export function PlannerCalendar({ days, now, onAdd, onRecord, onSelectRange, onEdit, onEditActual, onOpenReference, onStart, onDelete }: PlannerCalendarProps) {
+export function PlannerCalendar({ days, now, onAdd, onRecord, onSelectRange, onEdit, onEditActual, onOpenReference, onStart, onDelete, onUpdateRange }: PlannerCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const labels = useMemo(() => {
     const day = new Date(days[0]?.start || now);
@@ -63,7 +64,7 @@ export function PlannerCalendar({ days, now, onAdd, onRecord, onSelectRange, onE
         </aside>
         <div className="planner-days">
           {days.map((day) => (
-            <PlannerDay key={day.start} day={day} now={now} onAdd={onAdd} onRecord={onRecord} onSelectRange={onSelectRange} onEdit={onEdit} onEditActual={onEditActual} onOpenReference={onOpenReference} onStart={onStart} onDelete={onDelete} />
+            <PlannerDay key={day.start} day={day} now={now} onAdd={onAdd} onRecord={onRecord} onSelectRange={onSelectRange} onEdit={onEdit} onEditActual={onEditActual} onOpenReference={onOpenReference} onStart={onStart} onDelete={onDelete} onUpdateRange={onUpdateRange} />
           ))}
         </div>
       </div>

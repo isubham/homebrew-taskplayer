@@ -6,10 +6,10 @@
   --planner-calendar-max-height:680px;
   --planner-block-gap:7px;
   --planner-session-offset:30%;
-  min-height:100%;padding:20px 28px 32px;display:flex;flex-direction:column;gap:16px
+  min-height:100%;padding:8px 24px 24px;display:flex;flex-direction:column;gap:12px
 }
 .planner-page-week{--planner-session-offset:20%}
-.planner-page-header{display:flex;align-items:center;gap:16px;max-width:1120px}
+.planner-page-header{display:flex;align-items:center;gap:16px;width:100%}
 .planner-title-icon{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;background:rgba(47,158,143,.16);color:var(--green);flex:none}
 .planner-title-copy{min-width:0;flex:1}
 .planner-title-copy small{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
@@ -18,7 +18,7 @@
 .planner-header-actions{display:flex;align-items:center;gap:8px}
 .planner-add{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .planner-auto-plan{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
-.planner-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1120px}
+.planner-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%}
 .planner-mode-tabs{margin:0}
 .planner-drag-hint{margin-top:-10px;color:#777;font-size:11px}
 .planner-period-actions{display:flex;align-items:center;gap:6px}
@@ -26,7 +26,47 @@
   min-width:30px;height:30px;border:1px solid #444;border-radius:16px;background:transparent;color:var(--muted);display:inline-grid;place-items:center;cursor:pointer
 }
 .planner-period-actions button:nth-child(2){padding:0 14px;color:var(--text);font-size:12px;font-weight:650}
-.planner-period-actions button:hover,.planner-day-actions button:hover{border-color:var(--muted);color:var(--text)}
+.planner-period-actions button:hover,.planner-block-actions button:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
+.planner-block-resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  z-index: 10;
+  opacity: 0; /* Invisible but draggable */
+}
+.planner-block-resize-handle.top {
+  top: 0;
+  cursor: ns-resize;
+}
+.planner-block-resize-handle.bottom {
+  bottom: 0;
+  cursor: ns-resize;
+}
+
+.planner-drag-indicator {
+  position: absolute;
+  left: -48px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  z-index: 20;
+  pointer-events: none;
+}
+.planner-drag-indicator.top {
+  top: -10px;
+}
+.planner-drag-indicator.bottom {
+  bottom: -10px;
+}
+
 .planner-calendar-scroll{min-height:420px;max-height:var(--planner-calendar-max-height);overflow:auto;border:1px solid var(--line);border-radius:var(--planner-calendar-border-radius);background:var(--bg2);overscroll-behavior:contain}
 .planner-calendar-surface{display:grid;grid-template-columns:var(--planner-time-rail-width) minmax(0,1fr);min-width:max(100%,var(--planner-surface-min-width))}
 .planner-time-rail{position:sticky;left:0;z-index:7;background:var(--bg2);border-right:1px solid var(--line)}
@@ -150,4 +190,53 @@
   .planner-page-header{align-items:flex-start;flex-wrap:wrap}
   .planner-title-copy{min-width:calc(100% - 72px)}
   .planner-header-actions{margin-left:68px;flex-wrap:wrap}
+}
+
+.planner-analog-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 8px 24px 24px 24px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.planner-analog-clock-section {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  height: 100%;
+}
+
+.planner-analog-svg {
+  width: 100%;
+  max-width: 560px;
+  max-height: 560px;
+  aspect-ratio: 1;
+}
+
+/* Combined View (Analog + Linear) */
+.planner-combined-view {
+  display: grid;
+  grid-template-columns: 7fr 3fr;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+}
+
+.planner-combined-analog {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.planner-combined-linear {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  /* Allow it to squeeze nicely in the 20% column */
+  --planner-day-min-width: 100%;
 }

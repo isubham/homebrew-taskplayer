@@ -8,12 +8,54 @@ move those entries into a dated version section.
 
 ## [Unreleased]
 
+## 0.9.6 - 2026-07-27
+
+### Changed
+
+- Replaced the Sessions week timeline with seven daily stacked bars showing tracked focus time by
+  life area, with empty days retained and a selectable per-day breakdown. Selecting a bar also
+  filters the session rows below to that day; selecting it again restores the week.
+- Enlarged Sessions section, chart, and filtered-list headings and applied the primary accent color
+  for clearer contrast.
+- Added spacing and subtle dividers between Sessions week sections.
+- Restored the simpler Start → Stop session model: stopping from the task row, player, tray, or a
+  confirmed system sleep now closes the session, and starting later creates a new one. A locally
+  running session is also stopped at midnight so forgotten timers cannot span calendar days.
+- The stopped mini-player now shows the selected task as Ready with a `0:00` session clock, an
+  empty progress bar, and the next target instead of displaying lifetime task time.
+- Repeating tasks now complete each scheduled day only through finished session work. Their row
+  control starts or resumes the timer instead of recording the full scheduled window, the Progress
+  column shows “Done today” after finished work, terminal completion actions are hidden, and the
+  backend ignores attempts to mark a routine permanently done.
+- Renamed the user-facing Insights page to Sessions.
+- Moved Sessions from the sidebar to the top bar beside Settings.
+- Matched the bottom player's background color to the top bar.
+- Centered the bottom playback controls against the app window instead of the unequal side content.
+- Expanded the top-bar controls to 80% of its vertical space and enlarged Back and Forward without
+  grey button backgrounds.
+- Hid the Life Balance radar from Home while retaining its implementation; the seven-day tiled
+  area grid remains visible.
+- Aligned Planner's seven-day view to the current Monday–Sunday week, with navigation by complete
+  calendar weeks.
+- Enlarged top-bar search text and expanded it to use the field's full height.
+
 ### Added
 
+- Added a Storybook component workshop with interactive Sidebar, Topbar, mini-player, and task-list
+  stories covering their principal navigation, playback, progress, populated, and empty states.
+- Added a Sessions KPI showing the number of distinct local calendar days used to track tasks.
+- Added a centered startup loading screen using the onboarding landscape, with a personalized welcome for returning signed-in users and a neutral guest fallback.
 - Added an interactive `ZenRiverAnimation` to the onboarding welcome screen, rendered as a full-bleed animated background landscape utilizing the app's signature calm teal and dark theme color scheme. This includes a realistic silhouette of a person sitting on a bench under a tree writing in a notebook (representing focus and planning), next to an animated hourglass with trickling sand (representing physical time), with slow-moving mist clouds and green/teal maple leaves falling over morphing river waves.
 - Added a centered glassmorphic card layout on the welcome screen on top of the background animation.
 - Widened the onboarding welcome screen "Sign In" and "Sign Up" buttons and added a "Continue as Guest" option to bypass Google OAuth and proceed locally.
 - Moved onboarding welcome screen text to central constants in `constants.tsx` to prevent hardcoded strings.
+- Refined the analog planner clock face to use a single concentric ring for tasks, following a minimalist aesthetic.
+- Updated the mini-player stop button to use a clean square icon without an inner ring.
+- Adjusted the Analog Planner spacing to be more compact by cropping its internal bounding box and removing excess padding.
+
+### Fixed
+
+- Fixed a bug where Pomodoro sessions would incorrectly log as completed if the computer was asleep by adding time-jump detection to the timer tick loop.
 
 ## 0.9.4 - 2026-07-20 
 

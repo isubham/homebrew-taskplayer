@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { CoreProvider, useCore } from "./CoreProvider.jsx";
 import { RouteProvider, useRoute } from "./RouteProvider.jsx";
 import { SettingsProvider, useSettings } from "./SettingsProvider.jsx";
@@ -6,12 +6,9 @@ import { UIProvider, useUI } from "./UIProvider.jsx";
 import { PlaybackProvider, usePlayback } from "./PlaybackProvider.jsx";
 import { DatabaseProvider, useDatabase } from "./DatabaseProvider.jsx";
 import { KeyboardProvider, useKeyboard } from "./KeyboardProvider.jsx";
+import { AppContextValueProvider } from "./app-context-value";
 
-const AppContext = createContext(null);
-
-export function useApp() {
-  return useContext(AppContext);
-}
+export { AppContextValueProvider, useApp } from "./app-context-value";
 
 function AppContextComposer({ children }) {
   const core = useCore();
@@ -62,7 +59,7 @@ function AppContextComposer({ children }) {
     setDialogSession: ui.actions.setDialogSession,
   }), [core, route, settings, ui, playback, database, keyboard]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return <AppContextValueProvider value={value}>{children}</AppContextValueProvider>;
 }
 
 export function AppProvider({ children }) {

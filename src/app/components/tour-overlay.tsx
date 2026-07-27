@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext.jsx";
+import { SESSIONS_PAGE_COPY } from "../constants.jsx";
 
 const TOUR_STEPS = [
   {
@@ -29,11 +30,11 @@ const TOUR_STEPS = [
   },
   {
     target: "[data-tour-id='insights-nav']",
-    title: "Insights",
-    content: "Track your progress. Remember, no permanent negative records here."
+    title: SESSIONS_PAGE_COPY.label,
+    content: SESSIONS_PAGE_COPY.tourContent
   },
   {
-    target: "#topbarIcons",
+    target: "#topbarSettings",
     title: "Settings",
     content: "Configure your preferences, manage data, or restart the guide from here."
   }

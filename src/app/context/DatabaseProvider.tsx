@@ -294,25 +294,6 @@ export function DatabaseProvider({ children }) {
     });
   }, [uiForm, uiNote, setDialogSession, apply]);
 
-  const addFixedSession = useCallback(async (taskId) => {
-    const task = findTask(taskId);
-    if (!task) return;
-    const weekday = new Date().getDay() || 7;
-    const windows = (task.dailyWindows || []).filter((w) => Number(w.weekday) === weekday).sort((a, b) => Number(a.startMinute) - Number(b.startMinute));
-    if (!windows.length) return;
-    const window = windows[0];
-    const now = new Date();
-    
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, Number(window.startMinute) || 0).getTime();
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, Number(window.endMinute) || 0).getTime();
-    
-    try {
-      apply(await invoke("add_session", { taskId, start, end }));
-    } catch (err) {
-      await uiNote("Couldn't add fixed session", esc(String(err)));
-    }
-  }, [findTask, apply, uiNote]);
-
   const editSession = useCallback((id) => {
     const session = S?.sessions.find((s) => s.id === id);
     const task = session && S?.tasks.find((item) => item.id === session.taskId);
@@ -503,7 +484,7 @@ export function DatabaseProvider({ children }) {
         setDailySchedule, setSessionRangeField, deleteTask, setEstimateInline,
         bumpEstimate, decreaseEstimate, setDeadlineInline, setImpactTier, setImpactSign,
         toggleDone, moveTaskInline, reorderTasks, reorderLists, reorderLifeAreas,
-        setAlbum, moveTaskToAlbum, editLyrics, setLyricsInline, addSession, addFixedSession, editSession,
+        setAlbum, moveTaskToAlbum, editLyrics, setLyricsInline, addSession, editSession,
         deleteSession, deleteLogicalSession, openTrackLink, openNotificationSettings, exportData, importData,
         revealLogs, signInGoogle, signOut, fullSync, checkForUpdates,
         setMode, setConfigField, setConfigSound, cycleMode

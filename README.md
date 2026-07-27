@@ -76,7 +76,7 @@ To ship with zero warnings later, sign + notarize with an Apple Developer ID and
 ## Features
 
 TaskPlayer includes local-first task/session tracking, Daily and One-time tasks, Open/Target/
-Pomodoro modes, a state-aware menu-bar tray, Audius focus music, Home and Insights surfaces,
+Pomodoro modes, a state-aware menu-bar tray, Audius focus music, Home and Sessions surfaces,
 life-area balance and deterministic rewards, weekly time windows and reminders, optional
 cross-device sync, backups, diagnostics, and signed self-updates.
 

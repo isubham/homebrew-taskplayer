@@ -26,8 +26,8 @@ const minuteRange = (anchor: number, current: number) => {
   let startMinute = Math.min(anchor, current);
   let endMinute = Math.max(anchor, current);
   if (startMinute === endMinute) {
-    if (endMinute < PLANNER_MINUTES_PER_DAY) endMinute += PLANNER_TIME_STEP_MINUTES;
-    else startMinute -= PLANNER_TIME_STEP_MINUTES;
+    if (endMinute < PLANNER_MINUTES_PER_DAY) endMinute += 15;
+    else startMinute -= 15;
   }
   return { startMinute, endMinute };
 };
@@ -77,9 +77,10 @@ export function usePlannerDragSelection(
       if (kind === PLANNER_BLOCK_KINDS.actual) end = currentNow;
       else start = currentNow;
     }
-    if (end - start < PLANNER_TIME_STEP_MILLISECONDS) {
-      if (kind === PLANNER_BLOCK_KINDS.actual) start = Math.max(dayStart, end - PLANNER_TIME_STEP_MILLISECONDS);
-      else end = Math.min(plannerTimestampAtMinute(dayStart, PLANNER_MINUTES_PER_DAY), start + PLANNER_TIME_STEP_MILLISECONDS);
+    if (end - start < 15 * 60_000 && current.startY === event.clientY) {
+      // If single click, default to 15 mins. If dragged, let it be small!
+      if (kind === PLANNER_BLOCK_KINDS.actual) start = Math.max(dayStart, end - 15 * 60_000);
+      else end = Math.min(plannerTimestampAtMinute(dayStart, PLANNER_MINUTES_PER_DAY), start + 15 * 60_000);
     }
     if (end > start) onSelect({ kind, anchorDay: dayStart, range: { start, end } });
   };

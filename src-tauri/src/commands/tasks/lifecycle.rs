@@ -1,6 +1,10 @@
 use super::super::super::*;
 use super::super::reset_run_if_orphaned;
 
+fn supports_terminal_completion(cadence: Option<&str>) -> bool {
+    cadence != Some("daily")
+}
+
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn reorder_lists(
@@ -34,6 +38,18 @@ pub(crate) fn reorder_life_areas(
 #[specta::specta]
 #[tauri::command]
 pub(crate) fn set_done(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
+    let is_repeating = {
+        let db = state.db.lock().unwrap();
+        db.tasks()
+            .unwrap_or_default()
+            .into_iter()
+            .find(|task| task.id == id)
+            .is_some_and(|task| !supports_terminal_completion(task.cadence.as_deref()))
+    };
+    if is_repeating {
+        return build_snapshot(state.inner());
+    }
+
     // Completing the task finishes its ongoing logical session first.
     // The open-session check must be computed in its own `let` statement —
     // binding it here drops the `state.run` MutexGuard immediately. Inlining
@@ -158,4 +174,15 @@ pub(crate) fn delete_task(app: AppHandle, state: State<AppState>, id: String) ->
     reset_run_if_orphaned(state.inner(), TIMER_PAUSE_TRIGGER_TASK_DELETE);
     push(&app);
     build_snapshot(state.inner())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::supports_terminal_completion;
+
+    #[test]
+    fn only_one_time_tasks_support_terminal_completion() {
+        assert!(supports_terminal_completion(None));
+        assert!(!supports_terminal_completion(Some("daily")));
+    }
 }

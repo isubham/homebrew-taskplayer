@@ -1,11 +1,13 @@
 {
   "name": "taskplayer-mac",
   "private": true,
-  "version": "0.9.4",
+  "version": "0.9.6",
   "description": "TaskPlayer — playlist-style deep-work timer for macOS (Tauri + Rust + SQLite).",
   "scripts": {
     "tauri": "tauri",
     "dev:frontend": "vite",
+    "storybook": "storybook dev -p 6006",
+    "build:storybook": "storybook build",
     "build:frontend": "vite build",
     "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "build": "tauri build",
@@ -17,11 +19,16 @@
     "test:compatibility": "npm run check:compatibility && npm run check:release-notes && cargo test --manifest-path src-tauri/core/Cargo.toml && cargo test --manifest-path src-tauri/Cargo.toml"
   },
   "devDependencies": {
+    "@storybook/addon-essentials": "8.6.14",
+    "@storybook/addon-interactions": "8.6.14",
+    "@storybook/react": "8.6.14",
+    "@storybook/react-vite": "8.6.14",
     "@tauri-apps/cli": "^2",
     "@types/lodash": "^4.17.24",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "storybook": "8.6.14",
     "supabase": "^2.109.1",
     "typescript": "^6.0.3",
     "vite": "^5.4.15"

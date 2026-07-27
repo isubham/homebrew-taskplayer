@@ -1,9 +1,9 @@
 import "./task-row.css";
 import { buildCapacityBar, deadlineDate, fmtHM, jewelPayout, LIFE_AREAS, repeatingTaskOccursOn } from "../utils.jsx";
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/app-context-value";
 import { Draggable } from "@hello-pangea/dnd";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Check } from "lucide-react";
 import { PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { TaskPlanningCue } from "./planner/task-planning-cue";
 
@@ -99,7 +99,8 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
   const todayMs = todaySessions.reduce((sum, session) => sum + ((session.end ?? Date.now()) - session.start), 0)
     + (daily && working && run.runningStart >= todayStart ? Date.now() - run.runningStart : 0);
   const todaySessionCount = logicalSessions.filter((session) =>
-    session.focusIntervals.some((interval) => interval.end > todayStart)
+    session.finishedAt != null
+    && session.focusIntervals.some((interval) => interval.end > todayStart)
   ).length;
   const inDailyJam = context === "dailyJam";
   const fixedTime = daily && scheduledToday ? dailyTimeLabel(task) : "";
@@ -115,7 +116,13 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
   const progress = daily
     ? <span className="rbar-status">{!scheduledToday && !active
       ? TASK_REPEAT_COPY.offDayStatus
-      : <>{fixedTime ? `${fixedTime} · ` : ""}{onBreak ? "on break" : todayMs > 0 ? `${fmtHM(todayMs)} today` : "Not yet today"}</>}</span>
+      : <>{fixedTime ? `${fixedTime} · ` : ""}{onBreak
+        ? "on break"
+        : todaySessionCount > 0
+          ? `${TASK_REPEAT_COPY.completedTodayStatus} · ${fmtHM(todayMs)}`
+          : todayMs > 0
+            ? `${fmtHM(todayMs)} today`
+            : "Not yet today"}</>}</span>
     : onBreak
       ? <span className="rbar-status">on break</span>
       : bar ? <CapacityBar bar={bar} /> : <span className="rbar-status">{fmtHM(taskTotal(task.id))}</span>;
@@ -172,32 +179,31 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
           {working ? <PlayingEqualizer className="task-playing-equalizer" /> : onBreak ? "☕" : index + 1}
         </span>
         <button
-          className={fixedTime ? "go fixed-time-checkbox" : "go"}
+          className="go"
           onClick={(e) => {
             e.stopPropagation();
-            if (fixedTime) {
-              if (!todaySessionCount) {
-                actions.addFixedSession(task.id);
-              }
-            } else {
-              actions.play(task.id, TIMER_PLAY_TRIGGERS.taskRow);
-            }
+            actions.play(task.id, TIMER_PLAY_TRIGGERS.taskRow);
           }}
-          title={fixedTime ? (todaySessionCount ? "Completed today" : "Complete scheduled session") : playTitle}
+          title={playTitle}
         >
-          {fixedTime ? (
-            <input 
-              type="checkbox" 
-              checked={todaySessionCount > 0} 
-              readOnly 
-              style={{ cursor: 'pointer', margin: 0, width: '1.2em', height: '1.2em' }} 
-            />
-          ) : active && !elsewhere ? "⏸" : "▶"}
+          {active && !elsewhere ? "⏸" : "▶"}
         </button>
       </td>
       <td className="tname">
         <div className="task-name-line">
           {task.name}{task.depth ? <span className={`tag ${task.depth}`}>{task.depth}</span> : null}
+          {!task.cadence && !task.completedAt ? (
+            <button
+              className="inline-done-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.toggleDone(task.id);
+              }}
+              title="Mark task as done"
+            >
+              <Check size={14} />
+            </button>
+          ) : null}
           <JewelPayoutTemplate payout={payout} areaColor={areaColor} daily={daily} />
         </div>
         {inDailyJam ? <div className="task-row-list-name">{attentionReason || owner.name}</div> : null}

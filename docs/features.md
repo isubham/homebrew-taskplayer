@@ -36,7 +36,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Life-area and list sidebar.
 - Individual task-list pages.
 - Pinned Planner page.
-- Pinned Insights page.
+- Sessions control in the top bar, immediately left of Settings.
 - Settings page.
 - Dedicated Now Playing focus page and task/track overlays.
 - The left sidebar uses a 280px column so list and life-area labels have more room.
@@ -55,6 +55,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Search — Shipped
 
 - Live top-bar search over list names and incomplete task names.
+- Search text uses the field's full height at a readable type size.
 - Shows up to four matching lists and eight matching tasks.
 - Selecting a list opens it; selecting a task opens its list and task detail.
 - `/` focuses search and Escape clears it.
@@ -68,7 +69,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - `j` / `k` move through list or task rows; Enter activates the focused row.
 - Space plays or pauses the active, focused, or last-played task.
 - `n` creates a list, task, or session according to the focused region.
-- `o` opens Home, `p` opens Planner, `i` opens Insights, `s` opens Settings, `/` focuses search,
+- `o` opens Home, `p` opens Planner, `i` opens Sessions, `s` opens Settings, `/` focuses search,
   and `?` shows help.
 - Shortcuts are suppressed while typing, while overlays are open, or when modifier keys are
   held.
@@ -83,10 +84,16 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Confirmation, prompt, and session dialogs resolve once and close without leaving an empty modal.
 - Life-area reorder feedback explains the relationship created by the move.
 - The entire application is built using React components (including the top bar, sidebar, pages, overlays, and player). Re-renders patch those surfaces in place, preserving their DOM identity and automatically escaping displayed task/list text.
+- Top-bar controls use 80% of the bar's vertical space, with larger, background-free back and
+  forward icons and targets for easier navigation.
+- Storybook provides an isolated component-development workshop. Stories cover the Sidebar,
+  Topbar, mini-player, and task-list surfaces across their principal navigation, playback,
+  progress, populated, collapsed, and empty states.
 
 ### Onboarding and first-run screening — Shipped
 
 - Persistent first-run onboarding screen to guide new users.
+- App startup uses the onboarding landscape behind a centered loading card. Returning signed-in users are welcomed by account name when a cached name is available, while guest users receive a neutral welcome.
 - The welcome screen features a full-bleed animated background landscape (`ZenRiverAnimation`) using the app's signature calm teal and dark theme color scheme. Centered on top of it is a glassmorphic card containing the welcome copy, wide Sign In/Sign Up buttons, and a "Continue as Guest" link to bypass remote auth and proceed with local setup.
 - The `ZenRiverAnimation` background features a realistic silhouette of a person sitting on a rustic bench under a swaying tree writing in a notebook (representing focus and planning), next to an animated hourglass with trickling sand (representing physical time), with slow-moving mist clouds and green/teal maple leaves falling over morphing river waves.
 - Fully externalized welcome screen copywriting stored centrally to prevent hardcoding.
@@ -173,6 +180,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   time bar. A top-right Edit List icon stays in the hero while Add Task gets its own row directly
   below it; there is no list-wide Play action, and the sidebar no longer carries edit pencils.
 - Task lists show Repeating tasks first and One-time tasks below, with blue section labels.
+- Task lists surface up to three unfinished tasks most recently worked on in that list, with
+  direct task-detail and session-start controls.
 - Completed tasks live in an animated collapsible section.
 
 ### One-time tasks — Shipped
@@ -185,7 +194,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Estimate progress is shown physically as session segments inside a capacity bar.
 - Going over estimate remains visible without punitive color or language.
 
-### Repeating tasks — Partially shipped
+### Repeating tasks — Shipped
 
 - Repeat can be set to every day or any selected weekdays, including weekend-only schedules.
 - Estimates and deadlines are hidden because they do not describe repeating routines well.
@@ -204,9 +213,12 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Repeating rewards are derived from completed logical-session focus on a scheduled local calendar
   day; pausing an open session does not pay early, and work on an off-day does not create an extra
   scheduled-day reward. No streak or missed-day history is stored.
-- **Known gap:** the generic list-row checkbox still writes terminal `completed_at`, while
-  Daily Jam and rewards use per-day sessions. Daily check/uncheck needs a dedicated per-day
-  completion command so it resets correctly and does not remove the routine permanently.
+- Repeating tasks have no terminal Mark as done action. Their row control always starts, pauses,
+  or resumes actual work, including tasks with fixed schedule times. Finishing a qualifying
+  logical session derives that day's completion and changes its Progress status to “Done today”;
+  the schedule is never fabricated as recorded work from a completion control.
+- Legacy or synced `completed_at` values are ignored for repeating tasks, and the backend rejects
+  attempts to terminally complete them.
 
 ### Repeating-task schedule windows — Shipped
 
@@ -227,11 +239,11 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Sessions and history — Shipped
 
-- A session is one intentional work container for one task. Pausing closes and stores only the
-  current focus interval; resuming continues the same session in Open, Target, and Pomodoro modes.
-- Finish session is the only ordinary action that closes the logical session. While a session is
-  open, the player replaces its History shortcut with a point-of-performance Finish control.
-- Only one logical session can be open at a time. Starting a different task asks to finish the
+- A session is one Start → Stop work container for one task. Stop closes and stores the current
+  session; starting later creates a new session.
+- Task rows, the player, keyboard, and tray use the same stop-and-close behavior. Confirmed system
+  sleep also closes at the last known awake timestamp.
+- Only one logical session can be active at a time. Starting a different task asks to stop the
   current session first; accepting closes it and starts the selected task.
 - Session history groups its stored focus intervals into one entry. Break time is derived from
   the gaps between focus intervals and from the final gap before Finish; focus totals never count
@@ -249,9 +261,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   holding the local state and database locks, so a stale modal cannot create a local collision.
 - Manually recorded work is a finished one-interval logical session. Task-row session counts,
   repeating-day counts, and history counts use logical sessions rather than focus-interval rows.
-- Confirmed macOS workspace sleep/wake events pause the current focus interval at the sleep
-  timestamp rather than counting computer sleep as work or finishing the logical session. Ordinary
-  scheduler delays never pause a task. The pause diagnostic includes the measured sleep interval.
+- Confirmed macOS workspace sleep/wake events close the current session at the sleep timestamp
+  rather than counting computer sleep as work. A locally owned session that reaches its next local
+  midnight is also closed at that boundary. Ordinary scheduler delays never stop a task.
 - **Known gap:** sessions created concurrently on devices that have not yet seen each other's
   writes can still meet as overlapping factual records after sync. Cross-device reconciliation is
   an upcoming-release TODO and must not silently delete either record.
@@ -301,8 +313,10 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   ordinary planned sessions; a changed calendar requires a fresh preview.
 - Home/Daily Jam shows the nearest future planned block, calendar blocks retain direct Start, and
   Planner limits actual-session context to the recent seven days. Detailed history stays in
-  Insights.
+  Sessions.
 - Past unstarted plans disappear instead of becoming missed-block or failure history.
+- The seven-day Planner view shows a calendar week from Monday through Sunday; its current range
+  is the week containing today, and navigation moves one complete week at a time.
 - The planner horizon remains bounded and has no rewards, streaks, urgency, or loss framing.
 - **Known gap:** external calendar providers are not included.
 
@@ -311,26 +325,31 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Persistent player — Shipped
 
 - Bottom player shows the active/last task, list, live elapsed time, and task progress.
-- Pause preserves the logical session and accumulated focus. Resume continues it; Finish closes it.
-- An open session's Finish control occupies the History shortcut position, so closure is available
-  where the timer is being used without adding another competing control.
+- The bottom player shares the top bar's background color for a consistent application frame.
+- Playback controls stay aligned to the app window's horizontal center, independent of the task
+  details and music controls on either side.
+- Stop closes the logical session. Starting again creates a new session, while the History shortcut
+  remains available beside the timer.
+- When stopped, the player labels the selected task “Ready,” resets the session clock to `0:00`,
+  shows an empty progress bar, and retains the configured target. Lifetime task time remains in
+  History instead of appearing as though it belongs to the next session.
 - Its session progress bar is capped at 405px so the central playback state stays compact.
 - Live session and break progress interpolate continuously between timer updates, with an instant
   reduced-motion fallback.
 - Its workflow icon cycles the timer mode immediately without opening Settings; detailed mode
   lengths remain in Settings.
-- Play/pause controls are available from task rows, player, keyboard, and tray. Finish is explicit
-  in the player; choosing another task offers a finish-and-start confirmation.
+- Start/stop controls are available from task rows, player, keyboard, and tray. Choosing another
+  task offers a stop-and-start confirmation.
 - The bottom player omits a separate Lyrics shortcut; notes remain available from task detail and
   the Now Playing focus page.
-- Its workflow and task-history/Finish shortcuts share the same aligned control box. History uses
-  the Lucide History icon only when no session is open; an open session uses Circle Stop for Finish.
+- Its workflow and task-history shortcuts share the same aligned control box. The primary timer
+  control uses Circle Stop while work is active.
 - Another device’s live task is shown read-only with a “play here” takeover action.
 - Timer state continues while the main window is closed.
 
 ### Open mode — Shipped
 
-- Stopwatch focus runs until paused or finished; pauses remain inside the same logical session.
+- Stopwatch focus runs until stopped; starting again creates a new session.
 - Optional quiet hourly check-in after each full hour of continuous work.
 - Check-in has no sound and uses supportive, non-punitive copy.
 
@@ -338,15 +357,15 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 - Configurable target length from 1 to 240 minutes.
 - A physical progress bar fills toward the target and pulses when reached.
-- One notification fires per logical session at the target, using accumulated focus across pauses.
+- One notification fires per logical session at the target.
 - Time continues counting after the target instead of forcing a stop.
 
 ### Pomodoro mode — Shipped
 
 - Configurable work, short-break, long-break, and cycles-before-long-break lengths.
 - Work blocks auto-log when their boundary is reached.
-- Manual pause/resume retains both the logical session and progress within the current work block;
-  pausing no longer creates a new Pomodoro session or restarts its countdown.
+- Automatic Pomodoro work/break phases remain in one session while the timer continues. A manual
+  stop closes the session; starting again begins a new Pomodoro session.
 - Work-to-break starts the break automatically and sends a notification without stealing focus.
 - Break-to-work starts the next work block automatically and sends another notification without
   forcing the main window forward.
@@ -362,9 +381,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   implementation.
 - Idle is white, active work is green, and break/awaiting state is yellow.
 - Active title shows the task name and live time; break state includes a coffee marker.
-- Tray menu exposes the current task, play/pause/resume, Finish session, focus-music play/pause,
-  next track, Open, and Quit. Other recent tasks remain disabled until the open session is
-  finished, avoiding a silent task switch.
+- Tray menu exposes the current task, start/stop, focus-music play/pause, next track, Open, and
+  Quit. Other recent tasks remain disabled until the active session is stopped.
 - Focus-music tray controls work from idle: Play loads and starts music, Pause keeps the tray
   label synchronized, and Next loads an empty queue or advances the current queue. Their event
   listeners remain active across task and music state updates.
@@ -397,7 +415,7 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   cross-device duplicates.
 - **Known gap:** per-window bell controls and custom lead times are not implemented.
 - **Known gap:** native notification buttons such as Complete, Remind in 5 minutes, Start task,
-  and Finish session are not exposed by the current macOS Tauri notification integration.
+  and Stop session are not exposed by the current macOS Tauri notification integration.
 - **Known gap:** reminders require the desktop app to be running in the tray.
 
 ## 7. Home dashboard
@@ -407,12 +425,11 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Time-of-day greeting and today’s tracked time.
 - Current rank badge.
 - Jump Back In is the first section after the greeting, with up to six recently played distinct
-  tasks. Aggregate time, completion, list, and jewel totals live on Insights instead.
+  tasks. Aggregate time, completion, list, and jewel totals live on Sessions instead.
 - When a session is open, its Jump Back In card shows a physical Focus/Break bar with both times;
   the display stays bounded to that current point-of-performance context.
 - Daily Jam with today-only completion state, priority-ordered life-area cards, fixed-time cues,
   and the existing open/play controls at each task row.
-- Life balance for the trailing seven days.
 - List navigation stays in the sidebar instead of being duplicated on Home.
 - Sections are intentionally bounded; no open-ended reward feed exists.
 
@@ -432,12 +449,12 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - No separate Needs Attention destination, notification count, stored failure history, or
   unexplained score is shown.
 
-### Life balance — Shipped
+### Life balance — Hidden foundation
 
-- Five-axis radar based on the trailing seven days.
-- Impact-weighted task contributions inherit their list’s life area and direction.
-- Optional view of what is pulling against an area.
-- Seven-day area grid supports drill-down to contributing tasks.
+- The seven-day tiled area grid remains visible on Home and supports drill-down to contributing
+  tasks.
+- The existing radar and its contribution overlay remain implemented but hidden until that
+  visualization has a clear, useful interpretation.
 - No permanent failure or imbalance tally is stored.
 
 ## 8. Gamification
@@ -459,15 +476,22 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   hyperfocused category from supplying the entire rank.
 - Rank remains a quick-glance badge rather than a browsable progression destination.
 
-## 9. Insights
+## 9. Sessions
 
 ### Session analytics — Shipped
 
-- A static quick-glance summary shows time tracked today and all-time, completed tasks, lists,
-  jewels earned today, and lifetime net jewels.
+- A static quick-glance summary shows time tracked today and all-time, distinct local calendar
+  days with tracked sessions, completed tasks, lists, jewels earned today, and lifetime net jewels.
 - Day, week, and month periods.
 - Day view uses time-positioned session lanes and a current-time needle.
-- Week view groups sessions by day and task.
+- Week view shows all seven days as stacked bars split by life area, including empty days; selecting
+  a day reveals its factual time breakdown and filters the session rows below to that date.
+  Selecting the day again restores the complete week. Overnight focus is split at local day
+  boundaries.
+- Sessions period, chart, and filtered-list headings use larger text and the primary accent for
+  quick visual separation from totals and detail text.
+- Historical week sections use added spacing and subtle dividers to keep adjacent charts and
+  session lists visually distinct.
 - Month view shows daily density across the month.
 - Expandable task/session groups count logical sessions and show separate focus and break totals.
 - Day/week timelines render focus intervals and derived breaks distinctly while tracked-time

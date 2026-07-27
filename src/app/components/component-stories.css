@@ -1,0 +1,27 @@
+.topbar-story-frame {
+  width: 1120px;
+  height: 52px;
+}
+
+.topbar-story-frame .topbar {
+  width: 100%;
+  height: 100%;
+}
+
+.player-story-frame {
+  width: 1180px;
+  height: 80px;
+}
+
+.player-story-frame .player {
+  width: 100%;
+  height: 100%;
+}
+
+.task-list-story-frame {
+  width: 1080px;
+  height: 760px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: var(--bg);
+}

@@ -13,6 +13,7 @@ import {
   PLANNER_ICON_SIZE,
   PLANNER_MIN_BLOCK_HEIGHT_PX,
   PLANNER_MINUTES_PER_HOUR,
+  PLANNER_TIME_STEP_MILLISECONDS,
 } from "../../constants";
 import type { PlannerBlock as PlannerBlockModel } from "../../planner/planner-model";
 import { plannerMinuteInDay, plannerTimeLabel } from "../../planner/planner-time";
@@ -21,11 +22,14 @@ import { fmtLong } from "../../utils";
 type PlannerBlockProps = {
   block: PlannerBlockModel;
   dayStart: number;
+  minStart: number;
+  maxEnd: number;
   onEdit: (id: string) => void;
   onEditActual: (id: string) => void;
   onOpenReference: (listId: string, taskId?: string) => void;
   onStart: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdateRange: (blockKind: string, blockId: string, taskId: string, range: { start: number; end: number }) => void;
 };
 
 const kindLabel = (kind: PlannerBlockModel["kind"]) => {
@@ -37,9 +41,33 @@ const kindLabel = (kind: PlannerBlockModel["kind"]) => {
   return PLANNER_COPY.plannedLabel;
 };
 
-export function PlannerBlock({ block, dayStart, onEdit, onEditActual, onOpenReference, onStart, onDelete }: PlannerBlockProps) {
-  const startMinute = plannerMinuteInDay(block.start, dayStart);
-  const endMinute = plannerMinuteInDay(block.end, dayStart, true);
+export function PlannerBlock({ block, dayStart, minStart, maxEnd, onEdit, onEditActual, onOpenReference, onStart, onDelete, onUpdateRange }: PlannerBlockProps) {
+  const [dragState, setDragState] = useState<{
+    edge: 'top' | 'bottom';
+    pointerId: number;
+    startY: number;
+    currentY: number;
+    initialStart: number;
+    initialEnd: number;
+  } | null>(null);
+
+  let currentStart = block.start;
+  let currentEnd = block.end;
+  
+  if (dragState) {
+    const deltaMs = (dragState.currentY - dragState.startY) / PLANNER_HOUR_HEIGHT_PX * 3600000;
+    const step = PLANNER_TIME_STEP_MILLISECONDS;
+    if (dragState.edge === 'top') {
+      currentStart = Math.min(dragState.initialEnd - step, Math.max(minStart, dragState.initialStart + deltaMs));
+      currentStart = Math.round(currentStart / step) * step;
+    } else {
+      currentEnd = Math.max(dragState.initialStart + step, Math.min(maxEnd, dragState.initialEnd + deltaMs));
+      currentEnd = Math.round(currentEnd / step) * step;
+    }
+  }
+
+  const startMinute = plannerMinuteInDay(currentStart, dayStart);
+  const endMinute = plannerMinuteInDay(currentEnd, dayStart, true);
   const top = startMinute * PLANNER_HOUR_HEIGHT_PX / PLANNER_MINUTES_PER_HOUR;
   const naturalHeight = (endMinute - startMinute) * PLANNER_HOUR_HEIGHT_PX / PLANNER_MINUTES_PER_HOUR;
   const height = Math.max(PLANNER_MIN_BLOCK_HEIGHT_PX, naturalHeight);
@@ -47,7 +75,7 @@ export function PlannerBlock({ block, dayStart, onEdit, onEditActual, onOpenRefe
   const actual = block.kind === PLANNER_BLOCK_KINDS.actual;
   const sessionBreak = block.kind === PLANNER_BLOCK_KINDS.break;
   const dragBlocking = planned || actual || sessionBreak || block.kind === PLANNER_BLOCK_KINDS.live;
-  const range = PLANNER_COPY.timeRangeLabel(plannerTimeLabel(block.start), plannerTimeLabel(block.end));
+  const range = PLANNER_COPY.timeRangeLabel(plannerTimeLabel(currentStart), plannerTimeLabel(currentEnd));
   const referenceTitle = block.kind === PLANNER_BLOCK_KINDS.availability && block.detail
     ? block.detail
     : block.label;
@@ -85,6 +113,52 @@ export function PlannerBlock({ block, dayStart, onEdit, onEditActual, onOpenRefe
   };
   useEffect(() => () => clearHide(), []);
 
+  const handlePointerDown = (edge: 'top' | 'bottom') => (event: React.PointerEvent) => {
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({
+      edge,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      currentY: event.clientY,
+      initialStart: block.start,
+      initialEnd: block.end,
+    });
+  };
+
+  const handlePointerMove = (event: React.PointerEvent) => {
+    if (dragState && dragState.pointerId === event.pointerId) {
+      setDragState(prev => prev ? { ...prev, currentY: event.clientY } : null);
+    }
+  };
+
+  const handlePointerUp = (event: React.PointerEvent) => {
+    if (dragState && dragState.pointerId === event.pointerId) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      
+      const deltaMs = (dragState.currentY - dragState.startY) / PLANNER_HOUR_HEIGHT_PX * 3600000;
+      const step = PLANNER_TIME_STEP_MILLISECONDS;
+      let finalStart = block.start;
+      let finalEnd = block.end;
+      
+      if (dragState.edge === 'top') {
+        finalStart = Math.min(dragState.initialEnd - step, Math.max(minStart, dragState.initialStart + deltaMs));
+        finalStart = Math.round(finalStart / step) * step;
+      } else {
+        finalEnd = Math.max(dragState.initialStart + step, Math.min(maxEnd, dragState.initialEnd + deltaMs));
+        finalEnd = Math.round(finalEnd / step) * step;
+      }
+      
+      if (finalStart !== block.start || finalEnd !== block.end) {
+        onUpdateRange(block.kind, block.id, block.taskId || "", { start: finalStart, end: finalEnd });
+      }
+      
+      setDragState(null);
+    }
+  };
+
+  const isResizable = planned || actual;
+
   return (
     <>
       <article
@@ -115,6 +189,34 @@ export function PlannerBlock({ block, dayStart, onEdit, onEditActual, onOpenRefe
             <button title={PLANNER_COPY.deleteButton} aria-label={PLANNER_COPY.deleteButton} onClick={(event) => { event.stopPropagation(); onDelete(block.id); }}><Trash2 size={PLANNER_ICON_SIZE} /></button>
           </div>
         ) : null}
+        {isResizable && (
+          <>
+            <div 
+              className="planner-block-resize-handle top" 
+              onPointerDown={handlePointerDown('top')} 
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            />
+            {dragState?.edge === 'top' && (
+              <div className="planner-drag-indicator top">
+                {plannerTimeLabel(currentStart)}
+              </div>
+            )}
+            <div 
+              className="planner-block-resize-handle bottom" 
+              onPointerDown={handlePointerDown('bottom')} 
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            />
+            {dragState?.edge === 'bottom' && (
+              <div className="planner-drag-indicator bottom">
+                {plannerTimeLabel(currentEnd)}
+              </div>
+            )}
+          </>
+        )}
       </article>
       {hoverPosition ? createPortal(
         <div

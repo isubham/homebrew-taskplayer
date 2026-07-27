@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
-import { ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS } from "../constants.jsx";
+import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, isTaskTerminallyCompleted, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
+import { ACCOUNT_STORAGE_KEYS, ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS } from "../constants.jsx";
 import { buildDailyJamAttentionEntries } from "../daily-jam-attention";
 import { buildLogicalSessions } from "../logical-sessions";
 import { commands } from "../bindings";
@@ -22,6 +22,11 @@ export function CoreProvider({ children }) {
 
   const apply = useCallback((snap) => {
     if (!snap) return;
+    if (snap.account?.name) {
+      localStorage.setItem(ACCOUNT_STORAGE_KEYS.displayName, snap.account.name);
+    } else {
+      localStorage.removeItem(ACCOUNT_STORAGE_KEYS.displayName);
+    }
     setS(snap);
   }, []);
 
@@ -325,7 +330,7 @@ export function CoreProvider({ children }) {
     return { days, rows };
   }, [S, tasksForList, taskSessions]);
 
-  const recentTasks = useCallback((limit = RECENT_TASKS_SIZE) => {
+  const recentTasks = useCallback((limit = RECENT_TASKS_SIZE, listId = null) => {
     if (!S) return [];
     const now = Date.now();
     const lastPlayedAt = new Map();
@@ -353,7 +358,10 @@ export function CoreProvider({ children }) {
         ongoing: taskId === ongoingTaskId,
         logicalSession: latestLogicalSession.get(taskId) || null,
       }))
-      .filter((entry) => entry.task && !entry.task.completedAt && !isAgainstTask(entry.task))
+      .filter((entry) => entry.task
+        && (!listId || entry.task.listId === listId)
+        && !isTaskTerminallyCompleted(entry.task)
+        && (listId || !isAgainstTask(entry.task)))
       .sort((a, b) => b.at - a.at)
       .slice(0, limit);
   }, [S, findTask, isAgainstTask, logicalSessions]);
@@ -384,7 +392,7 @@ export function CoreProvider({ children }) {
     }
 
     return S.tasks
-      .filter((task) => !task.completedAt && task.id !== liveTaskId)
+      .filter((task) => !isTaskTerminallyCompleted(task) && task.id !== liveTaskId)
       .filter((task) => task.deadlineAt && (task.impactTier === "medium" || task.impactTier === "high"))
       .map((task) => {
         const daysLeft = (task.deadlineAt - now) / 86400000;
@@ -405,7 +413,7 @@ export function CoreProvider({ children }) {
     if (!run) return null;
     const running = run.activeTaskId && run.phase ? findTask(run.activeTaskId) : null;
     let task = running || (run.lastTaskId ? findTask(run.lastTaskId) : null);
-    if (!running && task && task.completedAt) task = null;
+    if (!running && task && isTaskTerminallyCompleted(task)) task = null;
     return task;
   }, [S, findTask]);
 

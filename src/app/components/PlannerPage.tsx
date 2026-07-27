@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import type { PlannedSession } from "../bindings";
+import { commands, type PlannedSession } from "../bindings";
 import {
   PLANNER_CLOCK_TICK_MS,
   PLANNER_BLOCK_KINDS,
@@ -15,18 +15,19 @@ import {
 } from "../constants";
 import { useApp } from "../context/AppContext";
 import { buildPlannerDays } from "../planner/planner-model";
-import { addLocalDays, startOfLocalDay } from "../planner/planner-time";
+import { addLocalDays, startOfLocalDay, startOfLocalWeek } from "../planner/planner-time";
 import type { PlannerDragSelection } from "../planner/use-planner-drag-selection";
 import { usePlannerCommands } from "../planner/use-planner-commands";
 import { PlannerCalendar } from "./planner/planner-calendar";
 import { AutomaticPlannerControl } from "./planner/automatic-planner-control";
 import { PlannedSessionModal } from "./planner/planned-session-modal";
 import { RecordSessionModal } from "./planner/record-session-modal";
+import { PlannerAnalog } from "./planner/planner-analog";
 import "./planner/planner.css";
 
 type SessionRange = { start: number; end: number };
 type EditorState = { anchorDay: number; revision: number; plan?: PlannedSession | null; taskId?: string | null; range?: SessionRange | null };
-type RecordEditorState = { anchorDay: number; revision: number; range?: SessionRange | null };
+type RecordEditorState = { anchorDay: number; revision: number; range?: SessionRange | null; initialListId?: string };
 type PlannerViewMode = typeof PLANNER_VIEW_MODES[keyof typeof PLANNER_VIEW_MODES];
 
 export function PlannerPage() {
@@ -40,6 +41,7 @@ export function PlannerPage() {
   const nextModalRevision = () => (modalRevision.current += PLANNER_MODAL_REVISION_STEP);
   const planner = usePlannerCommands(actions, state.S);
   const dayCount = mode === PLANNER_VIEW_MODES.today ? 1 : PLANNER_DAY_COUNT;
+  const viewAnchor = mode === PLANNER_VIEW_MODES.week ? startOfLocalWeek(anchor) : anchor;
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), PLANNER_CLOCK_TICK_MS);
@@ -57,7 +59,7 @@ export function PlannerPage() {
     actions.clearPlannerTarget();
   }, [state.plannerTarget, state.S.plannedSessions, actions]);
 
-  const days = useMemo(() => buildPlannerDays(state.S, anchor, dayCount, now), [state.S, anchor, dayCount, now]);
+  const days = useMemo(() => buildPlannerDays(state.S, viewAnchor, dayCount, now), [state.S, viewAnchor, dayCount, now]);
   const plans = state.S.plannedSessions || [];
   const findPlan = (id: string) => plans.find((plan) => plan.id === id);
   const openEdit = (id: string) => {
@@ -75,6 +77,19 @@ export function PlannerPage() {
     const plan = findPlan(id);
     if (plan) planner.remove(plan);
   };
+  const updateRange = async (blockKind: string, blockId: string, taskId: string, range: SessionRange) => {
+    try {
+      if (blockKind === PLANNER_BLOCK_KINDS.planned) {
+        const result = await commands.updatePlannedSession(blockId, taskId, range.start, range.end);
+        if (result.status === "ok") actions.apply(result.data);
+      } else if (blockKind === PLANNER_BLOCK_KINDS.actual) {
+        const result = await commands.updateSession(blockId, taskId, range.start, range.end);
+        if (result.status === "ok") actions.apply(result.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
   const selectRange = (selection: PlannerDragSelection) => {
     if (selection.kind === PLANNER_BLOCK_KINDS.actual) {
       setEditor(null);
@@ -84,8 +99,8 @@ export function PlannerPage() {
       setEditor({ anchorDay: selection.anchorDay, revision: nextModalRevision(), range: selection.range });
     }
   };
-  const end = addLocalDays(anchor, dayCount - 1);
-  const startLabel = new Date(anchor).toLocaleDateString(undefined, PLANNER_DATE_SHORT_FORMAT);
+  const end = addLocalDays(viewAnchor, dayCount - 1);
+  const startLabel = new Date(viewAnchor).toLocaleDateString(undefined, PLANNER_DATE_SHORT_FORMAT);
   const endLabel = new Date(end).toLocaleDateString(undefined, PLANNER_DATE_SHORT_FORMAT);
   const periodLabel = dayCount === 1 ? days[0]?.heading : PLANNER_COPY.dateRangeLabel(startLabel, endLabel);
 
@@ -96,11 +111,10 @@ export function PlannerPage() {
         <div className="planner-title-copy">
           <small>{PLANNER_COPY.eyebrow}</small>
           <h1>{periodLabel}</h1>
-          <p>{PLANNER_COPY.subtitle}</p>
         </div>
         <div className="planner-header-actions">
           <AutomaticPlannerControl />
-          <button className="btn primary planner-add" onClick={() => { setRecordEditor(null); setEditor({ anchorDay: Math.max(anchor, startOfLocalDay(Date.now())), revision: nextModalRevision() }); }}>
+          <button className="btn primary planner-add" onClick={() => { setRecordEditor(null); setEditor({ anchorDay: Math.max(viewAnchor, startOfLocalDay(Date.now())), revision: nextModalRevision() }); }}>
             <Plus size={PLANNER_ICON_SIZE} />{PLANNER_COPY.addButton}
           </button>
         </div>
@@ -111,24 +125,60 @@ export function PlannerPage() {
           <button className={mode === PLANNER_VIEW_MODES.week ? "active" : ""} onClick={() => setMode(PLANNER_VIEW_MODES.week)}>{PLANNER_COPY.weekTab}</button>
         </div>
         <div className="planner-period-actions">
-          <button title={PLANNER_COPY.previousButton} aria-label={PLANNER_COPY.previousButton} onClick={() => setAnchor(addLocalDays(anchor, -dayCount))}><ChevronLeft size={PLANNER_ICON_SIZE} /></button>
+          <button title={PLANNER_COPY.previousButton} aria-label={PLANNER_COPY.previousButton} onClick={() => setAnchor(addLocalDays(viewAnchor, -dayCount))}><ChevronLeft size={PLANNER_ICON_SIZE} /></button>
           <button onClick={() => setAnchor(startOfLocalDay(Date.now()))}>{PLANNER_COPY.todayButton}</button>
-          <button title={PLANNER_COPY.nextButton} aria-label={PLANNER_COPY.nextButton} onClick={() => setAnchor(addLocalDays(anchor, dayCount))}><ChevronRight size={PLANNER_ICON_SIZE} /></button>
+          <button title={PLANNER_COPY.nextButton} aria-label={PLANNER_COPY.nextButton} onClick={() => setAnchor(addLocalDays(viewAnchor, dayCount))}><ChevronRight size={PLANNER_ICON_SIZE} /></button>
         </div>
       </div>
       <div className="planner-drag-hint">{PLANNER_COPY.dragHint}</div>
-      <PlannerCalendar
-        days={days}
-        now={now}
-        onAdd={(anchorDay) => { setRecordEditor(null); setEditor({ anchorDay, revision: nextModalRevision() }); }}
-        onRecord={(anchorDay) => { setEditor(null); setRecordEditor({ anchorDay, revision: nextModalRevision() }); }}
-        onSelectRange={selectRange}
-        onEdit={openEdit}
-        onEditActual={actions.editSession}
-        onOpenReference={(listId, taskId) => { actions.selectList(listId); if (taskId) actions.setOpenTaskId(taskId); }}
-        onStart={startPlan}
-        onDelete={removePlan}
-      />
+      {mode === PLANNER_VIEW_MODES.today ? (
+        <div className="planner-combined-view">
+          <div className="planner-combined-analog">
+            <PlannerAnalog
+              snapshot={state.S}
+              now={now}
+              anchor={anchor}
+              days={days}
+              onRecord={(anchorDay, range, initialListId) => {
+                setEditor(null);
+                setRecordEditor({ anchorDay, revision: nextModalRevision(), range, initialListId });
+              }}
+              onEdit={openEdit}
+              onEditActual={actions.editSession}
+              onStart={startPlan}
+            />
+          </div>
+          <div className="planner-combined-linear">
+            <PlannerCalendar
+              days={days}
+              now={now}
+              onAdd={(anchorDay) => { setRecordEditor(null); setEditor({ anchorDay, revision: nextModalRevision() }); }}
+              onRecord={(anchorDay) => { setEditor(null); setRecordEditor({ anchorDay, revision: nextModalRevision() }); }}
+              onSelectRange={selectRange}
+              onEdit={openEdit}
+              onEditActual={actions.editSession}
+              onOpenReference={(listId, taskId) => { actions.selectList(listId); if (taskId) actions.setOpenTaskId(taskId); }}
+              onStart={startPlan}
+              onDelete={removePlan}
+              onUpdateRange={updateRange}
+            />
+          </div>
+        </div>
+      ) : (
+        <PlannerCalendar
+          days={days}
+          now={now}
+          onAdd={(anchorDay) => { setRecordEditor(null); setEditor({ anchorDay, revision: nextModalRevision() }); }}
+          onRecord={(anchorDay) => { setEditor(null); setRecordEditor({ anchorDay, revision: nextModalRevision() }); }}
+          onSelectRange={selectRange}
+          onEdit={openEdit}
+          onEditActual={actions.editSession}
+          onOpenReference={(listId, taskId) => { actions.selectList(listId); if (taskId) actions.setOpenTaskId(taskId); }}
+          onStart={startPlan}
+          onDelete={removePlan}
+          onUpdateRange={updateRange}
+        />
+      )}
       <AnimatePresence>
         {editor ? (
           <PlannedSessionModal
@@ -148,6 +198,7 @@ export function PlannerPage() {
             snapshot={state.S}
             anchorDay={recordEditor.anchorDay}
             initialRange={recordEditor.range}
+            initialListId={recordEditor.initialListId}
             onClose={() => setRecordEditor(null)}
             onSave={async (taskId, range) => { if (await planner.record(taskId, range)) setRecordEditor(null); }}
           />

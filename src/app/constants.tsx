@@ -2,7 +2,15 @@ import React from "react";
 
 export const ATTENTION_TASKS_SIZE = 6;
 export const RECENT_TASKS_SIZE = 6;
+export const RECENT_LIST_TASKS_SIZE = 3;
+export const RECENT_TASKS_REFRESH_MS = 60_000;
 export const RECENT_LISTS_SIZE = 3;
+export const RECENT_TASKS_COPY = {
+  heading: "Jump back in",
+  empty: "Nothing played yet — press play on any task to start tracking.",
+  playSymbol: "▶",
+  activeSymbol: "⏸",
+} as const;
 export const DAILY_JAM_TASK_LIMIT = 3;
 export const DAILY_JAM_DUE_SOON_DAYS = 7;
 export const DAILY_JAM_SCHEDULE_LEAD_MINUTES = 60;
@@ -22,11 +30,29 @@ export const ZOOM_MIN = 0.8;
 export const ZOOM_MAX = 1.3;
 export const ZOOM_STEP = 0.1;
 
-// Insights Page Timeline
+// Sessions page
 export const TRACK_PX = 640;
 export const INSIGHTS_ICON_SIZE = 15;
 export const INSIGHTS_HERO_ICON_SIZE = 64;
+export const SESSION_WEEK_DAY_COUNT = 7;
+export const SESSION_WEEK_CHART_HEIGHT_PX = 220;
+export const SESSION_WEEK_UNSORTED_KEY = "unsorted";
+export const SESSIONS_PAGE_COPY = {
+  label: "Sessions",
+  navigationTitle: "Session history & analytics",
+  tourContent: "Track your progress. Remember, no permanent negative records here.",
+  trackedDaysLabel: "Days tracked",
+  weekChartHeading: "Time by life area",
+  weekChartSubheading: "Tracked focus time each day",
+  weekChartUnsortedLabel: "Unsorted",
+  weekChartEmptyDayLabel: "No tracked time",
+  weekChartAriaLabel: "Tracked focus time by life area for each day of the week",
+  weekChartAllSessionsLabel: "All sessions this week",
+  weekChartSelectedSessionsLabel: (dateLabel) => `Sessions for ${dateLabel}`,
+};
 export const HOME_ICON_SIZE = 15;
+export const TOPBAR_HISTORY_ICON_SIZE = 20;
+export const TOPBAR_ACTION_ICON_SIZE = 26;
 
 // Bounded planner calendar
 export const PLANNER_VIEW_KEY = "planner";
@@ -42,7 +68,7 @@ export const PLANNER_TIME_RAIL_WIDTH_PX = 58;
 export const PLANNER_MIN_BLOCK_HEIGHT_PX = 6;
 export const PLANNER_HOUR_LABEL_INTERVAL = 1;
 export const PLANNER_DEFAULT_START_HOUR = 9;
-export const PLANNER_TIME_STEP_MINUTES = 30;
+export const PLANNER_TIME_STEP_MINUTES = 1;
 export const PLANNER_TIME_INPUT_STEP_SECONDS = PLANNER_TIME_STEP_MINUTES * 60;
 export const PLANNER_TIME_STEP_MILLISECONDS = PLANNER_TIME_STEP_MINUTES * 60_000;
 export const PLANNER_DRAG_THRESHOLD_PX = 4;
@@ -290,19 +316,22 @@ export const SESSION_INTERVAL_KIND = {
   break: "break",
 } as const;
 export const SESSION_PLAYBACK_COPY = {
-  finishButton: "Finish session",
-  finishTitle: "Finish this session",
-  pauseTitle: "Pause session",
-  resumeTitle: "Resume session",
+  finishButton: "Stop session",
+  finishTitle: "Stop this session",
+  pauseTitle: "Stop session",
+  resumeTitle: "Start a new session",
   startTitle: "Start session",
-  switchTitle: "Finish current session?",
-  switchDescription: (taskName: string) => `Finish the current session and start ${taskName}?`,
-  switchConfirm: "Finish & start",
+  switchTitle: "Stop current session?",
+  switchDescription: (taskName: string) => `Stop the current session and start ${taskName}?`,
+  switchConfirm: "Stop & start",
   fallbackTaskName: "this task",
   commandErrorTitle: "Couldn't update the session",
   focusLabel: "Focus",
   breakLabel: "Break",
   pausedLabel: "Paused",
+  readyLabel: "Ready",
+  idleElapsedLabel: "0:00",
+  noTargetLabel: "—",
   recordingLabel: "Recording",
   recordingNowLabel: "now · recording",
   sessionLabel: "Session",
@@ -314,8 +343,8 @@ export const SESSION_PLAYBACK_COPY = {
     finished: "Finished",
   },
   taskActionLabels: {
-    pause: "pause",
-    resume: "resume",
+    pause: "stop",
+    resume: "start a new session",
     start: "start",
   },
   taskPlayTitle: (action: string, reward: string) => `Click to ${action}${reward ? ` — earns ${reward}` : ""}`,
@@ -356,6 +385,7 @@ export const TIMER_PLAY_TRIGGERS = {
   keyboardActivate: "keyboard_activate",
   keyboardShortcut: "keyboard_shortcut",
   homeDailyJam: "home_daily_jam",
+  recentTaskCard: "recent_task_card",
   rowMenu: "row_menu",
   taskRow: "task_row",
   playerTakeover: "player_takeover",
@@ -397,6 +427,7 @@ export const TASK_REPEAT_COPY = {
   rewardTitleSuffix: " per scheduled day",
   offDayStatus: "Not scheduled today",
   offDayNote: "This task returns on its selected days.",
+  completedTodayStatus: "Done today",
   dailyJamEmpty: DAILY_JAM_COPY.allClear,
 };
 
@@ -424,6 +455,7 @@ export const SETTINGS_DATA_COPY = {
 export const SETTINGS_SECTION_STORAGE_KEY = "tp.settingsSection";
 export const SETTINGS_NAV_LABEL = "Settings sections";
 export const KEYBINDINGS_STORAGE_KEY = "tp.keybindings";
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = "tp.sidebarCollapsed";
 export const KEYBOARD_SETTINGS_COPY = {
   enableTitle: "Enable keyboard shortcuts",
   disableTitle: "Disable keyboard shortcuts",
@@ -441,7 +473,7 @@ export const KEYBOARD_SETTINGS_COPY = {
       <div><kbd>Escape</kbd></div><div>Clear focus / close modals</div>
       <div><kbd>o</kbd></div><div>Go to Home</div>
       <div><kbd>p</kbd></div><div>Go to Planner</div>
-      <div><kbd>i</kbd></div><div>Go to Insights</div>
+      <div><kbd>i</kbd></div><div>Go to ${SESSIONS_PAGE_COPY.label}</div>
       <div><kbd>s</kbd></div><div>Go to Settings</div>
     </div>
   `,
@@ -570,3 +602,18 @@ export const ONBOARDING_WELCOME = {
   continueAsGuest: "Continue as Guest",
 };
 
+export const APP_LOADING = {
+  backgroundImage: "/onboarding-bg.jpg",
+  message: "Loading your tasks...",
+  welcome: (accountName?: string | null) => accountName
+    ? `Welcome back, ${accountName}`
+    : "Welcome back",
+};
+
+export const FEATURE_VISIBILITY = {
+  homeLifeBalanceRadar: false,
+};
+
+export const ACCOUNT_STORAGE_KEYS = {
+  displayName: "tp.accountDisplayName",
+};

@@ -1,8 +1,8 @@
-import { CircleStop, Heart, History, Pause, Play, SkipForward } from "lucide-react";
+import { Square, Heart, History, Pause, Play, SkipForward } from "lucide-react";
 import "./player.css";
-import { fmt } from "../utils.jsx";
-import { useApp } from "../context/AppContext.jsx";
-import { useMusic } from "../../music.jsx";
+import { fmt, isTaskTerminallyCompleted } from "../utils.jsx";
+import { useApp } from "../context/app-context-value";
+import { useMusic } from "../context/music-context-value";
 import { useSessionNow } from "../hooks/use-session-now";
 import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE, SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 
@@ -25,7 +25,7 @@ export function Player() {
   );
   const running = run.activeTaskId && run.phase ? helpers.findTask(run.activeTaskId) : null;
   let task = running || (run.lastTaskId ? helpers.findTask(run.lastTaskId) : null);
-  if (!running && task && task.completedAt) task = null;
+  if (!running && task && isTaskTerminallyCompleted(task)) task = null;
   const listItem = task ? helpers.list(task.listId) : null;
 
   const badge = (
@@ -46,7 +46,7 @@ export function Player() {
 
   const finishButton = () => (
     <button className="pbtn finish-session-btn" onClick={actions.finishSession} title={SESSION_PLAYBACK_COPY.finishTitle} aria-label={SESSION_PLAYBACK_COPY.finishButton}>
-      <CircleStop size={PLAYER_HISTORY_ICON_SIZE} aria-hidden="true" />
+      <Square size={PLAYER_HISTORY_ICON_SIZE} aria-hidden="true" fill="currentColor" />
     </button>
   );
 
@@ -83,7 +83,7 @@ export function Player() {
         <span className="art" style={{ background: `${listItem?.color}22`, color: listItem?.color }}>{listItem?.emoji}</span>
         <span className="player-task-copy">
           <span className="t">{task?.name}</span>
-          <span className="l">{listItem?.name}{running ? "" : " · paused"}</span>
+          <span className="l">{listItem?.name}{running ? "" : ` · ${SESSION_PLAYBACK_COPY.readyLabel}`}</span>
         </span>
       </button>
     );
@@ -143,9 +143,9 @@ export function Player() {
             {sessionActionButton(task.id)}
           </div>
           <div className="timeline">
-            <span className="clock">{fmt(logicalSession?.focusMs ?? helpers.taskTotal(task.id))}</span>
+            <span className="clock">{SESSION_PLAYBACK_COPY.idleElapsedLabel}</span>
             <div className="bar"><span style={{ width: 0 }} /></div>
-            <span className="clock">{logicalSession ? `${SESSION_PLAYBACK_COPY.breakLabel} ${fmt(logicalSession.breakMs)}` : timerTarget ? fmt(timerTarget) : "total"}</span>
+            <span className="clock">{timerTarget ? fmt(timerTarget) : SESSION_PLAYBACK_COPY.noTargetLabel}</span>
           </div>
         </>
       );
@@ -161,7 +161,7 @@ export function Player() {
           <div className="controls">
             {badge}
             <button className="pmain" onClick={actions.skipBreak} title="Skip break">⏭</button>
-            <button className="stopbtn" onClick={actions.finishSession}>{SESSION_PLAYBACK_COPY.finishButton}</button>
+            <button className="stopbtn" onClick={actions.stop}>{SESSION_PLAYBACK_COPY.finishButton}</button>
           </div>
           <div className="timeline">
             <span className="clock" id="liveclock" style={{ color: "var(--blue)" }}>{brkLabel} {fmt(rem)}</span>
@@ -181,7 +181,7 @@ export function Player() {
           <div className="controls">
             {badge}
             <button className="bigaction" onClick={actions.startBreak} title="Start break" style={{ background: "var(--blue)" }}>{btnLabel}</button>
-            <button className="stopbtn" onClick={actions.finishSession}>{SESSION_PLAYBACK_COPY.finishButton}</button>
+            <button className="stopbtn" onClick={actions.stop}>{SESSION_PLAYBACK_COPY.finishButton}</button>
           </div>
           <div className="timeline">
             <span className="clock" style={{ color: "var(--blue)" }}>Work session done</span>
@@ -198,7 +198,7 @@ export function Player() {
           <div className="controls">
             {badge}
             <button className="bigaction" onClick={actions.resumeWork} title="Start work" style={{ background: "var(--green)" }}>▶ Start work</button>
-            <button className="stopbtn" onClick={actions.finishSession}>{SESSION_PLAYBACK_COPY.finishButton}</button>
+            <button className="stopbtn" onClick={actions.stop}>{SESSION_PLAYBACK_COPY.finishButton}</button>
           </div>
           <div className="timeline">
             <span className="clock" style={{ color: "var(--green)" }}>Break's over</span>
@@ -226,8 +226,10 @@ export function Player() {
       <>
         <div className="controls">
           {badge}
-          <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerToggle)} title={SESSION_PLAYBACK_COPY.pauseTitle}>⏸</button>
-          {finishButton()}
+          <button className="pmain timer-toggle" onClick={() => actions.play(task.id, TIMER_PLAY_TRIGGERS.playerToggle)} title={SESSION_PLAYBACK_COPY.pauseTitle}>
+            <Square aria-hidden="true" fill="currentColor" size={19} />
+          </button>
+          {historyButton(task.id)}
         </div>
         <div className="timeline">
           <span className="clock" id="liveclock">{fmt(elapsed)}</span>

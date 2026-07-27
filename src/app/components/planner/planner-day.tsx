@@ -23,14 +23,26 @@ type PlannerDayProps = {
   onOpenReference: (listId: string, taskId?: string) => void;
   onStart: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdateRange: (blockKind: string, blockId: string, taskId: string, range: { start: number; end: number }) => void;
 };
 
-export function PlannerDay({ day, now, onAdd, onRecord, onSelectRange, onEdit, onEditActual, onOpenReference, onStart, onDelete }: PlannerDayProps) {
+export function PlannerDay({ day, now, onAdd, onRecord, onSelectRange, onEdit, onEditActual, onOpenReference, onStart, onDelete, onUpdateRange }: PlannerDayProps) {
   const nowDate = new Date(now);
   const nowTop = day.isToday
     ? (nowDate.getHours() + nowDate.getMinutes() / PLANNER_MINUTES_PER_HOUR) * PLANNER_HOUR_HEIGHT_PX
     : null;
   const dragSelection = usePlannerDragSelection(day.start, now, onSelectRange);
+
+  const getBounds = (block: PlannerBlockModel) => {
+    let minStart = day.start;
+    let maxEnd = day.end;
+    for (const other of day.blocks) {
+      if (other.id === block.id) continue;
+      if (other.end <= block.start) minStart = Math.max(minStart, other.end);
+      if (other.start >= block.end) maxEnd = Math.min(maxEnd, other.start);
+    }
+    return { minStart, maxEnd };
+  };
 
   return (
     <section className={`planner-day${day.isToday ? " is-today" : ""}`}>
@@ -63,9 +75,24 @@ export function PlannerDay({ day, now, onAdd, onRecord, onSelectRange, onEdit, o
         {Array.from({ length: PLANNER_GRID_LINE_COUNT }, (_, hour) => (
           <i key={hour} className="planner-grid-line" style={{ top: `${hour / PLANNER_HOURS_PER_DAY * 100}%` }} />
         ))}
-        {day.blocks.map((block) => (
-          <PlannerBlock key={`${block.id}:${day.start}`} block={block} dayStart={day.start} onEdit={onEdit} onEditActual={onEditActual} onOpenReference={onOpenReference} onStart={onStart} onDelete={onDelete} />
-        ))}
+        {day.blocks.map((block) => {
+          const bounds = getBounds(block);
+          return (
+            <PlannerBlock 
+              key={`${block.id}:${day.start}`} 
+              block={block} 
+              dayStart={day.start} 
+              minStart={bounds.minStart}
+              maxEnd={bounds.maxEnd}
+              onEdit={onEdit} 
+              onEditActual={onEditActual} 
+              onOpenReference={onOpenReference} 
+              onStart={onStart} 
+              onDelete={onDelete} 
+              onUpdateRange={onUpdateRange}
+            />
+          );
+        })}
         {dragSelection.preview ? (
           <div className={`planner-drag-selection planner-drag-${dragSelection.preview.kind}`} style={dragSelection.previewStyle}>
             {dragSelection.previewLabel}

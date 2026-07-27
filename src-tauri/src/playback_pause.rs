@@ -4,9 +4,9 @@ pub(crate) fn do_stop(state: &AppState, reason: &str, trigger: &str) {
     do_stop_at(state, now_ms(), reason, trigger);
 }
 
-/// Same as `do_stop`, but stores the focus interval as ending at `at_ms`
-/// instead of right now. Confirmed sleep uses the last known awake moment so
-/// time spent asleep becomes a break inside the still-open logical session.
+/// Same as `do_stop`, but closes the session at `at_ms` instead of right now.
+/// Confirmed sleep uses the last known awake moment so sleep is never counted
+/// as focus and the forgotten session cannot remain open indefinitely.
 pub(crate) fn do_stop_at(state: &AppState, at_ms: i64, reason: &str, trigger: &str) {
     persist_stop(state, at_ms, reason, trigger, None);
 }
@@ -35,13 +35,39 @@ fn persist_stop(
     let mut run = state.run.lock().unwrap();
     let previous = run.clone();
     let baseline = as_local_baseline(&run, &state.device_id);
-    let (mut next, log) = timer::pause(&baseline, at_ms);
+    let logical_session_id = baseline.active_session_id.clone();
+    let session_task_id = baseline
+        .active_task_id
+        .clone()
+        .or_else(|| baseline.last_task_id.clone());
+    let (mut next, log) = timer::finish(&baseline, at_ms);
     stamp_own(&mut next, &state.device_id, &state.device_name);
     *run = next;
     let db = state.db.lock().unwrap();
-    let session_result = log
-        .as_ref()
-        .map(|item| db.add_session_interval(item, previous.active_session_id.as_deref(), None));
+    let session_result = if let Some(logical_session_id) = logical_session_id.as_deref() {
+        let result = log
+            .as_ref()
+            .map(|item| db.add_session_interval(item, Some(logical_session_id), Some(at_ms)));
+        let finished_rows = db
+            .finish_logical_session(logical_session_id, at_ms)
+            .unwrap_or(0);
+        if finished_rows == 0 {
+            if let Some(task_id) = session_task_id {
+                let _ = db.add_session_interval(
+                    &taskplayer_core::SessionLog {
+                        task_id,
+                        start: at_ms,
+                        end: at_ms,
+                    },
+                    Some(logical_session_id),
+                    Some(at_ms),
+                );
+            }
+        }
+        result
+    } else {
+        log.as_ref().map(|item| db.add_session(item))
+    };
     let run_result = db.set_run(&run);
     let session_status = session_result
         .as_ref()

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarPlus, ChevronDown, Pencil } from "lucide-react";
+import { CalendarPlus, ChevronDown, Pencil, Check } from "lucide-react";
 import { fmt, toDateInputValue, jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { CADENCE_ICONS, DEPTH_ICONS, LOGICAL_SESSION_STATUS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_COPY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
@@ -225,12 +225,20 @@ export function TaskDetailModal() {
         <div className="foot">
           <button className="danger" onClick={() => actions.deleteTask(task.id)}>Delete task</button>
           {!task.cadence && !task.completedAt ? (
-            <button className="stopbtn task-detail-plan" onClick={() => {
-              actions.setOpenTaskId(null);
-              actions.navigate({ view: PLANNER_VIEW_KEY, planTaskId: task.id });
-            }}>
-              <CalendarPlus size={PLANNER_ICON_SIZE} />{PLANNER_COPY.planTaskButton}
-            </button>
+            <>
+              <button className="stopbtn task-detail-plan" onClick={() => {
+                actions.toggleDone(task.id);
+                actions.setOpenTaskId(null);
+              }}>
+                <Check size={PLANNER_ICON_SIZE} /> Mark as Done
+              </button>
+              <button className="stopbtn task-detail-plan" onClick={() => {
+                actions.setOpenTaskId(null);
+                actions.navigate({ view: PLANNER_VIEW_KEY, planTaskId: task.id });
+              }}>
+                <CalendarPlus size={PLANNER_ICON_SIZE} />{PLANNER_COPY.planTaskButton}
+              </button>
+            </>
           ) : null}
           <button className="stopbtn" disabled={task.cadence === "daily" && scheduleBlocked} onClick={() => {
             actions.setOpenTaskId(null);

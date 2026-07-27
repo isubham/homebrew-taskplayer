@@ -1,18 +1,49 @@
 use super::*;
 
-pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), String> {
-    let cursor = db.get_push_cursor();
-    let (lists, tasks, sessions) = db.dirty_since(cursor).map_err(|e| e.to_string())?;
-    let priorities = db
-        .life_area_priorities_dirty_since(cursor)
-        .map_err(|e| e.to_string())?;
-    let music_favorites = db
-        .music_favorites_dirty_since(cursor)
-        .map_err(|e| e.to_string())?;
-    let planned_sessions = db
-        .planned_sessions_dirty_since(cursor)
-        .map_err(|e| e.to_string())?;
-    let now = now_ms();
+pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> Result<(), String> {
+    let (
+        cursor,
+        lists,
+        tasks,
+        sessions,
+        priorities,
+        music_favorites,
+        planned_sessions,
+        run,
+        config,
+        user_settings,
+        now,
+    ) = {
+        let db = db_mutex.lock().unwrap();
+        let cursor = db.get_push_cursor();
+        let (lists, tasks, sessions) = db.dirty_since(cursor).map_err(|e| e.to_string())?;
+        let priorities = db
+            .life_area_priorities_dirty_since(cursor)
+            .map_err(|e| e.to_string())?;
+        let music_favorites = db
+            .music_favorites_dirty_since(cursor)
+            .map_err(|e| e.to_string())?;
+        let planned_sessions = db
+            .planned_sessions_dirty_since(cursor)
+            .map_err(|e| e.to_string())?;
+        let run = db.get_run();
+        let config = db.get_config();
+        let user_settings = db.get_user_settings();
+        let now = now_ms();
+        (
+            cursor,
+            lists,
+            tasks,
+            sessions,
+            priorities,
+            music_favorites,
+            planned_sessions,
+            run,
+            config,
+            user_settings,
+            now,
+        )
+    };
 
     upsert(
         access_token,
@@ -71,7 +102,7 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
     // `updated_at` only advances on an actual local play/pause/finish/phase
     // transition (see `RunState::updated_at`'s doc comment in models.rs), so
     // a device that hasn't touched its timer never has anything dirty here.
-    let run = db.get_run();
+    // a device that hasn't touched its timer never has anything dirty here.
     if run.updated_at > cursor {
         if let Some(remote_run) = RemoteRunState::from_local(&run, user_id) {
             upsert(access_token, "run_state", &[remote_run])?;
@@ -81,7 +112,7 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
     // Same story as run_state, one paragraph up — `config` is also a `meta`
     // JSON blob, not a real table, and only push it if a local settings
     // change actually bumped its own `updated_at` past the cursor.
-    let config = db.get_config();
+    // change actually bumped its own `updated_at` past the cursor.
     if config.updated_at > cursor {
         upsert(
             access_token,
@@ -90,7 +121,6 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
         )?;
     }
 
-    let user_settings = db.get_user_settings();
     if user_settings.updated_at > cursor {
         upsert(
             access_token,
@@ -99,5 +129,6 @@ pub(super) fn push(db: &Db, access_token: &str, user_id: &str) -> Result<(), Str
         )?;
     }
 
+    let db = db_mutex.lock().unwrap();
     db.set_push_cursor(now).map_err(|e| e.to_string())
 }

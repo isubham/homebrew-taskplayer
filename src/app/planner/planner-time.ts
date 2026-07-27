@@ -34,6 +34,11 @@ export const isoWeekday = (timestamp: number): number => {
   return weekday === 0 ? 7 : weekday;
 };
 
+export const startOfLocalWeek = (timestamp: number): number => {
+  const dayStart = startOfLocalDay(timestamp);
+  return addLocalDays(dayStart, 1 - isoWeekday(dayStart));
+};
+
 export const plannerTimestampAtMinute = (dayStart: number, minute: number): number => {
   const date = new Date(dayStart);
   date.setHours(

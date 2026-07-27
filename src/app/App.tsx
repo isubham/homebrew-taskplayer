@@ -8,13 +8,14 @@ import { Overlays } from "./components/Overlays.jsx";
 import { AddSessionModal } from "./components/add-session-modal.jsx";
 import { OnboardingModal } from "./components/onboarding.jsx";
 import { TourOverlay } from "./components/tour-overlay.jsx";
+import { AppLoadingScreen } from "./components/AppLoadingScreen";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { INSIGHTS_ICON_SIZE, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
+import { ACCOUNT_STORAGE_KEYS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { BarChart2, CalendarDays, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
+import { CalendarDays, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
 
 import { useTauriSubscriptions } from "./hooks/use-tauri-subscriptions.jsx";
 import { useSidebarSections } from "./hooks/use-sidebar-sections.jsx";
@@ -28,12 +29,13 @@ export function App() {
   const handleDragEnd = useAppDragAndDrop(state, helpers, actions, sections);
 
   if (!state.S) {
-    return <div className="focus-empty">Loading your tasks...</div>;
+    return <AppLoadingScreen accountName={localStorage.getItem(ACCOUNT_STORAGE_KEYS.displayName)} />;
   }
 
   const anyCollapsed = sections.some((section) => state.sidebarCollapsed[section.key]);
   const toggleAllTitle = anyCollapsed ? "Expand all list sections" : "Collapse all list sections";
   const attentionIds = new Set(helpers.attentionTasks().map((task) => task.id));
+  const menuTask = state.activeMenuTaskId ? helpers.findTask(state.activeMenuTaskId) : null;
 
   const sidebarListRowForState = (listItem) => {
     const count = helpers.tasksForList(listItem.id).length;
@@ -78,10 +80,6 @@ export function App() {
               <div data-tour-id="planner-nav" className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
                 <span className="li-icon"><CalendarDays size={PLANNER_ICON_SIZE} /></span>
                 <span className="li-label">{PLANNER_COPY.navigationLabel}</span>
-              </div>
-              <div data-tour-id="insights-nav" className={`list-item ${state.view === "insights" ? "active" : ""}`} onClick={() => actions.navigate({ view: "insights" })} title="Session history & analytics">
-                <span className="li-icon"><BarChart2 size={INSIGHTS_ICON_SIZE} /></span>
-                <span className="li-label">Insights</span>
               </div>
             </div>
             <div className="side-lists-heading">
@@ -184,9 +182,11 @@ export function App() {
         <AnimatePresence>
           {state.activeMenuTaskId && (
             <AnimatedContextMenu id="popmenu" className="popmenu show" style={{ left: state.menuPosition.left, top: state.menuPosition.top }}>
-              <button onClick={() => { actions.closeRowMenu(); actions.toggleDone(state.activeMenuTaskId); }}>
-                {helpers.findTask(state.activeMenuTaskId)?.completedAt ? "↩\u00a0 Mark as not done" : "✓\u00a0 Mark as done"}
-              </button>
+              {menuTask?.cadence !== "daily" ? (
+                <button onClick={() => { actions.closeRowMenu(); actions.toggleDone(state.activeMenuTaskId); }}>
+                  {menuTask?.completedAt ? "↩\u00a0 Mark as not done" : "✓\u00a0 Mark as done"}
+                </button>
+              ) : null}
               <button onClick={() => { actions.closeRowMenu(); actions.setOpenTaskId(state.activeMenuTaskId); }}>Edit</button>
               <button onClick={() => { actions.closeRowMenu(); actions.play(state.activeMenuTaskId, TIMER_PLAY_TRIGGERS.rowMenu); }}>
                 {state.S.run.activeTaskId === state.activeMenuTaskId && state.S.run.phase ? "⏸ Stop timer" : "▶ Start timer"}

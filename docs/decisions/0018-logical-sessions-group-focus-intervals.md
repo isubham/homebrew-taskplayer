@@ -1,6 +1,6 @@
 # 0018 — Logical sessions group focus intervals and derive breaks
 
-- Status: Accepted
+- Status: Superseded by [0019](0019-stop-closes-session.md)
 - Date: 2026-07-19
 - Owners: TaskPlayer
 - Related: [Feature catalog](../features.md), [Compatibility policy](../compatibility-policy.md),

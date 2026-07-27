@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { MUSIC_COPY, MUSIC_DEFAULTS, MUSIC_FAVORITES_VIBE_KEY, MUSIC_STORAGE_KEYS, MUSIC_STORAGE_VALUES } from "./app/constants.jsx";
 import { useMediaSession } from "./app/hooks/use-media-session.jsx";
 import { useMusicBridge } from "./app/hooks/use-music-bridge.jsx";
@@ -7,14 +7,11 @@ import { createWhiteNoiseUrl } from "./app/music-noise.ts";
 import { LEGACY_MUSIC_VIBE_KEYS, MUSIC_VIBES } from "./app/music-vibes.ts";
 import { useMusicFavorites } from "./app/hooks/use-music-favorites";
 import { useAudioFade } from "./app/hooks/use-audio-fade";
+import { MusicContextValueProvider } from "./app/context/music-context-value";
+
+export { useMusic } from "./app/context/music-context-value";
 
 export const GENRES = MUSIC_VIBES;
-
-const MusicContext = createContext(null);
-
-export function useMusic() {
-  return useContext(MusicContext);
-}
 
 export function MusicProvider({ children }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -193,7 +190,7 @@ export function MusicProvider({ children }) {
   useMusicBridge(musicState, { setActive, play, pause, next, previous, setGenre: changeGenre }, GENRES);
 
   return (
-    <MusicContext.Provider value={{
+    <MusicContextValueProvider value={{
       musicState,
       play,
       pause,
@@ -214,6 +211,6 @@ export function MusicProvider({ children }) {
         onPause={handlePlayStatusChange}
       />
       {children}
-    </MusicContext.Provider>
+    </MusicContextValueProvider>
   );
 }

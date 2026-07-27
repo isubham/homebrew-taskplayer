@@ -29,7 +29,7 @@ pub(crate) fn build_tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>
         app,
         "toggle",
         if active.is_some() {
-            "Pause"
+            "Stop"
         } else if open_task_id.is_some() {
             TRAY_RESUME_SESSION_LABEL
         } else {

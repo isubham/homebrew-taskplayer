@@ -5,7 +5,7 @@ import {
   DAILY_JAM_TASK_LIMIT,
   IMPACT_TIERS,
 } from "./constants.jsx";
-import { deadlineDate, repeatingTaskOccursOn } from "./utils.jsx";
+import { dailyPayoutOn, deadlineDate, isTaskTerminallyCompleted, repeatingTaskOccursOn } from "./utils.jsx";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -74,20 +74,19 @@ export function buildDailyJamAttentionEntries({ tasks, sessions, run, list, isAg
 
   return tasks
     .filter((task) => !isAgainstTask(task))
-    .filter((task) => !task.completedAt)
+    .filter((task) => !isTaskTerminallyCompleted(task))
     .map((task) => {
       const working = task.id === liveTaskId;
       const active = task.id === activeTaskId;
       const scheduledToday = task.cadence === "daily" && repeatingTaskOccursOn(task, todayStart);
-      const doneToday = scheduledToday && sessions.some((session) =>
-        session.taskId === task.id && session.start >= todayStart && session.start < todayStart + DAY_MS);
+      const doneToday = scheduledToday && dailyPayoutOn(task, sessions, todayStart);
       const windows = scheduledToday ? todayWindows(task, now) : [];
       const entry = {
         task,
         listItem: list(task.listId),
         active,
         working,
-        doneToday: working || doneToday,
+        doneToday,
         scheduledToday,
         scheduledMinute: windows[0] ?? null,
         lastTouchedAt: lastTouch.get(task.id) ?? Number.NEGATIVE_INFINITY,

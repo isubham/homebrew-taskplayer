@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
 import "./topbar.css";
-import { useApp } from "../context/AppContext.jsx";
+import { SESSIONS_PAGE_COPY, TOPBAR_ACTION_ICON_SIZE, TOPBAR_HISTORY_ICON_SIZE } from "../constants";
+import { useApp } from "../context/app-context-value";
 
 export function Topbar({ state, list, activeView }) {
   const { actions } = useApp();
@@ -38,6 +40,7 @@ export function Topbar({ state, list, activeView }) {
 
   return (
     <div className="topbar" data-tauri-drag-region>
+      <div className="topbar-content" data-tauri-drag-region>
       <div className="topbar-left">
         <button
           id="navback"
@@ -46,7 +49,7 @@ export function Topbar({ state, list, activeView }) {
           title="Back (⌘[)"
           disabled={!state.navBack?.length}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          <ChevronLeft size={TOPBAR_HISTORY_ICON_SIZE} aria-hidden="true" />
         </button>
         <button
           id="navfwd"
@@ -55,15 +58,15 @@ export function Topbar({ state, list, activeView }) {
           title="Forward (⌘])"
           disabled={!state.navFwd?.length}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          <ChevronRight size={TOPBAR_HISTORY_ICON_SIZE} aria-hidden="true" />
         </button>
       </div>
       <div className="topbar-center">
-        <button id="tbhome" className="topbar-navbtn" onClick={actions.goHome} title="Home">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" /></svg>
+        <button id="tbhome" className={`topbar-navbtn ${activeView === "home" ? "active" : ""}`} onClick={actions.goHome} title="Home">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" /></svg>
         </button>
         <div className="topbar-search" id="topbarSearchWrap" style={{ position: "relative" }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
             id="topbarSearch"
             type="text"
@@ -123,16 +126,26 @@ export function Topbar({ state, list, activeView }) {
       <div className="topbar-right">
         <div className="topbar-icons" id="topbarIcons">
           <button
+            data-tour-id="insights-nav"
+            className={activeView === "insights" ? "active" : ""}
+            onClick={() => actions.navigate({ view: "insights" })}
+            title={SESSIONS_PAGE_COPY.navigationTitle}
+          >
+            <BarChart2 size={TOPBAR_ACTION_ICON_SIZE} aria-hidden="true" />
+          </button>
+          <button
+            id="topbarSettings"
             className={activeView === "settings" ? "active" : ""}
             onClick={() => actions.navigate({ view: "settings" })}
             title="Settings"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

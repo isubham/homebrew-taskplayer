@@ -1,0 +1,8 @@
+.sidebar-story-frame {
+  width: var(--sidebar-width);
+  height: 680px;
+  padding: 20px 14px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: var(--bg);
+}

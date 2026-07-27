@@ -20,6 +20,7 @@ pub(crate) const ONGOING_SESSION_TASK_CONFLICT_MSG: &str =
 pub(crate) const RUN_PHASE_WORK: &str = "work";
 pub(crate) const TIMER_PAUSE_LOG_EVENT: &str = "timer.pause";
 pub(crate) const TIMER_PAUSE_REASON_EXPLICIT_STOP: &str = "explicit_stop";
+pub(crate) const TIMER_PAUSE_REASON_DAY_BOUNDARY: &str = "local_day_boundary";
 pub(crate) const TIMER_PAUSE_REASON_DATA_IMPORT: &str = "data_import";
 pub(crate) const TIMER_PAUSE_REASON_ORPHANED_TASK: &str = "orphaned_task";
 pub(crate) const TIMER_PAUSE_REASON_POMODORO_BREAK: &str = "pomodoro_break";
@@ -28,6 +29,7 @@ pub(crate) const TIMER_PAUSE_REASON_SAME_TASK_TOGGLE: &str = "same_task_toggle";
 pub(crate) const TIMER_PAUSE_REASON_SYSTEM_SLEEP: &str = "confirmed_system_sleep";
 pub(crate) const TIMER_PAUSE_TRIGGER_FRONTEND_PLAY: &str = "frontend_play";
 pub(crate) const TIMER_PAUSE_TRIGGER_FRONTEND_STOP: &str = "frontend_stop";
+pub(crate) const TIMER_PAUSE_TRIGGER_TIMER_TICK: &str = "timer_tick";
 pub(crate) const TIMER_PAUSE_TRIGGER_IMPORT_DATA: &str = "import_data";
 pub(crate) const TIMER_PAUSE_TRIGGER_LIST_DELETE: &str = "list_delete";
 pub(crate) const TIMER_PAUSE_TRIGGER_PLANNED_SESSION: &str = "planned_session";
@@ -44,8 +46,8 @@ pub(crate) const TIMER_WRITE_STATUS_ERROR: &str = "error";
 pub(crate) const TIMER_TICK_INTERVAL_MS: u64 = 1_000;
 pub(crate) const TARGET_REACHED_NOTIFICATION_TITLE: &str = "Target reached 🎯";
 pub(crate) const TRAY_FINISH_SESSION_ID: &str = "finish_session";
-pub(crate) const TRAY_FINISH_SESSION_LABEL: &str = "Finish session";
-pub(crate) const TRAY_RESUME_SESSION_LABEL: &str = "Resume";
+pub(crate) const TRAY_FINISH_SESSION_LABEL: &str = "Stop session";
+pub(crate) const TRAY_RESUME_SESSION_LABEL: &str = "Start new session";
 
 pub(crate) fn target_reached_notification_body(target_min: i64, task_name: &str) -> String {
     format!(

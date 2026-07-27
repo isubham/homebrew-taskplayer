@@ -5,6 +5,7 @@
 node_modules/
 dist/
 dist-ssr/
+storybook-static/
 *.local
 npm-debug.log*
 yarn-debug.log*
@@ -43,4 +44,3 @@ output/
 
 .pnpm/
 .pnpm-store/
-

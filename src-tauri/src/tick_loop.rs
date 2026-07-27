@@ -1,11 +1,34 @@
 use super::*;
 
+fn next_local_day_boundary(started_at: i64) -> Option<i64> {
+    let started = Local.timestamp_millis_opt(started_at).single()?;
+    let next_date = started.date_naive().succ_opt()?;
+    Local
+        .from_local_datetime(&next_date.and_hms_opt(0, 0, 0)?)
+        .earliest()
+        .map(|midnight| midnight.timestamp_millis())
+}
+
 pub(crate) fn spawn(app: &mut tauri::App) {
     // --- background loop: pomodoro transitions + tray refresh ---
     let handle = app.handle().clone();
     std::thread::spawn(move || {
+        let mut last_tick_ms = now_ms();
         loop {
             std::thread::sleep(Duration::from_millis(TIMER_TICK_INTERVAL_MS));
+            
+            let now = now_ms();
+            let elapsed = now.saturating_sub(last_tick_ms);
+            last_tick_ms = now;
+            
+            // If the thread slept for significantly longer than intended (e.g., > 5 seconds),
+            // the system was likely suspended. We skip processing this tick to avoid a race
+            // condition where the tick thread completes a session before the system sleep
+            // observer can process the macOS wake notification and pause it properly.
+            if elapsed > TIMER_TICK_INTERVAL_MS as i64 + 5000 {
+                continue;
+            }
+
             // The whole per-tick body is panic-guarded: this thread runs
             // for the entire lifetime of the app, so an unhandled panic
             // here (a bug we didn't anticipate) would otherwise silently
@@ -15,7 +38,6 @@ pub(crate) fn spawn(app: &mut tauri::App) {
             // not "the timer is now permanently broken until restart".
             guard("pomodoro tick", || {
                 let state = handle.state::<AppState>();
-                let now = now_ms();
 
                 let owned = is_own(&state.run.lock().unwrap(), &state.device_id);
 
@@ -39,6 +61,19 @@ pub(crate) fn spawn(app: &mut tauri::App) {
                         state.config.lock().unwrap().clone(),
                     )
                 };
+                let phase_started_at = run.running_start.or(run.break_start);
+                let day_boundary = phase_started_at.and_then(next_local_day_boundary);
+                if let Some(boundary) = day_boundary.filter(|boundary| *boundary <= now) {
+                    do_stop_at(
+                        state.inner(),
+                        boundary,
+                        TIMER_PAUSE_REASON_DAY_BOUNDARY,
+                        TIMER_PAUSE_TRIGGER_TIMER_TICK,
+                    );
+                    push(&handle);
+                    refresh(&handle);
+                    return;
+                }
                 let (nr, t) = timer::tick(&run, &config, now);
                 let mut transitioned = false;
                 match t {
@@ -171,4 +206,25 @@ pub(crate) fn spawn(app: &mut tauri::App) {
             });
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn day_boundary_is_the_next_local_midnight() {
+        let started = Local
+            .with_ymd_and_hms(2026, 7, 26, 23, 45, 0)
+            .single()
+            .unwrap()
+            .timestamp_millis();
+        let expected = Local
+            .with_ymd_and_hms(2026, 7, 27, 0, 0, 0)
+            .single()
+            .unwrap()
+            .timestamp_millis();
+
+        assert_eq!(next_local_day_boundary(started), Some(expected));
+    }
 }

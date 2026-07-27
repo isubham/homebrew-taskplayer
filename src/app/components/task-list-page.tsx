@@ -1,12 +1,14 @@
 import React from "react";
 import _ from "lodash";
-import { albumColor, fmtHM, fmtLong, fmtEst, LIFE_AREAS } from "../utils.jsx";
+import { albumColor, fmtHM, fmtLong, fmtEst, isTaskTerminallyCompleted, LIFE_AREAS } from "../utils.jsx";
 import { groupWeeklyWindows } from "../weekly-schedule.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { TaskRow, TaskTableHead } from "./task-row.jsx";
-import { useApp } from "../context/AppContext.jsx";
-import { TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { useApp } from "../context/app-context-value";
+import { RECENT_LIST_TASKS_SIZE, RECENT_TASKS_COPY, RECENT_TASKS_REFRESH_MS, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { Droppable } from "@hello-pangea/dnd";
+import { RecentTaskCards } from "./recent-task-cards";
+import { useSessionNow } from "../hooks/use-session-now";
 
 const withEstimate = (timeText, estimateMin) => estimateMin ? `${timeText} of ${fmtEst(estimateMin)}` : timeText;
 
@@ -74,15 +76,17 @@ const availabilityLabel = (windows = []) => {
 };
 
 export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, listTotal, listEstimateTotal, attentionTaskIds }) {
-  const { actions } = useApp();
-  const todo = all.filter((task) => !task.completedAt);
+  const { actions, helpers } = useApp();
+  useSessionNow(state.S?.run?.activeSessionId, RECENT_TASKS_REFRESH_MS);
+  const todo = all.filter((task) => !isTaskTerminallyCompleted(task));
   const dailyTodo = todo.filter((task) => task.cadence === "daily");
   const oneTimeTodo = todo.filter((task) => task.cadence !== "daily");
-  const done = all.filter((task) => task.completedAt).sort((a, b) => b.completedAt - a.completedAt);
+  const done = all.filter(isTaskTerminallyCompleted).sort((a, b) => b.completedAt - a.completedAt);
   const rowContext = { state, listItem, taskSessions, taskTotal, attentionTaskIds };
   const trackedMs = listTotal(listItem.id);
   const estimateMin = listEstimateTotal(listItem.id);
   const progressPct = estimateMin ? Math.min(100, (trackedMs / (estimateMin * 60_000)) * 100) : 0;
+  const recentTasks = helpers.recentTasks(RECENT_LIST_TASKS_SIZE, listItem.id);
 
   const lifeArea = LIFE_AREAS.find((area) => area.key === listItem.lifeArea);
   const areaName = lifeArea?.key === "career" ? "Career" : lifeArea?.label;
@@ -171,6 +175,12 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
       <div className="list-action-row">
         <button className="pill list-add-task" onClick={actions.addTask}>＋ Add task</button>
       </div>
+      {recentTasks.length ? (
+        <section className="list-recent-work">
+          <h4>{RECENT_TASKS_COPY.heading}</h4>
+          <RecentTaskCards entries={recentTasks} />
+        </section>
+      ) : null}
       {todo.length ? (
         <>
           <div className="task-kind-label">{TASK_REPEAT_COPY.sectionLabel} <span>· {dailyTodo.length}</span></div>

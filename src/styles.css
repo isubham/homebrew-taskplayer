@@ -1,5 +1,8 @@
 :root{
   --bg:#121212; --bg2:#181818; --bg3:#242424; --elev:#2a2a2a;
+  --chrome-bar-bg:#000;
+  --topbar-content-height:80%;
+  --topbar-search-font-size:16px;
   /* Calm teal, not Spotify's brand green — deliberately distinct hue (not just
      a darker/lighter shade of it) so the app's identity doesn't read as
      borrowed. Variable names (--green/--green-hi) are kept as-is rather than

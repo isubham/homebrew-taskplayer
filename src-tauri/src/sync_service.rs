@@ -17,7 +17,7 @@ pub(crate) fn run_sync(app: &AppHandle) {
             return;
         }
         if let Some(last_sync) = status.last_synced_at {
-            if now_ms() - last_sync < 5000 {
+            if now_ms() - last_sync < 30000 {
                 return;
             }
         }
@@ -25,10 +25,7 @@ pub(crate) fn run_sync(app: &AppHandle) {
     }
     push(app);
 
-    let mut result = {
-        let db = state.db.lock().unwrap();
-        sync::sync_once(&db, &access_token, &user_id)
-    };
+    let mut result = sync::sync_once(&state.db, &access_token, &user_id);
 
     // The proactive refresh above covers the common case, but if the token
     // was revoked, clock-skewed, or expired mid-request anyway, treat a 401
@@ -37,8 +34,7 @@ pub(crate) fn run_sync(app: &AppHandle) {
         match do_refresh(app) {
             Ok(new_token) => {
                 access_token = new_token;
-                let db = state.db.lock().unwrap();
-                result = sync::sync_once(&db, &access_token, &user_id);
+                result = sync::sync_once(&state.db, &access_token, &user_id);
             }
             Err(e) => {
                 // The server already rejected this access token. On a
@@ -119,18 +115,14 @@ pub(crate) fn run_login_sync(app: &AppHandle) {
     }
     push(app);
 
-    let mut result = {
-        let db = state.db.lock().unwrap();
-        sync::sync_login(&db, &access_token)
-    };
+    let mut result = sync::sync_login(&state.db, &access_token);
 
     // Same 401-retry-once safety net as `run_sync`.
     if matches!(&result, Err(e) if e.contains("HTTP 401")) {
         match do_refresh(app) {
             Ok(new_token) => {
                 access_token = new_token;
-                let db = state.db.lock().unwrap();
-                result = sync::sync_login(&db, &access_token);
+                result = sync::sync_login(&state.db, &access_token);
             }
             Err(e) => {
                 let invalid_session = e.invalid_session();

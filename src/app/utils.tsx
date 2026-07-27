@@ -143,6 +143,10 @@ export function repeatingTaskOccursOn(task, dayStart) {
   return weekdays.has(weekday);
 }
 
+export function isTaskTerminallyCompleted(task) {
+  return task.cadence !== "daily" && Boolean(task.completedAt);
+}
+
 export function dailyPayoutOn(task, sessions, dayStart) {
   if (!repeatingTaskOccursOn(task, dayStart)) return false;
   const dayEnd = dayStart + 24 * 60 * 60 * 1000;

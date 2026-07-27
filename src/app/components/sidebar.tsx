@@ -1,11 +1,11 @@
 import "./sidebar.css";
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/app-context-value";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { GripIcon } from "lucide-react";
 import { FinderFolderChevron, FinderFolderContent } from "./finder-folder-motion";
 import { LifeAreaIcon } from "./life-area-icon";
-import { SIDEBAR_UNSORTED_KEY } from "../constants";
+import { SIDEBAR_COLLAPSED_STORAGE_KEY, SIDEBAR_UNSORTED_KEY } from "../constants";
 
 export function SidebarListRow({ listItem, detail, active, playing, attention, onClick }) {
   const handleKeyDown = (e) => {
@@ -40,7 +40,7 @@ export function Sidebar({ sections, collapsed, rowForList }) {
   const toggleSection = (key) => {
     setSidebarCollapsed((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem("tp.sidebarCollapsed", JSON.stringify(next));
+      localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   };

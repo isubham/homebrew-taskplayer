@@ -1,14 +1,14 @@
 import React, { useMemo } from "react";
-import { fmtLong, fmtHM, LIFE_AREAS, timeAgo, IMPACT_TIERS } from "../utils.jsx";
+import { fmtLong, fmtHM, LIFE_AREAS, IMPACT_TIERS } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { DailyJam } from "./daily-jam.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { DAILY_JAM_COPY, HOME_ICON_SIZE, LOGICAL_SESSION_STATUS, RECENT_TASKS_SIZE, SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { DAILY_JAM_COPY, FEATURE_VISIBILITY, HOME_ICON_SIZE, RECENT_TASKS_COPY, RECENT_TASKS_SIZE } from "../constants.jsx";
 import { visibleDailyJamAttentionCount } from "../daily-jam-attention";
 import { NextPlannedBlock } from "./planner/next-planned-block";
-import { SessionBreakdown } from "./session-breakdown";
 import { useSessionNow } from "../hooks/use-session-now";
 import { House } from "lucide-react";
+import { RecentTaskCards } from "./recent-task-cards";
 
 const HOME_ICON = <House size={HOME_ICON_SIZE} aria-hidden="true" />;
 
@@ -233,7 +233,7 @@ function LifeBalanceGrid({ lifeBalanceDailyGrid, selectedGridCell, onSelectCell,
 }
 
 export function HomePage() {
-  const { state, helpers, actions, setSelectedAgainstArea, setSelectedGridCell, setLifeBalanceAgainst } = useApp();
+  const { state, helpers, setSelectedAgainstArea, setSelectedGridCell, setLifeBalanceAgainst } = useApp();
   useSessionNow(state.S?.run?.activeSessionId, 60000);
 
   const radarScores = useMemo(() => helpers.lifeBalanceScores(), [helpers, state.S]);
@@ -300,54 +300,8 @@ export function HomePage() {
       </div>
       <div className="home-body">
         <section className="home-section">
-          <h4>Jump back in</h4>
-          <div className="jb-grid">
-            {jump.length ? (
-              jump.map((entry, idx) => {
-                const { task, at, live, ongoing, logicalSession } = entry;
-                const listItem = helpers.list(task.listId);
-                const meta = live
-                  ? <span style={{ color: "var(--green)" }}>{SESSION_PLAYBACK_COPY.recordingNowLabel}</span>
-                  : ongoing
-                    ? <span>{logicalSession?.status === LOGICAL_SESSION_STATUS.break ? SESSION_PLAYBACK_COPY.breakLabel : SESSION_PLAYBACK_COPY.pausedLabel}</span>
-                    : timeAgo(at);
-                return (
-                  <div
-                    key={idx}
-                    className="jb-card"
-                    onClick={() => {
-                      actions.selectList(task.listId);
-                      actions.setOpenTaskId(task.id);
-                    }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <span className="jb-dot" style={{ background: listItem ? listItem.color : "#555" }} />
-                    <div className="jb-body">
-                      <div className="jb-name">{task.name}</div>
-                      <div className="jb-meta">{listItem ? listItem.name + " · " : ""}{meta}</div>
-                      {ongoing && logicalSession ? <SessionBreakdown compact focusMs={logicalSession.focusMs} breakMs={logicalSession.breakMs} /> : null}
-                    </div>
-                    <button
-                      className="jb-play"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        actions.play(task.id, TIMER_PLAY_TRIGGERS.homeDailyJam);
-                      }}
-                      title={live
-                        ? SESSION_PLAYBACK_COPY.pauseTitle
-                        : ongoing
-                          ? SESSION_PLAYBACK_COPY.resumeTitle
-                          : SESSION_PLAYBACK_COPY.startTitle}
-                    >
-                      {live ? "⏸" : "▶"}
-                    </button>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="home-empty">Nothing played yet — press play on any task to start tracking.</div>
-            )}
-          </div>
+          <h4>{RECENT_TASKS_COPY.heading}</h4>
+          <RecentTaskCards entries={jump} showListName />
         </section>
         <section className="home-section">
           <h4>
@@ -371,7 +325,7 @@ export function HomePage() {
         <section className="home-section">
           <h4>
             Life balance <span className="home-sub-note">· last 7 days</span>
-            {hasLifeTags && hasAgainst && (
+            {FEATURE_VISIBILITY.homeLifeBalanceRadar && hasLifeTags && hasAgainst && (
               <button className="home-toggle" onClick={() => setLifeBalanceAgainst(!againstOn)}>
                 {againstOn ? "Hide what's pulling against" : "Show what's pulling against"}
               </button>
@@ -379,23 +333,27 @@ export function HomePage() {
           </h4>
           {hasLifeTags ? (
             <>
-              <div className="home-radar">
-                <LifeRadar
-                  scores={radarScores}
-                  against={againstOn}
-                  selectedAgainst={againstOn ? state.selectedAgainstArea : null}
-                  onSelectAgainst={handleSelectAgainst}
-                />
-              </div>
-              {againstOn && hasAgainst && (
-                <div className="radar-legend">
-                  <span className="rl-swatch" />Time pulling against your areas · last 7 days · tap a grey dot for detail
-                </div>
-              )}
-              {againstOn && state.selectedAgainstArea && (
-                <div className="against-detail-wrap">
-                  <AgainstDetail areaKey={state.selectedAgainstArea} againstContributors={helpers.againstContributors} />
-                </div>
+              {FEATURE_VISIBILITY.homeLifeBalanceRadar && (
+                <>
+                  <div className="home-radar">
+                    <LifeRadar
+                      scores={radarScores}
+                      against={againstOn}
+                      selectedAgainst={againstOn ? state.selectedAgainstArea : null}
+                      onSelectAgainst={handleSelectAgainst}
+                    />
+                  </div>
+                  {againstOn && hasAgainst && (
+                    <div className="radar-legend">
+                      <span className="rl-swatch" />Time pulling against your areas · last 7 days · tap a grey dot for detail
+                    </div>
+                  )}
+                  {againstOn && state.selectedAgainstArea && (
+                    <div className="against-detail-wrap">
+                      <AgainstDetail areaKey={state.selectedAgainstArea} againstContributors={helpers.againstContributors} />
+                    </div>
+                  )}
+                </>
               )}
               <LifeBalanceGrid
                 lifeBalanceDailyGrid={helpers.lifeBalanceDailyGrid}

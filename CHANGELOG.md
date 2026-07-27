@@ -8,7 +8,7 @@ move those entries into a dated version section.
 
 
 
-## 0.9.7- 2026-07-27
+## 0.9.7 - 2026-07-27
 
 ### Changed
 

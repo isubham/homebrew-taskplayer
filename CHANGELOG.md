@@ -10,6 +10,8 @@ move those entries into a dated version section.
 
 ## 0.9.7- 2026-07-27
 
+### Changed
+
 no changes
 
 ## 0.9.6 - 2026-07-27

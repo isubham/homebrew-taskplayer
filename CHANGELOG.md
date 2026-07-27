@@ -37,6 +37,9 @@ move those entries into a dated version section.
   calendar weeks.
 - Enlarged top-bar search text and expanded it to use the field's full height.
 
+
+## 0.9.5 - 2026-07-22 
+
 ### Added
 
 - Added a Storybook component workshop with interactive Sidebar, Topbar, mini-player, and task-list

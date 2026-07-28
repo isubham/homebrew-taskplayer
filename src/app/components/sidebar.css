@@ -73,11 +73,6 @@
   & .sidebar-equalizer { display: flex; align-items: center; justify-content: center; flex: none; color: var(--green-hi); }
   & .sidebar-equalizer svg { display: block; }
 
-  & .drag-grip { width: 12px; flex: none; display: flex; align-items: center; color: var(--muted); opacity: 0; cursor: grab; }
-  & .list-item:hover .list-grip { opacity: .55; }
-  & .list-grip:hover { opacity: 1; }
-  & .list-item:active .list-grip, & .list-item.dragging .list-grip { cursor: grabbing; }
-
   & .list-section { margin-bottom: 8px; }
 
   & .ls-header {
@@ -100,17 +95,14 @@
     & .ls-header.priority-drag-over-top::before, & .ls-header.priority-drag-over-bottom::before { animation: none; }
   }
 
-  & .ls-priority-grip:active { cursor: grabbing; }
-  & .ls-header:hover .ls-priority-grip { opacity: .55; }
-  & .ls-priority-grip:hover { opacity: 1 !important; }
-  & .ls-area-icon { flex: none; display: flex; align-items: center; }
-  & .ls-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & .ls-area-icon { width: 18px; flex: none; display: flex; align-items: center; justify-content: center; }
+  & .ls-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
   & .ls-chevron { flex: none; width: 18px; display: grid; place-items: center; opacity: .45; transition: opacity .12s; }
   & .ls-chevron svg { display: block; }
   & .ls-header:hover .ls-chevron { opacity: .8; }
 
-  & .ls-body { margin-left: 18px; }
-  & .ls-body .list-item { min-height: 32px; padding: 7px 8px 7px 19px; }
+  & .ls-body { margin-left: 0; }
+  & .ls-body .list-item { min-height: 32px; padding: 7px 8px 7px 10px; }
 
   & .ls-invite {
     display: block; width: 100%; text-align: left; background: none; border: none; padding: 7px 8px 7px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font-weight: 500; font-size: 13px; opacity: .7;

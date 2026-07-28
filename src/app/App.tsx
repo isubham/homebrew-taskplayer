@@ -11,7 +11,7 @@ import { TourOverlay } from "./components/tour-overlay.jsx";
 import { AppLoadingScreen } from "./components/AppLoadingScreen";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { ACCOUNT_STORAGE_KEYS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
+import { ACCOUNT_STORAGE_KEYS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
@@ -156,7 +156,7 @@ export function App() {
               <div className="dtitle">{state.dialog.title}</div>
               <div className="dbody">
                 {state.dialog.type === "prompt" && <input className="dinput" value={state.dialogInput || ""} onChange={(e) => setDialogInput(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === "Enter") actions.resolveDialog(state.dialogInput); }} />}
-                {state.dialog.type === "album" && <input className="dinput" value={state.dialogInput || ""} onChange={(e) => setDialogInput(e.target.value)} placeholder="Singles" autoFocus onKeyDown={(e) => { if (e.key === "Enter") actions.resolveDialog(state.dialogInput); }} />}
+                {state.dialog.type === "album" && <input className="dinput" value={state.dialogInput || ""} onChange={(e) => setDialogInput(e.target.value)} placeholder={TASK_ALBUM_COPY.namePlaceholder} autoFocus onKeyDown={(e) => { if (e.key === "Enter") actions.resolveDialog(state.dialogInput); }} />}
                 {state.dialog.type === "lyrics" && <textarea className="dtextarea" style={{ height: "250px", fontFamily: "inherit" }} value={state.dialogInput || ""} onChange={(e) => setDialogInput(e.target.value)} autoFocus />}
                 {(state.dialog.type === "confirm" || state.dialog.type === "note") && (state.dialog.messageHtml ? <div dangerouslySetInnerHTML={{ __html: state.dialog.messageHtml }} /> : <div className="dbody">{state.dialog.message}</div>)}
               </div>

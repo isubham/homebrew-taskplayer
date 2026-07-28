@@ -109,7 +109,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Edit List separates list details from availability with a single section divider.
 - Deleting a list soft-deletes its tasks and sessions for sync safety.
 - Lists display incomplete/done counts, tracked time, and combined estimates.
-- Tasks can be dragged between lists and album sections.
+- Tasks can be dragged by grabbing anywhere on their row, then reordered or moved between lists
+  and album sections; task-row drag-grip icons are intentionally omitted, and task titles retain
+  the pointer cursor that indicates they open task detail.
 - Selecting a task row opens task detail directly; rows omit a redundant overflow-menu trigger.
 
 ### Life-area filing — Shipped
@@ -128,9 +130,11 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Life-area planning priority — Shipped foundation
 
 - Life areas can be reordered in the sidebar from most to least important.
-- The grip appears on hover, while the full life-area header uses the same drag interaction and
-  subdued dragging feedback as list rows.
-- List rows and life-area headers share the same inline, fixed-width drag-grip styling.
+- Full life-area headers and list rows are draggable without dedicated drag-grip icons and retain
+  subdued dragging feedback.
+- Life-area and list icons share the same leading alignment in the sidebar.
+- Life-area labels use a smaller bold treatment and their assigned area color to distinguish them
+  from list names at a glance.
 - Priority order is stored in SQLite and synced through Supabase.
 - **Known gap:** priority is not yet enforced when starting a task or adding a session.
 - Automatic planning uses this priority after deadline order and before task order.
@@ -159,7 +163,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Create and edit use the same two-column task-detail layout.
 - The One-time/Repeating selector uses compact horizontal pills so it does not compete with
   the primary task fields.
-- Rename, move, reorder, delete, complete/uncomplete, and group tasks into free-form albums.
+- Rename, move, reorder, delete, complete/uncomplete, and group tasks into persistent albums.
+  Albums are list-owned entities, remain visible while empty, and sync independently of tasks.
 - Add or edit notes (“Lyrics”) inline or from the dedicated overlay.
 - The Now Playing focus page keeps the current task’s free-form context directly editable and
   pairs it with two glanceable progress surfaces: the current session and the task overall.
@@ -177,8 +182,13 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   planning column, directly above session settings.
 - List detail uses a playlist-style hero with cover art, track/completion counts, recorded time,
   life-area direction, a compact availability summary, and a physical tracked-versus-estimated
-  time bar. A top-right Edit List icon stays in the hero while Add Task gets its own row directly
-  below it; there is no list-wide Play action, and the sidebar no longer carries edit pencils.
+  time bar. A top-right Edit List icon stays in the hero while Add Task and Add Album get their
+  own row directly below it; Add Album creates an immediately visible, independently persisted
+  album even when it has no tasks. There is no list-wide Play action, and the sidebar no longer
+  carries edit pencils.
+- New one-time tasks can be assigned to an existing album during creation.
+- Album headers are direct drop targets, including when the album is empty; dropping on a header
+  moves the task into that album.
 - Task lists show Repeating tasks first and One-time tasks below, with blue section labels.
 - Task lists surface up to three unfinished tasks most recently worked on in that list, with
   direct task-detail and session-start controls.
@@ -191,6 +201,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Optional minimum and maximum useful session size.
 - Completion is terminal until manually unchecked.
 - Deterministic jewels pay once on completion when an impact tier is set.
+- Life-balance and rank summaries are loaded through generated Tauri bindings in development and
+  production.
 - Estimate progress is shown physically as session segments inside a capacity bar.
 - Going over estimate remains visible without punitive color or language.
 

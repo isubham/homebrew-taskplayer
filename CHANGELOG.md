@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 [Semantic Versioning](https://semver.org/). Add new work under **Unreleased**; during a release,
 move those entries into a dated version section.
 
+## Unreleased
+
+### Added
+
+- Added first-class albums stored independently in SQLite and Supabase. Add Album on list detail
+  now creates an immediately visible empty album, existing task groups are migrated automatically,
+  and new one-time tasks can select an existing album.
+
+### Fixed
+
+- Fixed the development binding exporter removing `getRankInfo` and crashing CoreProvider after
+  the generated TypeScript bindings were refreshed.
+- Fixed empty album headers not accepting dragged tasks because only their zero-height task table
+  had been registered as a drop target.
+
+### Changed
+
+- Task rows can now be dragged from anywhere on the row; the dedicated drag icon was removed,
+  while task titles retain their pointer cursor.
+- Removed sidebar drag icons from life areas and lists, and aligned both icon columns.
+- Made sidebar life-area labels smaller, bold, and colored with their assigned area color.
 
 
 ## 0.9.7 - 2026-07-27

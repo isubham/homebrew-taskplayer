@@ -2,6 +2,7 @@ use crate::models::*;
 use rusqlite::{params, types::Type, Connection, OptionalExtension, Row};
 
 mod planned_sessions;
+mod albums;
 
 const PALETTE: [&str; 8] = [
     "#2f9e8f", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
@@ -370,6 +371,10 @@ impl Db {
             params![now, id],
         )?;
         self.conn.execute(
+            "UPDATE albums SET deleted_at=?1, updated_at=?1 WHERE list_id=?2",
+            params![now, id],
+        )?;
+        self.conn.execute(
             "UPDATE lists SET deleted_at=?1, updated_at=?1 WHERE id=?2",
             params![now, id],
         )?;
@@ -566,6 +571,14 @@ impl Db {
     /// empty text input) reads back as "no album" rather than an empty tag.
     pub fn set_album(&self, id: &str, album: Option<&str>) -> rusqlite::Result<()> {
         let album = album.map(str::trim).filter(|s| !s.is_empty());
+        if let Some(name) = album {
+            let list_id = self.conn.query_row(
+                "SELECT list_id FROM tasks WHERE id=?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )?;
+            self.add_album(&list_id, name)?;
+        }
         self.conn.execute(
             "UPDATE tasks SET album=?1, updated_at=?2 WHERE id=?3",
             params![album, now_ms(), id],
@@ -597,7 +610,7 @@ impl Db {
             |r| r.get(0),
         )?;
         self.conn.execute(
-            "UPDATE tasks SET list_id=?1, ord=?2, updated_at=?3 WHERE id=?4",
+            "UPDATE tasks SET list_id=?1, album=NULL, ord=?2, updated_at=?3 WHERE id=?4",
             params![list_id, order, now_ms(), id],
         )?;
         Ok(())
@@ -1193,7 +1206,8 @@ impl Db {
                 ],
             )?;
         }
-        tx.commit()
+        tx.commit()?;
+        self.ensure_albums_for_legacy_tasks()
     }
 
     // ---- Import / export ----
@@ -1203,6 +1217,7 @@ impl Db {
     pub fn import_replace(
         &self,
         lists: &[TaskList],
+        albums: &[Album],
         tasks: &[Task],
         sessions: &[Session],
         planned_sessions: &[PlannedSession],
@@ -1212,6 +1227,7 @@ impl Db {
         tx.execute("DELETE FROM planned_sessions", [])?;
         tx.execute("DELETE FROM sessions", [])?;
         tx.execute("DELETE FROM tasks", [])?;
+        tx.execute("DELETE FROM albums", [])?;
         tx.execute("DELETE FROM lists", [])?;
         for l in lists {
             let was_retired_growth = l.life_area.as_deref() == Some("growth");
@@ -1224,6 +1240,19 @@ impl Db {
             tx.execute(
                 "INSERT INTO lists(id,name,emoji,color,ord,updated_at,life_area,life_direction,availability_windows) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
                 params![l.id, l.name, l.emoji, color, l.order, l.updated_at, life_area, l.life_direction, windows_json(&l.availability_windows)?],
+            )?;
+        }
+        for album in albums {
+            tx.execute(
+                "INSERT INTO albums(id,list_id,name,ord,updated_at)
+                 VALUES(?1,?2,?3,?4,?5)",
+                params![
+                    album.id,
+                    album.list_id,
+                    album.name,
+                    album.order,
+                    album.updated_at
+                ],
             )?;
         }
         for t in tasks {
@@ -1260,6 +1289,15 @@ impl Db {
                 ],
             )?;
         }
+        tx.execute(
+            "INSERT OR IGNORE INTO albums(id,list_id,name,ord,updated_at)
+             SELECT 'album:' || list_id || ':' || trim(album),
+                    list_id,trim(album),MIN(ord),?1
+             FROM tasks
+             WHERE album IS NOT NULL AND trim(album)!=''
+             GROUP BY list_id,trim(album)",
+            params![now_ms()],
+        )?;
         tx.commit()?;
         if let Some(c) = config {
             self.set_config(c)?;
@@ -1459,6 +1497,7 @@ impl Db {
     pub fn clear_all_data(&self) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         tx.execute("DELETE FROM tasks", [])?;
+        tx.execute("DELETE FROM albums", [])?;
         tx.execute("DELETE FROM lists", [])?;
         tx.execute("DELETE FROM sessions", [])?;
         tx.execute("DELETE FROM planned_sessions", [])?;
@@ -1472,6 +1511,7 @@ impl Db {
     pub fn snapshot(&self) -> rusqlite::Result<Snapshot> {
         Ok(Snapshot {
             lists: self.lists()?,
+            albums: self.albums()?,
             life_area_priorities: self.life_area_priorities()?,
             tasks: self.tasks()?,
             sessions: self.sessions()?,
@@ -2201,7 +2241,7 @@ mod tests {
 
         assert_eq!(
             db.sync_schema_backfill().as_deref(),
-            Some("planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1")
+            Some("planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1_albums_v1")
         );
         db.clear_sync_schema_backfill().unwrap();
         assert_eq!(db.sync_schema_backfill(), None);
@@ -2290,5 +2330,26 @@ mod tests {
             .unwrap();
         assert_eq!(stored.life_area.as_deref(), Some("health"));
         assert_eq!(stored.color, "#2f9e8f");
+    }
+
+    #[test]
+    fn albums_persist_without_tasks_and_legacy_assignment_creates_entity() {
+        let db = Db::open_in_memory().unwrap();
+        let list = db.add_list("Projects").unwrap();
+        let empty_album = db.add_album(&list.id, "Launch").unwrap();
+
+        assert_eq!(db.snapshot().unwrap().albums, vec![empty_album.clone()]);
+
+        let task = db.add_task(&list.id, "Prepare notes", Some(30)).unwrap();
+        db.set_album(&task.id, Some("Follow-up")).unwrap();
+        db.delete_task(&task.id).unwrap();
+
+        let names = db
+            .albums()
+            .unwrap()
+            .into_iter()
+            .map(|album| album.name)
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["Launch", "Follow-up"]);
     }
 }

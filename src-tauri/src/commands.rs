@@ -1,5 +1,6 @@
 use super::*;
 
+mod albums;
 mod data;
 mod lists;
 mod metrics;
@@ -12,6 +13,7 @@ mod settings;
 mod system;
 mod tasks;
 
+pub(crate) use albums::*;
 pub(crate) use data::*;
 pub(crate) use lists::*;
 pub(crate) use metrics::*;

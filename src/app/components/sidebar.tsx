@@ -2,7 +2,6 @@ import "./sidebar.css";
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
 import { useApp } from "../context/app-context-value";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
-import { GripIcon } from "lucide-react";
 import { FinderFolderChevron, FinderFolderContent } from "./finder-folder-motion";
 import { LifeAreaIcon } from "./life-area-icon";
 import { SIDEBAR_COLLAPSED_STORAGE_KEY, SIDEBAR_UNSORTED_KEY } from "../constants";
@@ -23,7 +22,6 @@ export function SidebarListRow({ listItem, detail, active, playing, attention, o
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      <span className="drag-grip list-grip" title="Drag to reorder"><GripIcon /></span>
       <span className="li-icon">{listItem.emoji}</span>
       <span className="li-label">{listItem.name}</span>
       {playing ? <PlayingEqualizer className="sidebar-equalizer" /> : null}
@@ -77,19 +75,10 @@ export function Sidebar({ sections, collapsed, rowForList }) {
                         }
                       }}
                     >
-                      {section.priorityRank ? (
-                        <span
-                          className="drag-grip ls-priority-grip"
-                          title="Drag to change planning priority"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {<GripIcon />}
-                        </span>
-                      ) : null}
                       <span className="ls-area-icon" style={{ color: section.color }}>
                         <LifeAreaIcon areaKey={section.key} />
                       </span>
-                      <span className="ls-label">{section.label}</span>
+                      <span className="ls-label" style={{ color: section.color }}>{section.label}</span>
                       <FinderFolderChevron open={!isCollapsed} />
                     </div>
 

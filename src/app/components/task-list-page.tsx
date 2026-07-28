@@ -5,10 +5,11 @@ import { groupWeeklyWindows } from "../weekly-schedule.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { TaskRow, TaskTableHead } from "./task-row.jsx";
 import { useApp } from "../context/app-context-value";
-import { RECENT_LIST_TASKS_SIZE, RECENT_TASKS_COPY, RECENT_TASKS_REFRESH_MS, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { RECENT_LIST_TASKS_SIZE, RECENT_TASKS_COPY, RECENT_TASKS_REFRESH_MS, TASK_ALBUM_DROP_PREFIX, TASK_REPEAT_COPY, TASK_SINGLES_DROP_ID, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { Droppable } from "@hello-pangea/dnd";
 import { RecentTaskCards } from "./recent-task-cards";
 import { useSessionNow } from "../hooks/use-session-now";
+import { ListActionRow } from "./list-action-row";
 
 const withEstimate = (timeText, estimateMin) => estimateMin ? `${timeText} of ${fmtEst(estimateMin)}` : timeText;
 
@@ -95,7 +96,12 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
   const byAlbum = _.groupBy(oneTimeTodo, (task) => task.album || "");
   const albumOrder = _.uniq(_.map(oneTimeTodo, (task) => task.album || ""));
   const singles = byAlbum[""] || [];
-  const albums = _.filter(albumOrder, Boolean);
+  const storedAlbums = (state.S.albums || [])
+    .filter((album) => album.listId === listItem.id)
+    .sort((left, right) => left.order - right.order);
+  const storedAlbumNames = storedAlbums.map((album) => album.name);
+  const legacyAlbumNames = _.filter(albumOrder, (name) => Boolean(name) && !storedAlbumNames.includes(name));
+  const albums = [...storedAlbumNames, ...legacyAlbumNames];
 
   const albumSections = albums.map((name) => {
     const tasks = byAlbum[name] || [];
@@ -104,23 +110,34 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
     const color = albumColor(name);
     return (
       <React.Fragment key={name}>
-        <div className="albhead">
-          <div className="alb-tile" style={{ background: `${color}22`, color: color }}>💿</div>
-          <div className="alb-meta">
-            <div className="alb-name">{name}</div>
-            <div className="alb-sub">{tasks.length} task{tasks.length === 1 ? "" : "s"} · {withEstimate(fmtLong(totalMs), totalEstimate)}</div>
-          </div>
-          <button
-            className="alb-play"
-            onClick={(e) => {
-              e.stopPropagation();
-              actions.play(tasks[0].id, TIMER_PLAY_TRIGGERS.albumPlay);
-            }}
-            title="Play first task in this album"
-          >
-            ▶
-          </button>
-        </div>
+        <Droppable droppableId={`${TASK_ALBUM_DROP_PREFIX}${name}`} type="task">
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`albhead${snapshot.isDraggingOver ? " drop-zone-over" : ""}`}
+            >
+              <div className="alb-tile" style={{ background: `${color}22`, color: color }}>💿</div>
+              <div className="alb-meta">
+                <div className="alb-name">{name}</div>
+                <div className="alb-sub">{tasks.length} task{tasks.length === 1 ? "" : "s"} · {withEstimate(fmtLong(totalMs), totalEstimate)}</div>
+              </div>
+              {tasks.length ? (
+                <button
+                  className="alb-play"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.play(tasks[0].id, TIMER_PLAY_TRIGGERS.albumPlay);
+                  }}
+                  title="Play first task in this album"
+                >
+                  ▶
+                </button>
+              ) : null}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
         <TaskTable tasks={tasks} context={rowContext} droppableId={name} />
       </React.Fragment>
     );
@@ -131,10 +148,10 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
       <div className="singles-tag">
         Singles
       </div>
-      <TaskTable tasks={singles} context={rowContext} droppableId="singles" />
+      <TaskTable tasks={singles} context={rowContext} droppableId={TASK_SINGLES_DROP_ID} />
     </React.Fragment>
   ) : singles.length ? (
-    <TaskTable key="singles-no-albums" tasks={singles} context={rowContext} droppableId="singles" />
+    <TaskTable key="singles-no-albums" tasks={singles} context={rowContext} droppableId={TASK_SINGLES_DROP_ID} />
   ) : null;
 
   return (
@@ -172,16 +189,14 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
           </div>
         </div>
       </div>
-      <div className="list-action-row">
-        <button className="pill list-add-task" onClick={actions.addTask}>＋ Add task</button>
-      </div>
+      <ListActionRow />
       {recentTasks.length ? (
         <section className="list-recent-work">
           <h4>{RECENT_TASKS_COPY.heading}</h4>
           <RecentTaskCards entries={recentTasks} />
         </section>
       ) : null}
-      {todo.length ? (
+      {todo.length || albums.length ? (
         <>
           <div className="task-kind-label">{TASK_REPEAT_COPY.sectionLabel} <span>· {dailyTodo.length}</span></div>
           {dailyTodo.length ? (
@@ -190,7 +205,7 @@ export function TaskListPage({ state, listItem, all, taskSessions, taskTotal, li
             <div className="task-kind-empty">{TASK_REPEAT_COPY.emptySection}</div>
           )}
           <div className="task-kind-label one-time">One-time <span>· {oneTimeTodo.length}</span></div>
-          {oneTimeTodo.length ? (
+          {oneTimeTodo.length || albums.length ? (
             <>
               {albumSections}
               {singlesSection}

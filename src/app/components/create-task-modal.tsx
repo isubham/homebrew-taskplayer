@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
-import { DEPTH_ICONS, CADENCE_ICONS, TASK_REPEAT_COPY } from "../constants.jsx";
+import { DEPTH_ICONS, CADENCE_ICONS, TASK_ALBUM_COPY, TASK_REPEAT_COPY } from "../constants.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { JewelDots } from "./jewel-dots.jsx";
 import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
@@ -16,6 +16,7 @@ export function NewTaskModal() {
   // All hooks must run unconditionally — before any early return
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
+  const [album, setAlbum] = useState("");
   const [depth, setDepth] = useState("");
   const [cadence, setCadence] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -31,7 +32,6 @@ export function NewTaskModal() {
     return l?.lifeDirection === "decrease" ? -1 : 1;
   });
   const [explicitSign, setExplicitSign] = useState(false);
-
   useEffect(() => {
     const selectedList = helpers.list(listId);
     if (selectedList && !explicitSign) {
@@ -50,6 +50,7 @@ export function NewTaskModal() {
 
   const payout = getPayout();
   const selectedList = helpers.list(listId) || listItem;
+  const availableAlbums = (state.S.albums || []).filter((item) => item.listId === listId);
   const area = selectedList.lifeArea ? LIFE_AREAS.find((a) => a.key === selectedList.lifeArea) : null;
   const earnsLabel = cadence === "daily" ? TASK_REPEAT_COPY.rewardTiming : "Earns on completion";
   const repeatDays = repeatWeekdayLabel(dailyWindows);
@@ -65,6 +66,7 @@ export function NewTaskModal() {
       listId,
       name: name.trim(),
       description: notes.trim(),
+      album: cadence === "daily" ? null : album.trim() || null,
       depth: depth || null,
       cadence: cadence || null,
       deadlineAt,
@@ -151,13 +153,28 @@ export function NewTaskModal() {
               </div>
               <h4>List</h4>
               <div className="list-select-wrap">
-                <select className="list-select" value={listId} onChange={(e) => setListId(e.target.value)}>
+                <select className="list-select" value={listId} onChange={(e) => { setListId(e.target.value); setAlbum(""); }}>
                   {state.S.lists.map((item) => (
                     <option key={item.id} value={item.id}>{item.emoji} {item.name}</option>
                   ))}
                 </select>
                 <svg className="list-select-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
               </div>
+              {cadence !== "daily" ? (
+                <>
+                  <h4>{TASK_ALBUM_COPY.fieldLabel}</h4>
+                  <select
+                    className="list-select"
+                    value={album}
+                    onChange={(event) => setAlbum(event.target.value)}
+                  >
+                    <option value="">{TASK_ALBUM_COPY.singlesOption}</option>
+                    {availableAlbums.map((item) => (
+                      <option key={item.id} value={item.name}>{item.name}</option>
+                    ))}
+                  </select>
+                </>
+              ) : null}
             </div>
             <div className="task-detail-column task-detail-sessions">
               <h4>Repeat</h4>

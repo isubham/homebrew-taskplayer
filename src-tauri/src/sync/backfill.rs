@@ -1,16 +1,22 @@
 use super::*;
 
-pub(super) fn backfill_schema(db_mutex: &Mutex<Db>, token: &str, marker: &str) -> Result<bool, String> {
+pub(super) fn backfill_schema(
+    db_mutex: &Mutex<Db>,
+    token: &str,
+    marker: &str,
+) -> Result<bool, String> {
     let needs_planner = marker.contains("planner");
     let needs_music = marker.contains("music");
     let needs_settings = marker.contains("user_settings") || marker.contains("takeover");
     let needs_planned_sessions = marker.contains("planned_sessions");
     let needs_logical_sessions = marker.contains("logical_sessions");
+    let needs_albums = marker.contains("albums");
     if !needs_planner
         && !needs_music
         && !needs_settings
         && !needs_planned_sessions
         && !needs_logical_sessions
+        && !needs_albums
     {
         return Err(format!(
             "Sync paused: this client does not understand schema backfill {marker}."
@@ -32,6 +38,9 @@ pub(super) fn backfill_schema(db_mutex: &Mutex<Db>, token: &str, marker: &str) -
     }
     if needs_logical_sessions {
         changed |= backfill_logical_sessions(db_mutex, token)?;
+    }
+    if needs_albums {
+        changed |= backfill_albums(db_mutex, token)?;
     }
     finish(db_mutex, changed)
 }
@@ -101,6 +110,18 @@ fn backfill_logical_sessions(db_mutex: &Mutex<Db>, token: &str) -> Result<bool, 
     let db = db_mutex.lock().unwrap();
     db.backfill_logical_session_fields_from_remote(&sessions)
         .map_err(|error| error.to_string())
+}
+
+fn backfill_albums(db_mutex: &Mutex<Db>, token: &str) -> Result<bool, String> {
+    let albums = fetch_since::<RemoteAlbum>(token, "albums", 0)?
+        .into_iter()
+        .map(RemoteAlbum::into_local)
+        .collect::<Vec<_>>();
+    let changed = !albums.is_empty();
+    let db = db_mutex.lock().unwrap();
+    db.upsert_albums_from_remote(&albums, false)
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
 }
 
 fn finish(db_mutex: &Mutex<Db>, changed: bool) -> Result<bool, String> {

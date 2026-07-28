@@ -31,6 +31,15 @@ create table if not exists public.tasks (
   min_session_min bigint,
   max_session_min bigint
 );
+create table if not exists public.albums (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  list_id text not null,
+  name text not null,
+  ord bigint not null default 0,
+  updated_at bigint not null default 0,
+  deleted_at bigint
+);
 -- if this table already exists from before the "albums" feature, run:
 -- alter table public.tasks add column if not exists album text;
 -- if this table already exists from before the "impact" feature, run:
@@ -55,11 +64,14 @@ create table if not exists public.sessions (
 );
 
 alter table public.lists enable row level security;
+alter table public.albums enable row level security;
 alter table public.tasks enable row level security;
 alter table public.sessions enable row level security;
 
 drop policy if exists "own rows" on public.lists;
 create policy "own rows" on public.lists for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own rows" on public.albums;
+create policy "own rows" on public.albums for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "own rows" on public.tasks;
 create policy "own rows" on public.tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "own rows" on public.sessions;
@@ -75,6 +87,8 @@ end;
 $$ language plpgsql;
 drop trigger if exists lists_lww on public.lists;
 create trigger lists_lww before update on public.lists for each row execute function public.lww_guard();
+drop trigger if exists albums_lww on public.albums;
+create trigger albums_lww before update on public.albums for each row execute function public.lww_guard();
 drop trigger if exists tasks_lww on public.tasks;
 create trigger tasks_lww before update on public.tasks for each row execute function public.lww_guard();
 drop trigger if exists sessions_lww on public.sessions;

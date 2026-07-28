@@ -1,5 +1,13 @@
 import { useCallback } from "react";
 import _ from "lodash";
+import { TASK_ALBUM_DROP_PREFIX, TASK_SINGLES_DROP_ID } from "../constants";
+
+const albumNameFromDropId = (droppableId) => {
+  if (droppableId === TASK_SINGLES_DROP_ID) return "";
+  return droppableId.startsWith(TASK_ALBUM_DROP_PREFIX)
+    ? droppableId.slice(TASK_ALBUM_DROP_PREFIX.length)
+    : droppableId;
+};
 
 export function useAppDragAndDrop(state, helpers, actions, sections) {
   return useCallback(async (result) => {
@@ -42,12 +50,19 @@ export function useAppDragAndDrop(state, helpers, actions, sections) {
       const task = helpers.findTask(taskId);
       if (!task) return;
 
-      const sourceAlbum = source.droppableId === "singles" ? "" : source.droppableId;
-      const targetAlbum = destination.droppableId === "singles" ? "" : destination.droppableId;
+      const sourceAlbum = albumNameFromDropId(source.droppableId);
+      const targetAlbum = albumNameFromDropId(destination.droppableId);
       
       const todo = helpers.tasksForList(task.listId).filter(t => !t.completedAt && t.cadence !== "daily");
       const byAlbum = _.groupBy(todo, t => t.album || "");
-      const albumsOrder = _.uniq(_.map(todo, t => t.album || "")).filter(Boolean);
+      const storedAlbumNames = (state.S.albums || [])
+        .filter(album => album.listId === task.listId)
+        .sort((left, right) => left.order - right.order)
+        .map(album => album.name);
+      const albumsOrder = _.uniq([
+        ...storedAlbumNames,
+        ..._.map(todo, t => t.album || "").filter(Boolean),
+      ]);
       
       let allFlatTasks = [];
       albumsOrder.forEach(albumName => {
@@ -75,5 +90,5 @@ export function useAppDragAndDrop(state, helpers, actions, sections) {
          await actions.moveTaskToAlbum(taskId, targetAlbum);
       }
     }
-  }, [state.S?.lists, helpers, actions, sections]);
+  }, [state.S?.lists, state.S?.albums, helpers, actions, sections]);
 }

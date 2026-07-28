@@ -15,8 +15,8 @@ use crate::config::{SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL};
 use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, OnceLock};
 use taskplayer_core::{
-    canonical_life_area, now_ms, Db, LifeAreaPriority, MusicFavorite, PlannedSession, RunState,
-    Session, SessionConfig, Task, TaskList, UserSettings, WeeklyTimeWindow,
+    canonical_life_area, now_ms, Album, Db, LifeAreaPriority, MusicFavorite, PlannedSession,
+    RunState, Session, SessionConfig, Task, TaskList, UserSettings, WeeklyTimeWindow,
 };
 
 mod backfill;

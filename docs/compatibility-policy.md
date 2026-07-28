@@ -51,6 +51,7 @@ Current capabilities:
 - `music_player_takeover_v2`
 - `planned_sessions_v1`
 - `logical_sessions_v1`
+- `albums_v1`
 
 ## Serialization rules
 

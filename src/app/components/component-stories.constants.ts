@@ -167,6 +167,7 @@ export const COMPONENT_STORY_MUSIC = {
 };
 
 export const COMPONENT_STORY_ACTIONS = {
+  addAlbum: () => undefined,
   addTask: () => undefined,
   closeRowMenu: () => undefined,
   cycleMode: () => undefined,

@@ -4,6 +4,7 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
     let (
         cursor,
         lists,
+        albums,
         tasks,
         sessions,
         priorities,
@@ -17,6 +18,7 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
         let db = db_mutex.lock().unwrap();
         let cursor = db.get_push_cursor();
         let (lists, tasks, sessions) = db.dirty_since(cursor).map_err(|e| e.to_string())?;
+        let albums = db.albums_dirty_since(cursor).map_err(|e| e.to_string())?;
         let priorities = db
             .life_area_priorities_dirty_since(cursor)
             .map_err(|e| e.to_string())?;
@@ -33,6 +35,7 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
         (
             cursor,
             lists,
+            albums,
             tasks,
             sessions,
             priorities,
@@ -51,6 +54,14 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
         &lists
             .iter()
             .map(|l| RemoteList::from_local(l, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "albums",
+        &albums
+            .iter()
+            .map(|album| RemoteAlbum::from_local(album, user_id))
             .collect::<Vec<_>>(),
     )?;
     upsert(

@@ -3,7 +3,11 @@ use super::*;
 pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Result<bool, String> {
     let cursor = {
         let db = db_mutex.lock().unwrap();
-        if force { 0 } else { db.get_pull_cursor() }
+        if force {
+            0
+        } else {
+            db.get_pull_cursor()
+        }
     };
     let now = now_ms();
 
@@ -12,6 +16,10 @@ pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Res
     let lists: Vec<TaskList> = fetch_since::<RemoteList>(access_token, "lists", cursor)?
         .into_iter()
         .map(RemoteList::into_local)
+        .collect();
+    let albums: Vec<Album> = fetch_since::<RemoteAlbum>(access_token, "albums", cursor)?
+        .into_iter()
+        .map(RemoteAlbum::into_local)
         .collect();
     let tasks: Vec<Task> = fetch_since::<RemoteTask>(access_token, "tasks", cursor)?
         .into_iter()
@@ -57,6 +65,7 @@ pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Res
 
     let collection_rows_changed = !lists.is_empty() || !tasks.is_empty() || !sessions.is_empty();
     let mut changed = collection_rows_changed
+        || !albums.is_empty()
         || !priorities.is_empty()
         || !music_favorites.is_empty()
         || !planned_sessions.is_empty();
@@ -70,6 +79,10 @@ pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Res
                 db.upsert_from_remote(&lists, &tasks, &sessions)
                     .map_err(|e| e.to_string())?;
             }
+        }
+        if !albums.is_empty() {
+            db.upsert_albums_from_remote(&albums, force)
+                .map_err(|e| e.to_string())?;
         }
         if !priorities.is_empty() {
             db.upsert_life_area_priorities_from_remote(&priorities, force)

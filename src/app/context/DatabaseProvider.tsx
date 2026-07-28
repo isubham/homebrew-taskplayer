@@ -5,6 +5,8 @@ import { useUI } from "./UIProvider.jsx";
 import { esc } from "../utils.jsx";
 import { 
   SESSION_COPY,
+  TASK_ALBUM_COPY,
+  TOAST_ALBUM_CREATED,
   TOAST_LIST_DELETED, 
   TOAST_TASK_CREATED, 
   TOAST_TASK_RENAMED, 
@@ -22,11 +24,12 @@ export function useDatabase() {
 
 export function DatabaseProvider({ children }) {
   const { S, apply, helpers: { list, findTask } } = useCore();
-  const { actions: { navigate } } = useRoute();
+  const { state: { activeListId }, actions: { navigate } } = useRoute();
   const { 
     actions: { 
       uiConfirm, uiNote, uiPrompt, uiForm, showToast, 
       setOpenTaskId, setOpenListArea, setOpenListId,
+      setDialogInput,
       setDialogSession, setCheckingForUpdate, setUpdateInfo, setInstallingUpdate
     } 
   } = useUI();
@@ -64,15 +67,36 @@ export function DatabaseProvider({ children }) {
     setOpenTaskId("new");
   }, [S, setOpenTaskId]);
 
+  const addAlbum = useCallback(() => {
+    if (!S) return;
+    setDialogInput("");
+    uiForm({
+      type: "album",
+      title: TASK_ALBUM_COPY.createTitle,
+      confirmText: TASK_ALBUM_COPY.createConfirm,
+      resolve: async (value) => {
+        const album = typeof value === "string" ? value.trim() : "";
+        if (!album || !activeListId) return;
+        try {
+          apply(await invoke("create_album", { listId: activeListId, name: album }));
+          showToast({ message: TOAST_ALBUM_CREATED });
+        } catch (error) {
+          await uiNote(TASK_ALBUM_COPY.createErrorTitle, String(error));
+        }
+      },
+    });
+  }, [S, activeListId, apply, setDialogInput, showToast, uiForm, uiNote]);
+
   const createTaskFromDetail = useCallback(async (value) => {
     if (!S) return;
-    const { listId, name, description, depth, cadence, deadlineAt, minSessionMin, maxSessionMin, impactTier, impactSign, estimateMin, dailyWindows } = value;
+    const { listId, name, description, album, depth, cadence, deadlineAt, minSessionMin, maxSessionMin, impactTier, impactSign, estimateMin, dailyWindows } = value;
     if (!name || !listId) return;
 
     try {
       let snap = await invoke("add_task", { listId, name, estimateMin });
       const created = snap.tasks.find((t) => t.listId === listId && !t.completedAt && t.name === name);
       if (created) {
+        if (album) snap = await invoke("set_album", { id: created.id, album });
         if (description) snap = await invoke("set_description", { id: created.id, text: description });
         if (depth) snap = await invoke("set_depth", { id: created.id, depth });
         if (cadence) snap = await invoke("set_cadence", { id: created.id, cadence });
@@ -479,7 +503,7 @@ export function DatabaseProvider({ children }) {
   return (
     <DatabaseContext.Provider value={{
       actions: {
-        addList, editList, deleteList, addTask, createTaskFromDetail,
+        addList, editList, deleteList, addTask, addAlbum, createTaskFromDetail,
         renameTask, setDepth, setCadence, addDailyScheduleRow, removeDailyScheduleRow,
         setDailySchedule, setSessionRangeField, deleteTask, setEstimateInline,
         bumpEstimate, decreaseEstimate, setDeadlineInline, setImpactTier, setImpactSign,

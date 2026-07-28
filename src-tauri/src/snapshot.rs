@@ -10,6 +10,7 @@ pub(crate) fn build_snapshot(state: &AppState) -> Snapshot {
     // that guard before reading the remaining state.
     let (
         lists,
+        albums,
         life_area_priorities,
         tasks,
         sessions,
@@ -21,6 +22,7 @@ pub(crate) fn build_snapshot(state: &AppState) -> Snapshot {
         let db = state.db.lock().unwrap();
         (
             db.lists().unwrap_or_default(),
+            db.albums().unwrap_or_default(),
             db.life_area_priorities().unwrap_or_default(),
             db.tasks().unwrap_or_default(),
             db.sessions().unwrap_or_default(),
@@ -35,6 +37,7 @@ pub(crate) fn build_snapshot(state: &AppState) -> Snapshot {
     let run = state.run.lock().unwrap().clone();
     Snapshot {
         lists,
+        albums,
         life_area_priorities,
         tasks,
         sessions,

@@ -170,6 +170,26 @@ pub struct TaskList {
     pub deleted_at: Option<i64>,
 }
 
+/// A persistent album within one task list. Albums exist independently of
+/// tasks so an empty group survives locally, in backups, and across devices.
+/// Tasks retain their legacy free-form `album` name during the compatibility
+/// window; current clients match that name to this entity within `list_id`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Album {
+    pub id: String,
+    pub list_id: String,
+    pub name: String,
+    #[specta(type = i32)]
+    pub order: i64,
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub updated_at: i64,
+    #[serde(skip)]
+    #[specta(type = Option<i32>)]
+    pub deleted_at: Option<i64>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
@@ -507,6 +527,8 @@ pub struct AccountInfo {
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub lists: Vec<TaskList>,
+    #[serde(default)]
+    pub albums: Vec<Album>,
     #[serde(default)]
     pub life_area_priorities: Vec<LifeAreaPriority>,
     pub tasks: Vec<Task>,

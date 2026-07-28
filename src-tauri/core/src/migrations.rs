@@ -443,6 +443,44 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "022_album_entities",
+        run: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS albums(
+                   id TEXT PRIMARY KEY,
+                   list_id TEXT NOT NULL,
+                   name TEXT NOT NULL,
+                   ord INTEGER NOT NULL,
+                   updated_at INTEGER NOT NULL,
+                   deleted_at INTEGER
+                 );
+                 CREATE INDEX IF NOT EXISTS idx_albums_list ON albums(list_id);
+                 CREATE INDEX IF NOT EXISTS idx_albums_updated ON albums(updated_at);",
+            )?;
+            let now = crate::models::now_ms();
+            conn.execute(
+                "INSERT OR IGNORE INTO albums(id,list_id,name,ord,updated_at)
+                 SELECT 'album:' || list_id || ':' || trim(album),
+                        list_id,trim(album),MIN(ord),?1
+                 FROM tasks
+                 WHERE deleted_at IS NULL AND album IS NOT NULL AND trim(album)!=''
+                 GROUP BY list_id,trim(album)",
+                params![now],
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES(
+                   'sync_schema_backfill','albums_v1'
+                 ) ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN instr(value,'albums_v1') > 0 THEN value
+                   WHEN value='' THEN 'albums_v1'
+                   ELSE value || '_albums_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -546,7 +584,7 @@ mod compatibility_tests {
                 |row| row.get::<_, String>(0)
             )
             .unwrap(),
-            "planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1"
+            "planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1_albums_v1"
         );
         assert_eq!(
             conn.query_row("SELECT COUNT(*) FROM planned_sessions", [], |row| {
@@ -658,5 +696,40 @@ mod compatibility_tests {
             .unwrap(),
             0
         );
+    }
+
+    #[test]
+    fn backfills_task_album_names_into_album_entities() {
+        let conn = Connection::open_in_memory().unwrap();
+        for (index, migration) in MIGRATIONS.iter().enumerate().take(21) {
+            (migration.run)(&conn).unwrap();
+            conn.execute_batch(&format!("PRAGMA user_version = {};", index + 1))
+                .unwrap();
+        }
+        conn.execute(
+            "INSERT INTO lists(id,name,emoji,color,ord,updated_at)
+             VALUES('list-albums','Projects','📁','#123456',0,1)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO tasks(id,list_id,name,depth,ord,updated_at,album)
+             VALUES('task-album','list-albums','Outline',NULL,3,1,'Launch')",
+            [],
+        )
+        .unwrap();
+
+        run(&conn).unwrap();
+
+        let (id, name, order): (String, String, i64) = conn
+            .query_row(
+                "SELECT id,name,ord FROM albums WHERE list_id='list-albums'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(id, "album:list-albums:Launch");
+        assert_eq!(name, "Launch");
+        assert_eq!(order, 3);
     }
 }

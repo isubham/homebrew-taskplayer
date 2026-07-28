@@ -8,6 +8,7 @@ pub(crate) fn export_debug_bindings() {
             tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
                 get_snapshot,
                 get_life_balance_scores,
+                get_rank_info,
                 add_list,
                 rename_list,
                 set_list_style,
@@ -16,6 +17,7 @@ pub(crate) fn export_debug_bindings() {
                 reorder_lists,
                 reorder_life_areas,
                 delete_list,
+                create_album,
                 add_task,
                 rename_task,
                 set_depth,
@@ -99,6 +101,7 @@ mod tests {
                 reorder_lists,
                 reorder_life_areas,
                 delete_list,
+                create_album,
                 add_task,
                 rename_task,
                 set_depth,

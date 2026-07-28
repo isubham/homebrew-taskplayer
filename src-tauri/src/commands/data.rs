@@ -7,6 +7,7 @@ struct Backup {
     #[serde(rename = "exportedAt")]
     exported_at: i64,
     lists: Vec<TaskList>,
+    albums: Vec<Album>,
     tasks: Vec<Task>,
     sessions: Vec<Session>,
     planned_sessions: Vec<PlannedSession>,
@@ -16,6 +17,8 @@ struct Backup {
 #[derive(serde::Deserialize)]
 struct RestorePayload {
     lists: Vec<TaskList>,
+    #[serde(default)]
+    albums: Vec<Album>,
     tasks: Vec<Task>,
     sessions: Vec<Session>,
     #[serde(default)]
@@ -30,9 +33,10 @@ pub(crate) fn export_data(state: State<AppState>) -> Result<String, String> {
         let db = state.db.lock().unwrap();
         Backup {
             app: "TaskPlayer",
-            version: 2,
+            version: 3,
             exported_at: now_ms(),
             lists: db.lists().map_err(|e| e.to_string())?,
+            albums: db.albums().map_err(|e| e.to_string())?,
             tasks: db.tasks().map_err(|e| e.to_string())?,
             sessions: db.sessions().map_err(|e| e.to_string())?,
             planned_sessions: db.planned_sessions().map_err(|e| e.to_string())?,
@@ -85,6 +89,7 @@ pub(crate) fn import_data(
         let db = state.db.lock().unwrap();
         db.import_replace(
             &data.lists,
+            &data.albums,
             &data.tasks,
             &data.sessions,
             &data.planned_sessions,

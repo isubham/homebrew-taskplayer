@@ -15,6 +15,7 @@ export const commands = {
 	reorderLists: (orderedIds: string[]) => __TAURI_INVOKE<Snapshot>("reorder_lists", { orderedIds }),
 	reorderLifeAreas: (orderedAreaKeys: string[]) => __TAURI_INVOKE<Snapshot>("reorder_life_areas", { orderedAreaKeys }),
 	deleteList: (id: string) => __TAURI_INVOKE<Snapshot>("delete_list", { id }),
+	createAlbum: (listId: string, name: string) => typedError<Snapshot, string>(__TAURI_INVOKE("create_album", { listId, name })),
 	addTask: (listId: string, name: string, estimateMin: number | null) => __TAURI_INVOKE<Snapshot>("add_task", { listId, name, estimateMin }),
 	renameTask: (id: string, name: string) => __TAURI_INVOKE<Snapshot>("rename_task", { id, name }),
 	setDepth: (id: string, depth: string | null) => __TAURI_INVOKE<Snapshot>("set_depth", { id, depth }),
@@ -155,6 +156,20 @@ export type AccountInfo = {
 	avatarUrl: string | null,
 };
 
+/**
+ *  A persistent album within one task list. Albums exist independently of
+ *  tasks so an empty group survives locally, in backups, and across devices.
+ *  Tasks retain their legacy free-form `album` name during the compatibility
+ *  window; current clients match that name to this entity within `list_id`.
+ */
+export type Album = {
+	id: string,
+	listId: string,
+	name: string,
+	order: number,
+	updatedAt?: number | null,
+};
+
 export type AutomaticPlanPreview = {
 	suggestions: AutomaticPlanSuggestion[],
 	remainders: AutomaticPlanRemainder[],
@@ -191,10 +206,10 @@ export type LifeBalanceScore = {
 	key: string,
 	label: string,
 	color: string,
-	ms: number,
-	pct: number,
-	negMs: number,
-	negPct: number,
+	ms: number | null,
+	pct: number | null,
+	negMs: number | null,
+	negPct: number | null,
 };
 
 /**
@@ -238,18 +253,18 @@ export type PlannedSession = {
 	updatedAt?: number | null,
 };
 
-export type RankTier = {
-	key: string,
-	label: string,
-	sub: string,
-	min: number,
-};
-
 export type RankInfo = {
 	current: RankTier,
 	next: RankTier | null,
 	progress: number | null,
-	rawTotal: number,
+	rawTotal: number | null,
+};
+
+export type RankTier = {
+	key: string,
+	label: string,
+	sub: string,
+	min: number | null,
 };
 
 export type RunState = {
@@ -402,6 +417,7 @@ export type SessionConfig = {
 
 export type Snapshot = {
 	lists: TaskList[],
+	albums?: Album[],
 	lifeAreaPriorities?: LifeAreaPriority[],
 	tasks: Task[],
 	sessions: Session[],

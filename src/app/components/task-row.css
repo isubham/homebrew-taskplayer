@@ -23,30 +23,10 @@ tbody tr:hover .idx .num { display: none; }
 tbody tr:hover .idx .go { display: inline-block; }
 .idx .go { display: none; background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; padding: 0; }
 
-/* drag handle — sits in the cell's own left padding gutter, invisible until
-   the row is hovered so the list reads exactly the same as before at rest.
-   left:12px, not 4 — .idx's padding-left grew to 40px to indent the row
-   number under the album tile above it, and the grip stayed pinned near
-   the table's outer edge, leaving it looking stranded in a cramped sliver
-   of space instead of sitting comfortably in that wider gutter. */
-.grip {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center;
-  color: var(--muted); opacity: 0; cursor: grab; transition: opacity .15s;
-}
-tbody tr:hover .grip { opacity: .55; }
-.grip:hover { opacity: 1; }
-tbody tr:active .grip, tr.dragging .grip { cursor: grabbing; }
-
-/* WebKit doesn't reliably treat a `draggable="true"` <tr> as an HTML5 drag
-   source on its own — table-row-display elements don't automatically pick
-   up -webkit-user-drag:element the way a plain block/inline element would,
-   which is why dragstart silently never fires in Safari/WKWebView even
-   though the same markup works in Chromium. Force it explicitly, and turn
-   drag off + disable text selection on everything inside the row so a
-   click-drag on the task name (etc.) doesn't get treated as a text/element
-   drag of its own and steal the gesture from the row. */
-tbody tr[draggable="true"] { -webkit-user-drag: element; user-select: none; }
-tbody tr[draggable="true"] * { -webkit-user-drag: none; }
+.task-row-draggable { cursor: grab; user-select: none; }
+.task-row-draggable.dragging { cursor: grabbing; }
+.task-row-draggable .task-name-line { cursor: pointer; }
+.task-row-draggable button { cursor: pointer; }
 
 /* dragging state + drop-target indicator line */
 tbody tr.dragging { opacity: .4; }

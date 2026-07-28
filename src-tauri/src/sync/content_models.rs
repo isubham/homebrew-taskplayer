@@ -50,6 +50,42 @@ impl RemoteList {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub(super) struct RemoteAlbum {
+    pub(super) id: String,
+    pub(super) user_id: String,
+    pub(super) list_id: String,
+    pub(super) name: String,
+    pub(super) ord: i64,
+    pub(super) updated_at: i64,
+    pub(super) deleted_at: Option<i64>,
+}
+
+impl RemoteAlbum {
+    pub(super) fn from_local(album: &Album, user_id: &str) -> Self {
+        Self {
+            id: album.id.clone(),
+            user_id: user_id.to_string(),
+            list_id: album.list_id.clone(),
+            name: album.name.clone(),
+            ord: album.order,
+            updated_at: album.updated_at,
+            deleted_at: album.deleted_at,
+        }
+    }
+
+    pub(super) fn into_local(self) -> Album {
+        Album {
+            id: self.id,
+            list_id: self.list_id,
+            name: self.name,
+            order: self.ord,
+            updated_at: self.updated_at,
+            deleted_at: self.deleted_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub(super) struct RemoteLifeAreaPriority {
     pub(super) user_id: String,
     pub(super) area_key: String,

@@ -1,6 +1,6 @@
 begin;
 
-select plan(5);
+select plan(6);
 
 insert into auth.users (
   id,
@@ -99,6 +99,18 @@ values (
   100
 );
 
+insert into public.albums (
+  id, user_id, list_id, name, ord, updated_at
+)
+values (
+  'album:list-1:Launch',
+  '00000000-0000-0000-0000-000000000001',
+  'list-1',
+  'Launch',
+  1,
+  100
+);
+
 -- This is the column set sent by a client released before planner fields.
 insert into public.tasks (
   id, user_id, list_id, name, depth, ord, est, done, descr,
@@ -155,6 +167,13 @@ select results_eq(
   $$select task_id, start, "end" from public.planned_sessions where id = 'plan-1'$$,
   $$values ('task-1'::text, 1000::bigint, 2000::bigint)$$,
   'an old task update preserves its separate planned sessions'
+);
+
+select results_eq(
+  $$select list_id, name, ord from public.albums
+    where id = 'album:list-1:Launch'$$,
+  $$values ('list-1'::text, 'Launch'::text, 1::bigint)$$,
+  'an old task update preserves its separate album entity'
 );
 
 insert into public.sessions (

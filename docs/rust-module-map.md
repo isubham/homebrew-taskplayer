@@ -52,7 +52,7 @@ persistence logic remains in `src-tauri/core`.
 |---|---|
 | `sync/compatibility.rs` | Backend capability/version contract validation. |
 | `sync/backfill.rs` | Durable field backfills after schema-aware client upgrades. |
-| `sync/content_models.rs` | List, task, and life-area-priority wire models. |
+| `sync/content_models.rs` | List, album, task, and life-area-priority wire models. |
 | `sync/music_models.rs` | Focus-music favorite wire model. |
 | `sync/planner_models.rs` | Planned-session wire model. |
 | `sync/runtime_models.rs` | Run-state and configuration wire models. |
@@ -78,7 +78,11 @@ persistence logic remains in `src-tauri/core`.
 | File | Responsibility |
 |---|---|
 | `commands/data.rs` | Backup import/export and log-file reveal commands. |
+| `commands/albums.rs` | Persistent album creation commands. |
 | `commands/lists.rs` | List CRUD, style, availability, and snapshot command. |
+| `commands/metrics.rs` | Shared life-balance/rank helpers and metric-module facade. |
+| `commands/metrics/life_balance.rs` | Seven-day life-balance score command. |
+| `commands/metrics/rank.rs` | Deterministic rank calculation command. |
 | `commands/tasks/details.rs` | Task creation, metadata, scheduling, and movement. |
 | `commands/tasks/lifecycle.rs` | Ordering, completion, impact, estimates, and deletion. |
 | `commands/sessions.rs` | Recorded and logical-session editing commands. |

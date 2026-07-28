@@ -3,11 +3,9 @@ import { buildCapacityBar, deadlineDate, fmtHM, jewelPayout, LIFE_AREAS, repeati
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
 import { useApp } from "../context/app-context-value";
 import { Draggable } from "@hello-pangea/dnd";
-import { GripVertical, Check } from "lucide-react";
-import { PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { Check } from "lucide-react";
+import { PLANNER_VIEW_KEY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { TaskPlanningCue } from "./planner/task-planning-cue";
-
-const gripIcon = () => <GripVertical size={PLANNER_ROW_ICON_SIZE} aria-hidden="true" />;
 
 export function JewelPayoutTemplate({ payout, areaColor, daily }) {
   if (!payout) return null;
@@ -159,22 +157,13 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
     <tr
       ref={provided?.innerRef}
       {...(provided?.draggableProps || {})}
-      className={`${active ? "playing" : ""}${inDailyJam && todaySessionCount ? " daily-done" : ""}${snapshot?.isDragging ? " dragging" : ""}`}
+      {...(provided?.dragHandleProps || {})}
+      className={`${active ? "playing" : ""}${inDailyJam && todaySessionCount ? " daily-done" : ""}${provided ? " task-row-draggable" : ""}${snapshot?.isDragging ? " dragging" : ""}`}
       title={inDailyJam ? `Open ${task.name}` : undefined}
       onClick={handleRowClick}
-      style={{ cursor: "pointer", ...(provided?.draggableProps?.style || {}) }}
+      style={provided?.draggableProps?.style}
     >
       <td className="idx">
-        {inDailyJam || isDragDisabled ? null : (
-          <span
-            className="grip"
-            title="Drag to reorder"
-            {...(provided?.dragHandleProps || {})}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {gripIcon()}
-          </span>
-        )}
         <span className="num">
           {working ? <PlayingEqualizer className="task-playing-equalizer" /> : onBreak ? "☕" : index + 1}
         </span>

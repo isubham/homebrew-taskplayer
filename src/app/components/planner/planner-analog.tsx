@@ -191,7 +191,7 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
 };
 
   // Helper to render arcs
-  const renderArcs = (radius: number, area: ActiveArea, isAvailability: boolean) => {
+  const renderArcs = (area: ActiveArea, isAvailability: boolean) => {
     if (!day) return null;
     const dayStart = day.start;
     const dayEnd = day.start + 24 * 3600 * 1000;
@@ -217,19 +217,50 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
       
       const isActual = block.kind === PLANNER_BLOCK_KINDS.actual || block.kind === PLANNER_BLOCK_KINDS.live;
       const isAvail = block.kind === PLANNER_BLOCK_KINDS.availability;
+      const isHovered = hoverState?.taskId === block.id;
+
+      let radius = CLOCK_RADIUS;
+      let strokeW = 4;
+      let opacity = 0.6;
+      
+      if (isAvail) {
+        radius = CLOCK_RADIUS;
+        strokeW = 4;
+        opacity = 0.9;
+      } else if (isActual) {
+        radius = 177; // Outer track for actual tasks
+        strokeW = 16;
+        opacity = 1.0;
+      } else {
+        // Planned
+        radius = 161; // Inner track for planned tasks
+        strokeW = 14; 
+        opacity = 0.45;
+      }
+
+      if (isHovered && !isAvail) {
+         strokeW += 6;
+         opacity = 1.0;
+      }
 
       const pathId = `arc-${block.id}`;
       let diff = endAngle - startAngle;
       if (diff < 0) diff += 360;
       const arcLength = (diff / 360) * 2 * Math.PI * radius;
       
-      const maxChars = Math.floor(arcLength / 6);
+      const minArcLengthForText = 36;
+      let showText = false;
       let label = block.label;
-      if (label.length > maxChars) {
-        label = label.slice(0, Math.max(0, maxChars - 2)) + "..";
+      
+      if (!isAvail && arcLength >= minArcLengthForText) {
+        showText = true;
+        const charWidth = 6.5;
+        const maxChars = Math.floor(arcLength / charWidth);
+        if (label.length > maxChars) {
+          label = maxChars > 3 ? label.slice(0, maxChars - 2) + ".." : "";
+          if (!label) showText = false;
+        }
       }
-
-      const isHovered = hoverState?.taskId === block.id;
 
       return (
         <g key={block.id}>
@@ -237,12 +268,12 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
             d={describeArc(CENTER, CENTER, radius, startAngle, endAngle)}
             fill="none"
             stroke={area.color}
-            strokeWidth={isHovered ? RING_THICKNESS + 8 : RING_THICKNESS - 2}
-            opacity={isActual ? 1 : isAvail ? 0.3 : 0.7}
+            strokeWidth={strokeW}
+            opacity={opacity}
             strokeLinecap="butt"
             style={{ 
               cursor: isAvail ? 'default' : 'pointer',
-              transition: 'stroke-width 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              transition: 'stroke-width 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease'
             }}
             onPointerDown={(e) => {
               e.stopPropagation();
@@ -264,10 +295,10 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
               setHoverState(null);
             }}
           />
-          {arcLength > 20 && (
+          {showText && (
             <>
               <path id={pathId} d={describeTextArc(CENTER, CENTER, radius, startAngle, endAngle)} fill="none" stroke="none" />
-              <text fill="#fff" fontSize="11" fontWeight="500" style={{ pointerEvents: 'none' }}>
+              <text fill={isActual ? "#fff" : "rgba(255,255,255,0.9)"} fontSize={isActual ? "11" : "10"} fontWeight={isActual ? "600" : "500"} style={{ pointerEvents: 'none' }}>
                 <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle" dominantBaseline="central">
                   {label}
                 </textPath>
@@ -287,31 +318,44 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
           viewBox={`180 180 440 440`}
           className="planner-analog-svg"
         >
-        {/* Availability Track (Inner) and Task Track (Outer) */}
+        {/* Task Track (Outer) and Availability Track (Clock Border) */}
         {(() => {
-          const availRadius = BASE_RADIUS;
-          const taskRadius = BASE_RADIUS + RING_THICKNESS + RING_GAP;
           const defaultArea = activeAreas[0];
           
           return (
             <g>
-              {/* Background Tracks */}
+              {/* 24-hour Clock Face (Serves as background for Availability) */}
+              <circle cx={CENTER} cy={CENTER} r={CLOCK_RADIUS} fill="rgba(255, 255, 255, 0.05)" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="2" />
+              
+              {/* Clock Ticks and Numbers (Drawn behind the arcs) */}
+              {Array.from({ length: 24 }).map((_, i) => {
+                const angle = (i / 24) * 360;
+                const isPrimary = i % 6 === 0;
+                const outerRadius = CLOCK_RADIUS;
+                const innerRadius = CLOCK_RADIUS - (isPrimary ? 12 : 6);
+                const outer = polarToCartesian(CENTER, CENTER, outerRadius, angle);
+                const inner = polarToCartesian(CENTER, CENTER, innerRadius, angle);
+                
+                const textPos = polarToCartesian(CENTER, CENTER, CLOCK_RADIUS - 26, angle);
+                
+                return (
+                  <g key={`hour-${i}`}>
+                    <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={isPrimary ? 2 : 1} />
+                    <text x={textPos.x} y={textPos.y + 4} fill={isPrimary ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.6)"} fontSize="12" textAnchor="middle" fontWeight={isPrimary ? "bold" : "normal"}>
+                      {i}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Background Task Track */}
               <circle
                 cx={CENTER}
                 cy={CENTER}
-                r={availRadius}
+                r={169}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.05)"
-                strokeWidth={RING_THICKNESS}
-                style={{ pointerEvents: "none" }}
-              />
-              <circle
-                cx={CENTER}
-                cy={CENTER}
-                r={taskRadius}
-                fill="none"
-                stroke="rgba(255, 255, 255, 0.1)"
-                strokeWidth={RING_THICKNESS}
+                strokeWidth={32}
                 style={{ cursor: "crosshair", touchAction: "none" }}
                 onPointerDown={(e) => defaultArea && handlePointerDown(e, defaultArea.key)}
                 onPointerMove={handlePointerMove}
@@ -319,17 +363,17 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
                 onPointerCancel={handlePointerUp}
               />
               
-              {/* Render Availability (Inner Ring) */}
+              {/* Render Availability (On Clock Border) */}
               {activeAreas.map(area => (
                 <React.Fragment key={`avail-${area.key}`}>
-                  {renderArcs(availRadius, area, true)}
+                  {renderArcs(area, true)}
                 </React.Fragment>
               ))}
 
-              {/* Render Tasks (Outer Ring) */}
+              {/* Render Tasks */}
               {activeAreas.map(area => (
                 <React.Fragment key={`tasks-${area.key}`}>
-                  {renderArcs(taskRadius, area, false)}
+                  {renderArcs(area, false)}
                 </React.Fragment>
               ))}
 
@@ -346,11 +390,11 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
                 
                 return (
                   <path
-                    d={describeArc(CENTER, CENTER, taskRadius, min, max)}
+                    d={describeArc(CENTER, CENTER, 169, min, max)}
                     fill="none"
                     stroke={area?.color || "#fff"}
-                    strokeWidth={RING_THICKNESS}
-                    opacity={0.8}
+                    strokeWidth={32}
+                    opacity={0.3}
                     strokeLinecap="butt"
                     style={{ pointerEvents: 'none' }}
                   />
@@ -359,32 +403,8 @@ const AreaIcon = ({ areaKey, size, color }: { areaKey: string; size: number; col
             </g>
           );
         })()}
-
-        {/* 24-hour Clock Face */}
-        <circle cx={CENTER} cy={CENTER} r={CLOCK_RADIUS} fill="rgba(255, 255, 255, 0.05)" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="2" />
         
-        {/* Clock Ticks and Numbers */}
-        {Array.from({ length: 24 }).map((_, i) => {
-          const angle = (i / 24) * 360;
-          const isPrimary = i % 6 === 0;
-          const outerRadius = CLOCK_RADIUS;
-          const innerRadius = CLOCK_RADIUS - (isPrimary ? 12 : 6);
-          const outer = polarToCartesian(CENTER, CENTER, outerRadius, angle);
-          const inner = polarToCartesian(CENTER, CENTER, innerRadius, angle);
-          
-          const textPos = polarToCartesian(CENTER, CENTER, CLOCK_RADIUS - 26, angle);
-          
-          return (
-            <g key={`hour-${i}`}>
-              <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={isPrimary ? 2 : 1} />
-              <text x={textPos.x} y={textPos.y + 4} fill={isPrimary ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.6)"} fontSize="12" textAnchor="middle" fontWeight={isPrimary ? "bold" : "normal"}>
-                {i}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Minute Ticks */}
+        {/* Current Time Hands */}
         {Array.from({ length: 60 }).map((_, i) => {
           const angle = (i / 60) * 360;
           const isFiveMin = i % 5 === 0;

@@ -11,6 +11,21 @@ export const RECENT_TASKS_COPY = {
   playSymbol: "▶",
   activeSymbol: "⏸",
 } as const;
+export const TASK_ALBUM_COPY = {
+  addTaskAction: "＋ Add task",
+  addAction: "Add album",
+  addActionTitle: "Create an empty album in this list",
+  createTitle: "Create album",
+  createConfirm: "Create",
+  createErrorTitle: "Couldn't create album",
+  fieldLabel: "Album",
+  namePlaceholder: "Album name",
+  singlesOption: "Singles",
+} as const;
+export const TASK_ALBUM_ICON_SIZE = 16;
+export const TASK_ALBUM_DROP_PREFIX = "album-drop:";
+export const TASK_SINGLES_DROP_ID = "singles";
+export const TOAST_ALBUM_CREATED = "Album created";
 export const DAILY_JAM_TASK_LIMIT = 3;
 export const DAILY_JAM_DUE_SOON_DAYS = 7;
 export const DAILY_JAM_SCHEDULE_LEAD_MINUTES = 60;

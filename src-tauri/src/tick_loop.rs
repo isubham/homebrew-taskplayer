@@ -16,11 +16,11 @@ pub(crate) fn spawn(app: &mut tauri::App) {
         let mut last_tick_ms = now_ms();
         loop {
             std::thread::sleep(Duration::from_millis(TIMER_TICK_INTERVAL_MS));
-            
+
             let now = now_ms();
             let elapsed = now.saturating_sub(last_tick_ms);
             last_tick_ms = now;
-            
+
             // If the thread slept for significantly longer than intended (e.g., > 5 seconds),
             // the system was likely suspended. We skip processing this tick to avoid a race
             // condition where the tick thread completes a session before the system sleep

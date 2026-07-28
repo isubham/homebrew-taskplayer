@@ -4,7 +4,7 @@ import { useApp } from "../context/app-context-value";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { FinderFolderChevron, FinderFolderContent } from "./finder-folder-motion";
 import { LifeAreaIcon } from "./life-area-icon";
-import { SIDEBAR_COLLAPSED_STORAGE_KEY, SIDEBAR_UNSORTED_KEY } from "../constants";
+import { SIDEBAR_COLLAPSED_STORAGE_KEY, SIDEBAR_COPY, SIDEBAR_UNSORTED_KEY } from "../constants";
 
 export function SidebarListRow({ listItem, detail, active, playing, attention, onClick }) {
   const handleKeyDown = (e) => {
@@ -32,7 +32,7 @@ export function SidebarListRow({ listItem, detail, active, playing, attention, o
   );
 }
 
-export function Sidebar({ sections, collapsed, rowForList }) {
+export function Sidebar({ sections, collapsed, rowForList, activeAreaKey }) {
   const { actions, setSidebarCollapsed } = useApp();
 
   const toggleSection = (key) => {
@@ -58,28 +58,37 @@ export function Sidebar({ sections, collapsed, rowForList }) {
                   <div
                     ref={providedSection.innerRef}
                     {...providedSection.draggableProps}
-                    className={`list-section${isCollapsed ? " collapsed" : ""}`}
+                    className={`list-section${isCollapsed ? " collapsed" : ""}${activeAreaKey === section.key ? " active-area" : ""}`}
                     style={{ ...providedSection.draggableProps.style }}
                   >
                     <div
                       {...providedSection.dragHandleProps}
                       className={`ls-header${snapshotSection.isDragging ? " dragging" : ""}`}
-                      onClick={() => toggleSection(section.key)}
-                      aria-expanded={!isCollapsed}
                       title={`${section.label} — ${count} list${count === 1 ? "" : "s"}`}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleSection(section.key);
-                        }
-                      }}
                     >
-                      <span className="ls-area-icon" style={{ color: section.color }}>
-                        <LifeAreaIcon areaKey={section.key} />
-                      </span>
-                      <span className="ls-label" style={{ color: section.color }}>{section.label}</span>
-                      <FinderFolderChevron open={!isCollapsed} />
+                      <button
+                        type="button"
+                        className="ls-area-link"
+                        onClick={() => isUnsorted ? toggleSection(section.key) : actions.selectLifeArea(section.key)}
+                        aria-label={isUnsorted ? undefined : SIDEBAR_COPY.openAreaLabel(section.label)}
+                      >
+                        <span className="ls-area-icon" style={{ color: section.color }}>
+                          <LifeAreaIcon areaKey={section.key} />
+                        </span>
+                        <span className="ls-label" style={{ color: section.color }}>{section.label}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="ls-chevron"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleSection(section.key);
+                        }}
+                        aria-expanded={!isCollapsed}
+                        aria-label={SIDEBAR_COPY.toggleAreaLabel(section.label, !isCollapsed)}
+                      >
+                        <FinderFolderChevron open={!isCollapsed} />
+                      </button>
                     </div>
 
                     <FinderFolderContent open={!isCollapsed}>

@@ -117,6 +117,30 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 ### Life-area filing — Shipped
 
 - Five fixed areas: Career / Work, Health & Wellbeing, Relationships, Finances, and Recreation.
+- Selecting a life-area name or icon opens its page; the adjacent chevron independently expands
+  or collapses that area's sidebar lists, so navigation and disclosure are separate actions.
+- Health & Wellbeing has a tailored point-of-performance page that brings supportive unfinished
+  one-time actions, today's repeating routines, the next seven days of plans/deadlines, and its
+  list collection into one responsive surface. Against-tagged tasks remain available in their
+  lists but are not promoted as supportive Health actions.
+- Health actions and routines reuse the standard task row, including direct start, completion,
+  planning, progress, disclosed jewels, and task detail. Creation from the page preselects a
+  Health list, while Add Routine also preselects repeating cadence.
+- Health Goals are first-class synced outcomes that can link existing Health tasks and routines,
+  select one linked task as the next action, and mark one active Goal as current focus. Their
+  progress is derived from linked one-time task completion; routines remain a factual count.
+- Goal completion and focus never issue rewards, create sessions, track streaks, or preserve a
+  negative missed-work record. Archiving hides the Goal without deleting linked tasks.
+- Relationships has an action-first page with Reach out, today's Regular care routines, nearby
+  commitments, and People & circles. Lists flexibly represent known people or groups; the page
+  adds no contact score or neglected-relationship warning.
+- Career / Work keeps hierarchy prominent with Current work, Projects & responsibilities,
+  project album/group summaries, Next actions, Work routines, and the nearby Schedule.
+- Tailored pages use consistent positions: current spotlight top-left, area structure top-right,
+  actions and routines down the left, and upcoming schedule/context down the right. A spotlight
+  task is removed from the lower execution list to prevent duplication.
+- Finances and Recreation currently provide a generic collection overview as the shared
+  navigation foundation; tailored module compositions for those areas remain future work.
 - Each area has a prominent, color-tinted symbol and larger label for quick scanning; Unsorted
   uses a neutral Inbox. Sidebar list names use the same readable type scale.
 - Personal Growth is folded into Health & Wellbeing. Legacy `growth` values from supported older
@@ -222,13 +246,15 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   the task-list row with play, session, progress, and deterministic jewel controls.
 - The five life-area cards remain visible as a stable map; tasks without a life area appear in an
   additional Unsorted card so older or partially synced data is never hidden.
-- Repeating rewards are derived from completed logical-session focus on a scheduled local calendar
-  day; pausing an open session does not pay early, and work on an off-day does not create an extra
-  scheduled-day reward. No streak or missed-day history is stored.
-- Repeating tasks have no terminal Mark as done action. Their row control always starts, pauses,
-  or resumes actual work, including tasks with fixed schedule times. Finishing a qualifying
-  logical session derives that day's completion and changes its Progress status to “Done today”;
-  the schedule is never fabricated as recorded work from a completion control.
+- Repeating rewards are derived from a completed timed session or a confirmed manually logged
+  session on a scheduled local calendar day. Pausing an open session does not pay early, work on
+  an off-day does not create an extra scheduled-day reward, and multiple sessions still pay only
+  once for that day. No streak or missed-day history is stored.
+- Repeating tasks have no terminal Mark as done action. Their row retains playback for timed work
+  and adds a point-of-performance **Done today** control while today's occurrence is unfinished.
+  It opens the existing session form with the closest applicable routine window prefilled; the
+  user confirms or corrects the factual start/end time before a normal finished session is saved.
+  No timer starts and no duration is silently fabricated.
 - Legacy or synced `completed_at` values are ignored for repeating tasks, and the backend rejects
   attempts to terminally complete them.
 
@@ -242,6 +268,9 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   schedule saves are in flight.
 - Overnight rows use one occurrence, selected weekday as the starting day, and a “Next day”
   cue.
+- Done today selects the current routine window, otherwise the most recent completed window, then
+  the next window. Every-day routines without a fixed window use the most recent default session
+  duration as an editable fallback.
 - Equal start/end times are rejected.
 - Repeating-task create/edit blocks overlapping fixed task schedules and names up to three
   conflicting tasks inline. Overnight and week-boundary overlaps are included.
@@ -614,7 +643,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Backup and restore — Shipped
 
-- Export lists, tasks, sessions, and configuration as JSON to Downloads and reveal it in Finder.
+- Export lists, tasks, goals and their task links, sessions, and configuration as JSON to Downloads
+  and reveal it in Finder. Older backups without Goals remain importable.
 - Import replaces current local data after confirmation.
 - Import resets orphaned run state and refreshes the UI.
 

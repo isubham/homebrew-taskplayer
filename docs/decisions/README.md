@@ -33,6 +33,10 @@ would otherwise be repeatedly debated. Do not create one for routine implementat
 | [0017](0017-confirmed-system-sleep-events.md) | Accepted | Pause timers only for confirmed macOS system sleep |
 | [0018](0018-logical-sessions-group-focus-intervals.md) | Superseded | Group focus intervals into explicit-finish logical sessions and derive breaks |
 | [0019](0019-stop-closes-session.md) | Accepted | Make one Start → Stop interaction equal one session |
+| [0020](0020-albums-are-first-class-entities.md) | Accepted | Store albums independently from their tasks |
+| [0021](0021-adaptive-life-area-pages.md) | Accepted | Give life areas a shared shell with area-specific modules |
+| [0022](0022-goals-organize-existing-work.md) | Accepted | Let goals organize existing executable work without owning rewards |
+| [0023](0023-routine-done-logs-factual-session.md) | Accepted | Make Done today confirm and store a factual routine session |
 
 ## Creating a record
 

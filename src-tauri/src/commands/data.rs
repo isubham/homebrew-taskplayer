@@ -11,6 +11,8 @@ struct Backup {
     tasks: Vec<Task>,
     sessions: Vec<Session>,
     planned_sessions: Vec<PlannedSession>,
+    goals: Vec<Goal>,
+    goal_task_links: Vec<GoalTaskLink>,
     config: SessionConfig,
 }
 
@@ -23,6 +25,10 @@ struct RestorePayload {
     sessions: Vec<Session>,
     #[serde(default)]
     planned_sessions: Vec<PlannedSession>,
+    #[serde(default)]
+    goals: Vec<Goal>,
+    #[serde(default)]
+    goal_task_links: Vec<GoalTaskLink>,
     config: Option<SessionConfig>,
 }
 
@@ -33,13 +39,15 @@ pub(crate) fn export_data(state: State<AppState>) -> Result<String, String> {
         let db = state.db.lock().unwrap();
         Backup {
             app: "TaskPlayer",
-            version: 3,
+            version: 4,
             exported_at: now_ms(),
             lists: db.lists().map_err(|e| e.to_string())?,
             albums: db.albums().map_err(|e| e.to_string())?,
             tasks: db.tasks().map_err(|e| e.to_string())?,
             sessions: db.sessions().map_err(|e| e.to_string())?,
             planned_sessions: db.planned_sessions().map_err(|e| e.to_string())?,
+            goals: db.goals().map_err(|e| e.to_string())?,
+            goal_task_links: db.goal_task_links().map_err(|e| e.to_string())?,
             config: db.get_config(),
         }
     };
@@ -93,6 +101,8 @@ pub(crate) fn import_data(
             &data.tasks,
             &data.sessions,
             &data.planned_sessions,
+            &data.goals,
+            &data.goal_task_links,
             data.config.as_ref(),
         )
         .map_err(|e| e.to_string())?;

@@ -39,11 +39,11 @@ export function localTimeValue(timestamp: number) {
 }
 
 export function createSessionDraft(timestamp = Date.now()): SessionDraft {
-  const end = timestamp + (SESSION_DEFAULT_DURATION_MINUTES * SESSION_MILLISECONDS_PER_MINUTE);
+  const start = timestamp - (SESSION_DEFAULT_DURATION_MINUTES * SESSION_MILLISECONDS_PER_MINUTE);
   return {
-    date: localDateValue(timestamp),
-    start: localTimeValue(timestamp),
-    end: localTimeValue(end),
+    date: localDateValue(start),
+    start: localTimeValue(start),
+    end: localTimeValue(timestamp),
   };
 }
 

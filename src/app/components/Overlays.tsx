@@ -6,6 +6,7 @@ import { NewTaskModal } from "./create-task-modal";
 import { TaskDetailModal } from "./edit-task-modal";
 import { AddListModal } from "./add-list-modal.jsx";
 import { EditListModal } from "./edit-list-modal.jsx";
+import { GoalModal } from "./goal-modal";
 import { motion, AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSlidePanel } from "./motion-transitions.jsx";
 import { useMusic } from "../../music.jsx";
@@ -117,6 +118,9 @@ export function Overlays({ trackDetailOpen }) {
       )}
       {state.openTaskId && state.openTaskId !== "new" && (
         <TaskDetailModal key="edit-task" />
+      )}
+      {state.openGoalId && (
+        <GoalModal key="goal" />
       )}
       {state.openListId === "new" && (
         <AddListModal key="add-list" />

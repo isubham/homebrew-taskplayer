@@ -481,6 +481,45 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "023_goals",
+        run: |conn| {
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS goals(
+                   id TEXT PRIMARY KEY,
+                   life_area TEXT NOT NULL,
+                   title TEXT NOT NULL,
+                   description TEXT,
+                   status TEXT NOT NULL DEFAULT 'active',
+                   is_current_focus INTEGER NOT NULL DEFAULT 0,
+                   next_task_id TEXT,
+                   updated_at INTEGER NOT NULL,
+                   deleted_at INTEGER
+                 );
+                 CREATE INDEX IF NOT EXISTS idx_goals_area ON goals(life_area,status);
+                 CREATE INDEX IF NOT EXISTS idx_goals_updated ON goals(updated_at);
+                 CREATE TABLE IF NOT EXISTS goal_task_links(
+                   goal_id TEXT NOT NULL,
+                   task_id TEXT NOT NULL,
+                   updated_at INTEGER NOT NULL,
+                   deleted_at INTEGER,
+                   PRIMARY KEY(goal_id,task_id)
+                 );
+                 CREATE INDEX IF NOT EXISTS idx_goal_task_links_task ON goal_task_links(task_id);
+                 CREATE INDEX IF NOT EXISTS idx_goal_task_links_updated ON goal_task_links(updated_at);",
+            )?;
+            conn.execute(
+                "INSERT INTO meta(key,value) VALUES('sync_schema_backfill','goals_v1')
+                 ON CONFLICT(key) DO UPDATE SET value=CASE
+                   WHEN instr(value,'goals_v1') > 0 THEN value
+                   WHEN value='' THEN 'goals_v1'
+                   ELSE value || '_goals_v1'
+                 END",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in
@@ -584,7 +623,7 @@ mod compatibility_tests {
                 |row| row.get::<_, String>(0)
             )
             .unwrap(),
-            "planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1_albums_v1"
+            "planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1_albums_v1_goals_v1"
         );
         assert_eq!(
             conn.query_row("SELECT COUNT(*) FROM planned_sessions", [], |row| {

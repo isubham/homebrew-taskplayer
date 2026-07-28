@@ -3,6 +3,7 @@ use rusqlite::{params, types::Type, Connection, OptionalExtension, Row};
 
 mod planned_sessions;
 mod albums;
+mod goals;
 
 const PALETTE: [&str; 8] = [
     "#2f9e8f", "#e13300", "#8d67ab", "#e8115b", "#509bf5", "#f59b23", "#ba5d07", "#27856a",
@@ -358,6 +359,16 @@ impl Db {
     pub fn delete_list(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
         self.conn.execute(
+            "UPDATE goal_task_links SET deleted_at=?1, updated_at=?1
+             WHERE task_id IN (SELECT id FROM tasks WHERE list_id=?2)",
+            params![now, id],
+        )?;
+        self.conn.execute(
+            "UPDATE goals SET next_task_id=NULL, updated_at=?1
+             WHERE next_task_id IN (SELECT id FROM tasks WHERE list_id=?2)",
+            params![now, id],
+        )?;
+        self.conn.execute(
             "UPDATE planned_sessions SET deleted_at=?1, updated_at=?1
              WHERE task_id IN (SELECT id FROM tasks WHERE list_id=?2)",
             params![now, id],
@@ -618,6 +629,14 @@ impl Db {
 
     pub fn delete_task(&self, id: &str) -> rusqlite::Result<()> {
         let now = now_ms();
+        self.conn.execute(
+            "UPDATE goal_task_links SET deleted_at=?1, updated_at=?1 WHERE task_id=?2",
+            params![now, id],
+        )?;
+        self.conn.execute(
+            "UPDATE goals SET next_task_id=NULL, updated_at=?1 WHERE next_task_id=?2",
+            params![now, id],
+        )?;
         self.conn.execute(
             "UPDATE planned_sessions SET deleted_at=?1, updated_at=?1 WHERE task_id=?2",
             params![now, id],
@@ -1221,9 +1240,13 @@ impl Db {
         tasks: &[Task],
         sessions: &[Session],
         planned_sessions: &[PlannedSession],
+        goals: &[Goal],
+        goal_task_links: &[GoalTaskLink],
         config: Option<&SessionConfig>,
     ) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM goal_task_links", [])?;
+        tx.execute("DELETE FROM goals", [])?;
         tx.execute("DELETE FROM planned_sessions", [])?;
         tx.execute("DELETE FROM sessions", [])?;
         tx.execute("DELETE FROM tasks", [])?;
@@ -1287,6 +1310,29 @@ impl Db {
                     planned.end,
                     planned.updated_at
                 ],
+            )?;
+        }
+        for goal in goals {
+            tx.execute(
+                "INSERT INTO goals(id,life_area,title,description,status,is_current_focus,next_task_id,updated_at)
+                 VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+                params![
+                    goal.id,
+                    goal.life_area,
+                    goal.title,
+                    goal.description,
+                    goal.status,
+                    goal.is_current_focus,
+                    goal.next_task_id,
+                    goal.updated_at
+                ],
+            )?;
+        }
+        for link in goal_task_links {
+            tx.execute(
+                "INSERT INTO goal_task_links(goal_id,task_id,updated_at)
+                 VALUES(?1,?2,?3)",
+                params![link.goal_id, link.task_id, link.updated_at],
             )?;
         }
         tx.execute(
@@ -1496,6 +1542,8 @@ impl Db {
 
     pub fn clear_all_data(&self) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM goal_task_links", [])?;
+        tx.execute("DELETE FROM goals", [])?;
         tx.execute("DELETE FROM tasks", [])?;
         tx.execute("DELETE FROM albums", [])?;
         tx.execute("DELETE FROM lists", [])?;
@@ -1516,6 +1564,8 @@ impl Db {
             tasks: self.tasks()?,
             sessions: self.sessions()?,
             planned_sessions: self.planned_sessions()?,
+            goals: self.goals()?,
+            goal_task_links: self.goal_task_links()?,
             music_favorites: self.music_favorites()?,
             user_settings: self.get_user_settings(),
             config: self.get_config(),
@@ -2241,7 +2291,7 @@ mod tests {
 
         assert_eq!(
             db.sync_schema_backfill().as_deref(),
-            Some("planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1_albums_v1")
+            Some("planner_music_user_settings_v1_planned_sessions_v1_logical_sessions_v1_albums_v1_goals_v1")
         );
         db.clear_sync_schema_backfill().unwrap();
         assert_eq!(db.sync_schema_backfill(), None);

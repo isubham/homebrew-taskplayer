@@ -95,9 +95,13 @@
     & .ls-header.priority-drag-over-top::before, & .ls-header.priority-drag-over-bottom::before { animation: none; }
   }
 
+  & .active-area .ls-header { background: var(--bg3); border-radius: 6px; }
+  & .ls-area-link {
+    display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer;
+  }
   & .ls-area-icon { width: 18px; flex: none; display: flex; align-items: center; justify-content: center; }
   & .ls-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
-  & .ls-chevron { flex: none; width: 18px; display: grid; place-items: center; opacity: .45; transition: opacity .12s; }
+  & .ls-chevron { flex: none; width: 22px; height: 22px; padding: 0; border: 0; background: none; color: inherit; display: grid; place-items: center; opacity: .45; transition: opacity .12s; cursor: pointer; }
   & .ls-chevron svg { display: block; }
   & .ls-header:hover .ls-chevron { opacity: .8; }
 

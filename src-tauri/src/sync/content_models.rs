@@ -197,3 +197,78 @@ impl RemoteTask {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct RemoteGoal {
+    pub(super) id: String,
+    pub(super) user_id: String,
+    pub(super) life_area: String,
+    pub(super) title: String,
+    pub(super) description: Option<String>,
+    pub(super) status: String,
+    pub(super) is_current_focus: bool,
+    pub(super) next_task_id: Option<String>,
+    pub(super) updated_at: i64,
+    pub(super) deleted_at: Option<i64>,
+}
+
+impl RemoteGoal {
+    pub(super) fn from_local(goal: &Goal, user_id: &str) -> Self {
+        Self {
+            id: goal.id.clone(),
+            user_id: user_id.to_string(),
+            life_area: goal.life_area.clone(),
+            title: goal.title.clone(),
+            description: goal.description.clone(),
+            status: goal.status.clone(),
+            is_current_focus: goal.is_current_focus,
+            next_task_id: goal.next_task_id.clone(),
+            updated_at: goal.updated_at,
+            deleted_at: goal.deleted_at,
+        }
+    }
+
+    pub(super) fn into_local(self) -> Goal {
+        Goal {
+            id: self.id,
+            life_area: self.life_area,
+            title: self.title,
+            description: self.description,
+            status: self.status,
+            is_current_focus: self.is_current_focus,
+            next_task_id: self.next_task_id,
+            updated_at: self.updated_at,
+            deleted_at: self.deleted_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct RemoteGoalTaskLink {
+    pub(super) user_id: String,
+    pub(super) goal_id: String,
+    pub(super) task_id: String,
+    pub(super) updated_at: i64,
+    pub(super) deleted_at: Option<i64>,
+}
+
+impl RemoteGoalTaskLink {
+    pub(super) fn from_local(link: &GoalTaskLink, user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            goal_id: link.goal_id.clone(),
+            task_id: link.task_id.clone(),
+            updated_at: link.updated_at,
+            deleted_at: link.deleted_at,
+        }
+    }
+
+    pub(super) fn into_local(self) -> GoalTaskLink {
+        GoalTaskLink {
+            goal_id: self.goal_id,
+            task_id: self.task_id,
+            updated_at: self.updated_at,
+            deleted_at: self.deleted_at,
+        }
+    }
+}

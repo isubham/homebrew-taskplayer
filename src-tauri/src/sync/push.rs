@@ -10,6 +10,8 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
         priorities,
         music_favorites,
         planned_sessions,
+        goals,
+        goal_task_links,
         run,
         config,
         user_settings,
@@ -28,6 +30,10 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
         let planned_sessions = db
             .planned_sessions_dirty_since(cursor)
             .map_err(|e| e.to_string())?;
+        let goals = db.goals_dirty_since(cursor).map_err(|e| e.to_string())?;
+        let goal_task_links = db
+            .goal_task_links_dirty_since(cursor)
+            .map_err(|e| e.to_string())?;
         let run = db.get_run();
         let config = db.get_config();
         let user_settings = db.get_user_settings();
@@ -41,6 +47,8 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
             priorities,
             music_favorites,
             planned_sessions,
+            goals,
+            goal_task_links,
             run,
             config,
             user_settings,
@@ -102,6 +110,22 @@ pub(super) fn push(db_mutex: &Mutex<Db>, access_token: &str, user_id: &str) -> R
         &planned_sessions
             .iter()
             .map(|session| RemotePlannedSession::from_local(session, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "goals",
+        &goals
+            .iter()
+            .map(|goal| RemoteGoal::from_local(goal, user_id))
+            .collect::<Vec<_>>(),
+    )?;
+    upsert(
+        access_token,
+        "goal_task_links",
+        &goal_task_links
+            .iter()
+            .map(|link| RemoteGoalTaskLink::from_local(link, user_id))
             .collect::<Vec<_>>(),
     )?;
 

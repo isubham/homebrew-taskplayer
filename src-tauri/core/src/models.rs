@@ -300,6 +300,47 @@ pub struct PlannedSession {
     pub deleted_at: Option<i64>,
 }
 
+pub const GOAL_STATUS_ACTIVE: &str = "active";
+pub const GOAL_STATUS_COMPLETED: &str = "completed";
+pub const GOAL_STATUS_ARCHIVED: &str = "archived";
+
+/// A life-area outcome. Goals organize existing executable work; they do not
+/// earn rewards or record time themselves.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Goal {
+    pub id: String,
+    pub life_area: String,
+    pub title: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    pub status: String,
+    #[serde(default)]
+    pub is_current_focus: bool,
+    #[serde(default)]
+    pub next_task_id: Option<String>,
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub updated_at: i64,
+    #[serde(skip)]
+    #[specta(type = Option<i32>)]
+    pub deleted_at: Option<i64>,
+}
+
+/// Tombstoned many-to-many link between a goal and an existing task.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GoalTaskLink {
+    pub goal_id: String,
+    pub task_id: String,
+    #[serde(default)]
+    #[specta(type = f64)]
+    pub updated_at: i64,
+    #[serde(skip)]
+    #[specta(type = Option<i32>)]
+    pub deleted_at: Option<i64>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
@@ -535,6 +576,10 @@ pub struct Snapshot {
     pub sessions: Vec<Session>,
     #[serde(default)]
     pub planned_sessions: Vec<PlannedSession>,
+    #[serde(default)]
+    pub goals: Vec<Goal>,
+    #[serde(default)]
+    pub goal_task_links: Vec<GoalTaskLink>,
     #[serde(default)]
     pub music_favorites: Vec<MusicFavorite>,
     #[serde(default)]

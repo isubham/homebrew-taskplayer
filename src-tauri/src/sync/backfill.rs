@@ -11,12 +11,14 @@ pub(super) fn backfill_schema(
     let needs_planned_sessions = marker.contains("planned_sessions");
     let needs_logical_sessions = marker.contains("logical_sessions");
     let needs_albums = marker.contains("albums");
+    let needs_goals = marker.contains("goals");
     if !needs_planner
         && !needs_music
         && !needs_settings
         && !needs_planned_sessions
         && !needs_logical_sessions
         && !needs_albums
+        && !needs_goals
     {
         return Err(format!(
             "Sync paused: this client does not understand schema backfill {marker}."
@@ -41,6 +43,9 @@ pub(super) fn backfill_schema(
     }
     if needs_albums {
         changed |= backfill_albums(db_mutex, token)?;
+    }
+    if needs_goals {
+        changed |= backfill_goals(db_mutex, token)?;
     }
     finish(db_mutex, changed)
 }
@@ -120,6 +125,24 @@ fn backfill_albums(db_mutex: &Mutex<Db>, token: &str) -> Result<bool, String> {
     let changed = !albums.is_empty();
     let db = db_mutex.lock().unwrap();
     db.upsert_albums_from_remote(&albums, false)
+        .map_err(|error| error.to_string())?;
+    Ok(changed)
+}
+
+fn backfill_goals(db_mutex: &Mutex<Db>, token: &str) -> Result<bool, String> {
+    let goals = fetch_since::<RemoteGoal>(token, "goals", 0)?
+        .into_iter()
+        .map(RemoteGoal::into_local)
+        .collect::<Vec<_>>();
+    let links = fetch_since::<RemoteGoalTaskLink>(token, "goal_task_links", 0)?
+        .into_iter()
+        .map(RemoteGoalTaskLink::into_local)
+        .collect::<Vec<_>>();
+    let changed = !goals.is_empty() || !links.is_empty();
+    let db = db_mutex.lock().unwrap();
+    db.upsert_goals_from_remote(&goals, false)
+        .map_err(|error| error.to_string())?;
+    db.upsert_goal_task_links_from_remote(&links, false)
         .map_err(|error| error.to_string())?;
     Ok(changed)
 }

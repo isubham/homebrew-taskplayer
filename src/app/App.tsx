@@ -11,7 +11,7 @@ import { TourOverlay } from "./components/tour-overlay.jsx";
 import { AppLoadingScreen } from "./components/AppLoadingScreen";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { ACCOUNT_STORAGE_KEYS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
+import { ACCOUNT_STORAGE_KEYS, LIFE_AREA_VIEW_KEY, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
@@ -100,7 +100,12 @@ export function App() {
           </div>
           <div className="side-scroll" data-tour-id="sidebar-lists">
             <div id="lists">
-              <Sidebar sections={sections} collapsed={state.sidebarCollapsed} rowForList={sidebarListRowForState} />
+              <Sidebar
+                sections={sections}
+                collapsed={state.sidebarCollapsed}
+                rowForList={sidebarListRowForState}
+                activeAreaKey={state.view === LIFE_AREA_VIEW_KEY ? state.activeAreaKey : null}
+              />
             </div>
           </div>
           <button data-tour-id="add-list-btn" className="add-btn" onClick={() => actions.addList()}>＋ New list</button>

@@ -4,6 +4,7 @@ import { useRoute } from "./RouteProvider.jsx";
 import { useUI } from "./UIProvider.jsx";
 import { esc } from "../utils.jsx";
 import { 
+  GOAL_COPY,
   SESSION_COPY,
   TASK_ALBUM_COPY,
   TOAST_ALBUM_CREATED,
@@ -13,6 +14,7 @@ import {
   TOAST_TASK_DELETED
 } from "../constants.jsx";
 import { createSessionDraft, parseSessionDraft, sessionDraftFromRange } from "../session-time";
+import { useRoutineSessionAction } from "../hooks/use-routine-session-action";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -28,11 +30,13 @@ export function DatabaseProvider({ children }) {
   const { 
     actions: { 
       uiConfirm, uiNote, uiPrompt, uiForm, showToast, 
-      setOpenTaskId, setOpenListArea, setOpenListId,
+      setOpenTaskId, setNewTaskDefaults, setOpenListArea, setOpenListId,
+      setOpenGoalId,
       setDialogInput,
       setDialogSession, setCheckingForUpdate, setUpdateInfo, setInstallingUpdate
     } 
   } = useUI();
+  const logRoutineToday = useRoutineSessionAction();
 
   const addList = useCallback((area = null) => {
     setOpenListArea(area);
@@ -62,10 +66,15 @@ export function DatabaseProvider({ children }) {
     }
   }, [list, uiConfirm, uiNote, apply, navigate, showToast]);
 
-  const addTask = useCallback(async () => {
+  const addTask = useCallback((defaults = null) => {
     if (!S) return;
+    const requestedDefaults = defaults && !defaults.nativeEvent ? defaults : null;
+    setNewTaskDefaults({
+      areaKey: requestedDefaults?.areaKey || null,
+      cadence: requestedDefaults?.cadence || null,
+    });
     setOpenTaskId("new");
-  }, [S, setOpenTaskId]);
+  }, [S, setNewTaskDefaults, setOpenTaskId]);
 
   const addAlbum = useCallback(() => {
     if (!S) return;
@@ -86,6 +95,26 @@ export function DatabaseProvider({ children }) {
       },
     });
   }, [S, activeListId, apply, setDialogInput, showToast, uiForm, uiNote]);
+
+  const saveGoal = useCallback(async (goal) => {
+    try {
+      apply(await invoke("save_goal", goal));
+      setOpenGoalId(null);
+      showToast({ message: GOAL_COPY.savedToast });
+    } catch (error) {
+      await uiNote(GOAL_COPY.saveError, esc(String(error)));
+    }
+  }, [apply, setOpenGoalId, showToast, uiNote]);
+
+  const archiveGoal = useCallback(async (id) => {
+    try {
+      apply(await invoke("archive_goal", { id }));
+      setOpenGoalId(null);
+      showToast({ message: GOAL_COPY.archivedToast });
+    } catch (error) {
+      await uiNote(GOAL_COPY.saveError, esc(String(error)));
+    }
+  }, [apply, setOpenGoalId, showToast, uiNote]);
 
   const createTaskFromDetail = useCallback(async (value) => {
     if (!S) return;
@@ -503,12 +532,12 @@ export function DatabaseProvider({ children }) {
   return (
     <DatabaseContext.Provider value={{
       actions: {
-        addList, editList, deleteList, addTask, addAlbum, createTaskFromDetail,
+        addList, editList, deleteList, addTask, addAlbum, saveGoal, archiveGoal, createTaskFromDetail,
         renameTask, setDepth, setCadence, addDailyScheduleRow, removeDailyScheduleRow,
         setDailySchedule, setSessionRangeField, deleteTask, setEstimateInline,
         bumpEstimate, decreaseEstimate, setDeadlineInline, setImpactTier, setImpactSign,
         toggleDone, moveTaskInline, reorderTasks, reorderLists, reorderLifeAreas,
-        setAlbum, moveTaskToAlbum, editLyrics, setLyricsInline, addSession, editSession,
+        setAlbum, moveTaskToAlbum, editLyrics, setLyricsInline, addSession, logRoutineToday, editSession,
         deleteSession, deleteLogicalSession, openTrackLink, openNotificationSettings, exportData, importData,
         revealLogs, signInGoogle, signOut, fullSync, checkForUpdates,
         setMode, setConfigField, setConfigSound, cycleMode

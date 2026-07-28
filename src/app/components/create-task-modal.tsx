@@ -12,19 +12,22 @@ import { validateTaskSchedule } from "../schedule-validation";
 
 export function NewTaskModal() {
   const { state, helpers, actions } = useApp();
+  const defaultAreaKey = state.newTaskDefaults?.areaKey || null;
+  const defaultList = state.S.lists.find((item) => item.lifeArea === defaultAreaKey);
+  const initialListId = defaultList?.id || state.activeListId;
 
   // All hooks must run unconditionally — before any early return
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
   const [album, setAlbum] = useState("");
   const [depth, setDepth] = useState("");
-  const [cadence, setCadence] = useState("");
+  const [cadence, setCadence] = useState(state.newTaskDefaults?.cadence || "");
   const [deadline, setDeadline] = useState("");
   const [minSession, setMinSession] = useState("30");
   const [maxSession, setMaxSession] = useState("90");
   const [estimate, setEstimate] = useState("0.5");
   const [dailyWindows, setDailyWindows] = useState(() => [1, 2, 3, 4, 5, 6, 7].map(weekday => ({ weekday, startMinute: 540, endMinute: 1020 })));
-  const [listId, setListId] = useState(state.activeListId);
+  const [listId, setListId] = useState(initialListId);
   const [scheduleBlocked, setScheduleBlocked] = useState(false);
   const [impactTier, setImpactTier] = useState("");
   const [impactSign, setImpactSign] = useState(() => {
@@ -50,6 +53,11 @@ export function NewTaskModal() {
 
   const payout = getPayout();
   const selectedList = helpers.list(listId) || listItem;
+  const orderedLists = defaultAreaKey
+    ? [...state.S.lists].sort((left, right) =>
+      Number(right.lifeArea === defaultAreaKey) - Number(left.lifeArea === defaultAreaKey)
+      || left.order - right.order)
+    : state.S.lists;
   const availableAlbums = (state.S.albums || []).filter((item) => item.listId === listId);
   const area = selectedList.lifeArea ? LIFE_AREAS.find((a) => a.key === selectedList.lifeArea) : null;
   const earnsLabel = cadence === "daily" ? TASK_REPEAT_COPY.rewardTiming : "Earns on completion";
@@ -154,7 +162,7 @@ export function NewTaskModal() {
               <h4>List</h4>
               <div className="list-select-wrap">
                 <select className="list-select" value={listId} onChange={(e) => { setListId(e.target.value); setAlbum(""); }}>
-                  {state.S.lists.map((item) => (
+                  {orderedLists.map((item) => (
                     <option key={item.id} value={item.id}>{item.emoji} {item.name}</option>
                   ))}
                 </select>

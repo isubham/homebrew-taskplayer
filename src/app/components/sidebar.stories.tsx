@@ -23,6 +23,7 @@ function SidebarStory({ collapsed: initialCollapsed }: SidebarStoryProps) {
   const appContext = {
     actions: {
       addList: () => undefined,
+      selectLifeArea: () => undefined,
     },
     setSidebarCollapsed: setCollapsed,
   };

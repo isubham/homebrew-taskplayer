@@ -1,7 +1,7 @@
 import React from "react";
 import { LIFE_AREAS } from "../utils.jsx";
 import { TaskRow, TaskTableHead } from "./task-row.jsx";
-import { DAILY_JAM_COPY, DAILY_JAM_TASK_LIMIT, TASK_REPEAT_COPY, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { DAILY_JAM_COPY, DAILY_JAM_TASK_LIMIT, TASK_REPEAT_COPY, TASK_ROW_CONTEXTS, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { LifeAreaIcon } from "./life-area-icon";
 
 const getGroups = (state, entries) => {
@@ -37,7 +37,7 @@ const TaskTable = ({ entries, startIndex, context, withHead = false }) => (
           taskTotal={context.taskTotal}
           attentionTaskIds={context.attentionTaskIds}
           attentionReason={entry.attentionReason}
-          context="dailyJam"
+          context={TASK_ROW_CONTEXTS.dailyJam}
         />
       ))}
     </tbody>

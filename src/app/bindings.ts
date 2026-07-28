@@ -16,6 +16,8 @@ export const commands = {
 	reorderLifeAreas: (orderedAreaKeys: string[]) => __TAURI_INVOKE<Snapshot>("reorder_life_areas", { orderedAreaKeys }),
 	deleteList: (id: string) => __TAURI_INVOKE<Snapshot>("delete_list", { id }),
 	createAlbum: (listId: string, name: string) => typedError<Snapshot, string>(__TAURI_INVOKE("create_album", { listId, name })),
+	saveGoal: (id: string | null, lifeArea: string, title: string, description: string | null, status: string, isCurrentFocus: boolean, nextTaskId: string | null, taskIds: string[]) => typedError<Snapshot, string>(__TAURI_INVOKE("save_goal", { id, lifeArea, title, description, status, isCurrentFocus, nextTaskId, taskIds })),
+	archiveGoal: (id: string) => typedError<Snapshot, string>(__TAURI_INVOKE("archive_goal", { id })),
 	addTask: (listId: string, name: string, estimateMin: number | null) => __TAURI_INVOKE<Snapshot>("add_task", { listId, name, estimateMin }),
 	renameTask: (id: string, name: string) => __TAURI_INVOKE<Snapshot>("rename_task", { id, name }),
 	setDepth: (id: string, depth: string | null) => __TAURI_INVOKE<Snapshot>("set_depth", { id, depth }),
@@ -189,6 +191,28 @@ export type AutomaticPlanSuggestion = {
 	taskId: string,
 	start: number | null,
 	end: number | null,
+};
+
+/**
+ *  A life-area outcome. Goals organize existing executable work; they do not
+ *  earn rewards or record time themselves.
+ */
+export type Goal = {
+	id: string,
+	lifeArea: string,
+	title: string,
+	description?: string | null,
+	status: string,
+	isCurrentFocus?: boolean,
+	nextTaskId?: string | null,
+	updatedAt?: number | null,
+};
+
+/**  Tombstoned many-to-many link between a goal and an existing task. */
+export type GoalTaskLink = {
+	goalId: string,
+	taskId: string,
+	updatedAt?: number | null,
 };
 
 /**
@@ -422,6 +446,8 @@ export type Snapshot = {
 	tasks: Task[],
 	sessions: Session[],
 	plannedSessions?: PlannedSession[],
+	goals?: Goal[],
+	goalTaskLinks?: GoalTaskLink[],
 	musicFavorites?: MusicFavorite[],
 	userSettings?: UserSettings,
 	config: SessionConfig,

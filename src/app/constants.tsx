@@ -315,6 +315,10 @@ export const SESSION_COPY = {
   deleteLogicalConfirm: "Delete",
   editFocusIntervalTitle: "Edit focus interval",
   removeLogicalTitle: "Remove session",
+  routineTitle: "Log routine session",
+  routineButton: "Log done",
+  routineSubtitle: "These times come from today’s routine window. Adjust them to when the routine actually happened.",
+  routineLoggedToast: "Routine logged for today",
 };
 export const LOGICAL_SESSION_STATUS = {
   focus: "focus",
@@ -408,6 +412,11 @@ export const TIMER_PLAY_TRIGGERS = {
   playerToggle: "player_toggle",
   albumPlay: "album_play",
 } as const;
+export const TASK_ROW_CONTEXTS = {
+  list: "list",
+  dailyJam: "dailyJam",
+  lifeArea: "lifeArea",
+} as const;
 export const MUSIC_MINI_CONTROL_ICON_SIZE = 16;
 export const MUSIC_PRIMARY_CONTROL_ICON_SIZE = 16;
 
@@ -423,9 +432,164 @@ export const SIDEBAR_FOLDER_MOTION = {
 export const SIDEBAR_COPY = {
   lifeAreasHeading: "Life Areas",
   unsortedLabel: "Unsorted",
+  openAreaLabel: (areaName: string) => `Open ${areaName}`,
+  toggleAreaLabel: (areaName: string, expanded: boolean) => `${expanded ? "Collapse" : "Expand"} ${areaName} lists`,
 };
 export const SIDEBAR_UNSORTED_KEY = "__unsorted__";
 export const LIFE_AREA_ICON_SIZE_PX = 20;
+export const LIFE_AREA_VIEW_KEY = "lifeArea";
+export const WORK_AREA_KEY = "career";
+export const HEALTH_AREA_KEY = "health";
+export const RELATIONSHIPS_AREA_KEY = "relationships";
+export const HEALTH_UPCOMING_KINDS = {
+  planned: "planned",
+  deadline: "deadline",
+} as const;
+export const HEALTH_AREA_LIMITS = {
+  nextActions: 3,
+  routines: 3,
+  goals: 4,
+  upcoming: 5,
+  upcomingDays: 7,
+} as const;
+export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+export const HEALTH_AREA_COPY = {
+  pageTitle: "Health & Wellbeing",
+  pageSubtitle: "Actions, routines, and plans that support your wellbeing",
+  addTask: "Add task",
+  addRoutine: "Add routine",
+  addList: "Add collection",
+  addGoal: "Add goal",
+  goalsHeading: "Goals",
+  currentFocusHeading: "Current focus",
+  editGoalLabel: (title: string) => `Edit goal ${title}`,
+  goalProgress: (completed: number, total: number) => `${completed} of ${total} actions complete`,
+  linkedRoutineCount: (count: number) => `${count} linked routine${count === 1 ? "" : "s"}`,
+  noLinkedWork: "Link a small next action when you are ready.",
+  nextActionLabel: "Next action",
+  noCurrentFocus: "Choose one goal to keep visible here.",
+  noOtherGoals: "No other goals yet.",
+  completedGoalLabel: "Completed",
+  nextActionsHeading: "Next actions",
+  routinesHeading: "Routines",
+  collectionsHeading: "Plans & collections",
+  upcomingHeading: "Upcoming",
+  viewAll: (count: number) => `Show all ${count}`,
+  showLess: "Show less",
+  taskCount: (count: number) => `${count} task${count === 1 ? "" : "s"}`,
+  routineCount: (count: number) => `${count} routine${count === 1 ? "" : "s"}`,
+  actionCount: (count: number) => `${count} action${count === 1 ? "" : "s"}`,
+  emptyPageTitle: "Start with one supportive outcome",
+  emptyPageBody: "Name a goal now, or create a Health collection and add one small task or routine.",
+  emptyActions: "No unfinished one-time actions here.",
+  emptyRoutines: "No routines scheduled for today.",
+  emptyUpcoming: "Nothing scheduled in the next seven days.",
+  deadlineLabel: "Deadline",
+  plannedLabel: "Planned",
+  collectionOpenLabel: (name: string) => `Open ${name}`,
+} as const;
+export const GOAL_STATUS = {
+  active: "active",
+  completed: "completed",
+  archived: "archived",
+} as const;
+export const GOAL_STATUS_VALUES = Object.values(GOAL_STATUS);
+export const GOAL_EDITOR_LIMITS = {
+  title: 120,
+  description: 500,
+} as const;
+export const GOAL_COPY = {
+  createTitle: "Add health goal",
+  editTitle: "Edit health goal",
+  titleLabel: "Outcome",
+  titlePlaceholder: "What would better look like?",
+  descriptionLabel: "Why this matters",
+  descriptionPlaceholder: "Optional context that helps you restart",
+  currentFocusLabel: "Make this my current focus",
+  statusLabel: "Status",
+  activeStatus: "Active",
+  completedStatus: "Completed",
+  linkedWorkHeading: "Linked actions & routines",
+  linkedWorkHint: "Choose work that directly moves this outcome.",
+  noHealthWork: "Create a Health task or routine before linking work.",
+  nextActionLabel: "Next action",
+  noNextAction: "Choose later",
+  save: "Save goal",
+  archive: "Archive",
+  archiveTitle: "Archive this goal?",
+  archiveBody: "It will leave the Health page. Linked tasks and routines stay where they are.",
+  archivedToast: "Goal archived",
+  savedToast: "Goal saved",
+  saveError: "Couldn't save goal",
+} as const;
+export const LIFE_AREA_FALLBACK_COPY = {
+  subtitle: "Lists and actions in this life area",
+  collectionsHeading: "Collections",
+  addList: "Add collection",
+  emptyTitle: "Nothing here yet",
+  emptyBody: "Create a collection to start organizing this area.",
+  taskCount: (count: number) => `${count} task${count === 1 ? "" : "s"}`,
+} as const;
+export const ADAPTIVE_AREA_LIMITS = {
+  actions: 4,
+  routines: 3,
+  structure: 4,
+  upcoming: 5,
+  upcomingDays: 7,
+} as const;
+export const ADAPTIVE_AREA_COPY = {
+  plannedLabel: "Planned",
+  deadlineLabel: "Deadline",
+  showLess: "Show less",
+  viewAll: (count: number) => `Show all ${count}`,
+  itemCount: (count: number) => `${count} item${count === 1 ? "" : "s"}`,
+  progressLabel: (completed: number, total: number) => `${completed} of ${total} actions complete`,
+} as const;
+export const RELATIONSHIPS_AREA_COPY = {
+  pageTitle: "Relationships",
+  pageSubtitle: "People, shared plans, and small ways to stay connected",
+  addAction: "Add action",
+  addRoutine: "Add routine",
+  addCircle: "Add person or circle",
+  currentHeading: "Next connection",
+  actionsHeading: "Reach out",
+  routinesHeading: "Regular care",
+  upcomingHeading: "Coming up",
+  collectionsHeading: "People & circles",
+  emptyPageTitle: "Start with one person or circle",
+  emptyPageBody: "Create a collection for someone or a group, then add one small way to connect.",
+  emptyActions: "No open relationship actions.",
+  emptyCurrent: "No relationship action is active or planned right now.",
+  emptyRoutines: "No recurring touchpoints scheduled today.",
+  emptyUpcoming: "No relationship commitments in the next seven days.",
+  actionCount: (count: number) => `${count} action${count === 1 ? "" : "s"}`,
+  routineCount: (count: number) => `${count} routine${count === 1 ? "" : "s"}`,
+  collectionOpenLabel: (name: string) => `Open ${name}`,
+} as const;
+export const WORK_AREA_COPY = {
+  pageTitle: "Career / Work",
+  pageSubtitle: "Current work, projects, responsibilities, and nearby commitments",
+  addTask: "Add task",
+  addRoutine: "Add routine",
+  addProject: "Add project",
+  currentHeading: "Current work",
+  projectsHeading: "Projects & responsibilities",
+  actionsHeading: "Next actions",
+  routinesHeading: "Work routines",
+  upcomingHeading: "Schedule",
+  emptyPageTitle: "Start with one project or responsibility",
+  emptyPageBody: "Create a collection to preserve the hierarchy, then add its next action.",
+  emptyCurrent: "Start a task or plan a block to make the current focus visible here.",
+  emptyActions: "No unfinished work actions.",
+  emptyRoutines: "No work routines scheduled today.",
+  emptyUpcoming: "No work commitments in the next seven days.",
+  projectCount: (count: number) => `${count} project${count === 1 ? "" : "s"}`,
+  actionCount: (count: number) => `${count} action${count === 1 ? "" : "s"}`,
+  routineCount: (count: number) => `${count} routine${count === 1 ? "" : "s"}`,
+  openCount: (count: number) => `${count} open`,
+  groupCount: (count: number) => `${count} group${count === 1 ? "" : "s"}`,
+  projectOpenLabel: (name: string) => `Open ${name}`,
+} as const;
 
 export const TASK_REPEAT_COPY = {
   optionLabel: "Repeating",
@@ -443,6 +607,8 @@ export const TASK_REPEAT_COPY = {
   offDayStatus: "Not scheduled today",
   offDayNote: "This task returns on its selected days.",
   completedTodayStatus: "Done today",
+  doneTodayButton: "Done today",
+  doneTodayTitle: "Log when this routine happened",
   dailyJamEmpty: DAILY_JAM_COPY.allClear,
 };
 

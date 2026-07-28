@@ -9,6 +9,8 @@ export function useUI() {
 export function UIProvider({ children }) {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [openTaskId, setOpenTaskId] = useState(null);
+  const [openGoalId, setOpenGoalId] = useState(null);
+  const [newTaskDefaults, setNewTaskDefaults] = useState({ areaKey: null, cadence: null });
   const [openListId, setOpenListId] = useState(null);
   const [openListArea, setOpenListArea] = useState(null);
   const [lyricsId, setLyricsId] = useState(null);
@@ -130,13 +132,13 @@ export function UIProvider({ children }) {
   return (
     <UIContext.Provider value={{
       state: {
-        completedOpen, openTaskId, openListId, openListArea, lyricsId, openTrackDetail,
+        completedOpen, openTaskId, openGoalId, newTaskDefaults, openListId, openListArea, lyricsId, openTrackDetail,
         activeMenuTaskId, menuPosition, selectedAgainstArea, selectedGridCell,
         dialogInput, dialogSession, checkingForUpdate, installingUpdate, updateInfo,
         toast, dialog
       },
       actions: {
-        setCompletedOpen, setOpenTaskId, setOpenListId, setOpenListArea, setLyricsId,
+        setCompletedOpen, setOpenTaskId, setOpenGoalId, setNewTaskDefaults, setOpenListId, setOpenListArea, setLyricsId,
         setOpenTrackDetail, setSelectedAgainstArea, setSelectedGridCell, setDialogInput,
         setDialogSession, setCheckingForUpdate, setInstallingUpdate, setUpdateInfo,
         showToast, uiForm, resolveDialog, uiPrompt, uiConfirm, uiNote, openRowMenu, closeRowMenu

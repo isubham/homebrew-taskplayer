@@ -8,11 +8,23 @@ move those entries into a dated version section.
 
 ## Unreleased
 
+## 0.9.8 - 2026-07-28
+
 ### Added
 
 - Added first-class albums stored independently in SQLite and Supabase. Add Album on list detail
   now creates an immediately visible empty album, existing task groups are migrated automatically,
   and new one-time tasks can select an existing album.
+- Added dedicated life-area pages with area-specific compositions built from existing tasks,
+  routines, plans, sessions, collections, and albums. Health prioritizes supportive goals and
+  routines, Relationships prioritizes connection actions and people/circles, and Career / Work
+  keeps project and album hierarchy visible beside current and upcoming work.
+- Added synced Health Goals that organize existing actions and routines, expose one current focus
+  and next action, derive progress from linked one-time tasks, and never create rewards or time
+  records themselves.
+- Added **Done today** to scheduled routines. It opens the normal session form with the applicable
+  routine window prefilled and editable, then records a factual finished session without starting
+  the player or paying more than once that day.
 
 ### Fixed
 
@@ -20,6 +32,8 @@ move those entries into a dated version section.
   the generated TypeScript bindings were refreshed.
 - Fixed empty album headers not accepting dragged tasks because only their zero-height task table
   had been registered as a drop target.
+- Fixed manually recorded sessions defaulting to a future end time. New drafts now cover the
+  previous 30 minutes and reject future end times before submission.
 
 ### Changed
 
@@ -27,7 +41,14 @@ move those entries into a dated version section.
   while task titles retain their pointer cursor.
 - Removed sidebar drag icons from life areas and lists, and aligned both icon columns.
 - Made sidebar life-area labels smaller, bold, and colored with their assigned area color.
-
+- Selecting a life-area name or icon now opens its page, while the adjacent chevron independently
+  expands or collapses its lists.
+- Tailored life-area pages now share one predictable spatial grammar: current spotlight top-left,
+  area structure top-right, executable actions and routines down the left, and schedule/context
+  down the right. Narrow layouts preserve point-of-performance order by placing execution before
+  organizational structure.
+- Health, Relationships, and Career / Work creation actions now preserve a consistent order and
+  preselect the active area; Add Routine also preselects repeating cadence.
 
 ## 0.9.7 - 2026-07-27
 

@@ -44,6 +44,15 @@ pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Res
             .into_iter()
             .map(RemotePlannedSession::into_local)
             .collect();
+    let goals: Vec<Goal> = fetch_since::<RemoteGoal>(access_token, "goals", cursor)?
+        .into_iter()
+        .map(RemoteGoal::into_local)
+        .collect();
+    let goal_task_links: Vec<GoalTaskLink> =
+        fetch_since::<RemoteGoalTaskLink>(access_token, "goal_task_links", cursor)?
+            .into_iter()
+            .map(RemoteGoalTaskLink::into_local)
+            .collect();
     // At most one row ever comes back — `run_state` is a singleton keyed by
     // `user_id` (see docs/session-sync-design.md) — but `fetch_since` still
     // returns a `Vec` since it's a generic PostgREST GET.
@@ -68,7 +77,9 @@ pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Res
         || !albums.is_empty()
         || !priorities.is_empty()
         || !music_favorites.is_empty()
-        || !planned_sessions.is_empty();
+        || !planned_sessions.is_empty()
+        || !goals.is_empty()
+        || !goal_task_links.is_empty();
     {
         let db = db_mutex.lock().unwrap();
         if collection_rows_changed {
@@ -94,6 +105,14 @@ pub(super) fn pull(db_mutex: &Mutex<Db>, access_token: &str, force: bool) -> Res
         }
         if !planned_sessions.is_empty() {
             db.upsert_planned_sessions_from_remote(&planned_sessions, force)
+                .map_err(|e| e.to_string())?;
+        }
+        if !goals.is_empty() {
+            db.upsert_goals_from_remote(&goals, force)
+                .map_err(|e| e.to_string())?;
+        }
+        if !goal_task_links.is_empty() {
+            db.upsert_goal_task_links_from_remote(&goal_task_links, force)
                 .map_err(|e| e.to_string())?;
         }
         // Applied separately from the three above: `upsert_run_from_remote`

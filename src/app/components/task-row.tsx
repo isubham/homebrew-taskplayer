@@ -1,10 +1,10 @@
 import "./task-row.css";
-import { buildCapacityBar, deadlineDate, fmtHM, jewelPayout, LIFE_AREAS, repeatingTaskOccursOn } from "../utils.jsx";
+import { buildCapacityBar, dailyPayoutOn, deadlineDate, fmtHM, jewelPayout, LIFE_AREAS, repeatingTaskOccursOn } from "../utils.jsx";
 import { PlayingEqualizer } from "./playing-equalizer.jsx";
 import { useApp } from "../context/app-context-value";
 import { Draggable } from "@hello-pangea/dnd";
 import { Check } from "lucide-react";
-import { PLANNER_VIEW_KEY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { PLANNER_VIEW_KEY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TASK_ROW_CONTEXTS, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
 import { TaskPlanningCue } from "./planner/task-planning-cue";
 
 export function JewelPayoutTemplate({ payout, areaColor, daily }) {
@@ -75,7 +75,7 @@ export function TaskTableHead() {
   );
 }
 
-export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal, attentionTaskIds, attentionReason, context = "list", isDragDisabled = false }) {
+export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal, attentionTaskIds, attentionReason = null, context = TASK_ROW_CONTEXTS.list as string, isDragDisabled = false }) {
   const { actions, helpers } = useApp();
   const run = state.S.run;
   const owner = listItem || { id: task.listId, name: "Unsorted", lifeArea: null };
@@ -93,6 +93,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
   const daily = task.cadence === "daily";
   const todayStart = new Date().setHours(0, 0, 0, 0);
   const scheduledToday = !daily || repeatingTaskOccursOn(task, todayStart);
+  const doneToday = daily && dailyPayoutOn(task, state.S.sessions, todayStart);
   const todaySessions = daily ? taskSessions(task.id).filter((session) => session.start >= todayStart) : [];
   const todayMs = todaySessions.reduce((sum, session) => sum + ((session.end ?? Date.now()) - session.start), 0)
     + (daily && working && run.runningStart >= todayStart ? Date.now() - run.runningStart : 0);
@@ -100,8 +101,10 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
     session.finishedAt != null
     && session.focusIntervals.some((interval) => interval.end > todayStart)
   ).length;
-  const inDailyJam = context === "dailyJam";
+  const inDailyJam = context === TASK_ROW_CONTEXTS.dailyJam;
+  const inLifeArea = context === TASK_ROW_CONTEXTS.lifeArea;
   const fixedTime = daily && scheduledToday ? dailyTimeLabel(task) : "";
+  const canLogRoutine = daily && scheduledToday && !doneToday && !ongoing;
 
   const sessionsCell = daily
     ? todaySessionCount
@@ -116,7 +119,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
       ? TASK_REPEAT_COPY.offDayStatus
       : <>{fixedTime ? `${fixedTime} · ` : ""}{onBreak
         ? "on break"
-        : todaySessionCount > 0
+        : doneToday
           ? `${TASK_REPEAT_COPY.completedTodayStatus} · ${fmtHM(todayMs)}`
           : todayMs > 0
             ? `${fmtHM(todayMs)} today`
@@ -158,7 +161,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
       ref={provided?.innerRef}
       {...(provided?.draggableProps || {})}
       {...(provided?.dragHandleProps || {})}
-      className={`${active ? "playing" : ""}${inDailyJam && todaySessionCount ? " daily-done" : ""}${provided ? " task-row-draggable" : ""}${snapshot?.isDragging ? " dragging" : ""}`}
+      className={`${active ? "playing" : ""}${inDailyJam && doneToday ? " daily-done" : ""}${provided ? " task-row-draggable" : ""}${snapshot?.isDragging ? " dragging" : ""}`}
       title={inDailyJam ? `Open ${task.name}` : undefined}
       onClick={handleRowClick}
       style={provided?.draggableProps?.style}
@@ -195,7 +198,7 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
           ) : null}
           <JewelPayoutTemplate payout={payout} areaColor={areaColor} daily={daily} />
         </div>
-        {inDailyJam ? <div className="task-row-list-name">{attentionReason || owner.name}</div> : null}
+        {inDailyJam || inLifeArea ? <div className="task-row-list-name">{attentionReason || owner.name}</div> : null}
         {attention && !inDailyJam ? (
           <div className="task-attention-cue" title="Deadline cue; derived from deadline, impact, and recent activity">
             <span className="task-deadline-track" role="img" aria-label={`${deadlinePct}% of the final week elapsed`}>
@@ -213,11 +216,28 @@ export function TaskRow({ state, task, index, listItem, taskSessions, taskTotal,
         ) : null}
       </td>
       <td className="r sess-cell">{sessionsCell}</td>
-      <td className="r bar-cell">{progress}</td>
+      <td className="r bar-cell">
+        <span className="routine-progress">
+          {progress}
+          {canLogRoutine ? (
+            <button
+              type="button"
+              className="routine-done-today"
+              title={TASK_REPEAT_COPY.doneTodayTitle}
+              onClick={(event) => {
+                event.stopPropagation();
+                actions.logRoutineToday(task.id);
+              }}
+            >
+              <Check size={12} />{TASK_REPEAT_COPY.doneTodayButton}
+            </button>
+          ) : null}
+        </span>
+      </td>
     </tr>
   );
 
-  if (inDailyJam || isDragDisabled) {
+  if (inDailyJam || inLifeArea || isDragDisabled) {
     return renderInner();
   }
 

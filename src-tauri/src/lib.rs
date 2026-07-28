@@ -26,8 +26,8 @@ use tauri_plugin_updater::UpdaterExt;
 use taskplayer_core::models::now_ms;
 use taskplayer_core::schedule::{due_schedule_events, ScheduleEvent, ScheduleEventKind};
 use taskplayer_core::{
-    task_total_ms, timer, AccountInfo, Album, Db, MusicFavoriteInput, PlannedSession, RunState,
-    Session, SessionConfig, Snapshot, Status, Task, TaskList,
+    task_total_ms, timer, AccountInfo, Album, Db, Goal, GoalTaskLink, MusicFavoriteInput,
+    PlannedSession, RunState, Session, SessionConfig, Snapshot, Status, Task, TaskList,
 };
 
 use constants::*;
@@ -101,6 +101,8 @@ pub fn run() {
             reorder_life_areas,
             delete_list,
             create_album,
+            save_goal,
+            archive_goal,
             add_task,
             rename_task,
             set_depth,

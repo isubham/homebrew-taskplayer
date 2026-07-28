@@ -1,5 +1,5 @@
 import React from "react";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/app-context-value";
 import { AnimatedModal } from "./motion-transitions.jsx";
 import { SESSION_COPY, SESSION_FIELD_IDS, SESSION_TIME_INPUT_MAX_LENGTH } from "../constants";
 import { sessionConflictError } from "../session-conflict";
@@ -28,7 +28,8 @@ export function AddSessionModal() {
   const conflictError = range && state.S
     ? sessionConflictError(state.S, range, state.dialogSession?.sessionId)
     : null;
-  const validationError = selectionError || sessionDraftError(state.dialogSession) || conflictError;
+  const futureError = range && range.end > Date.now() ? SESSION_COPY.futureEnd : null;
+  const validationError = selectionError || sessionDraftError(state.dialogSession) || futureError || conflictError;
 
   return (
     <AnimatedModal

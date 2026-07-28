@@ -6,8 +6,9 @@ import { InsightsPage } from "./InsightsPage.jsx";
 import { NowPlayingPage } from "./NowPlayingPage.jsx";
 import { PlannerPage } from "./PlannerPage.jsx";
 import { TaskListPage } from "./task-list-page.jsx";
+import { LifeAreaPage } from "./LifeAreaPage";
 import { AnimatedPage } from "./motion-transitions.jsx";
-import { PLANNER_VIEW_KEY } from "../constants";
+import { LIFE_AREA_VIEW_KEY, PLANNER_VIEW_KEY } from "../constants";
 
 export function MainContent(props) {
   const { state, activeList, tasksForList, attentionTasks, dispatch } = props;
@@ -28,6 +29,8 @@ export function MainContent(props) {
         return <PlannerPage />;
       case "playing":
         return <NowPlayingPage {...props} />;
+      case LIFE_AREA_VIEW_KEY:
+        return <LifeAreaPage />;
       default: {
         const listItem = activeList();
         if (!listItem) {
@@ -49,7 +52,7 @@ export function MainContent(props) {
     }
   };
 
-  const listItem = state.view !== "home" && state.view !== "settings" && state.view !== "insights" && state.view !== PLANNER_VIEW_KEY && state.view !== "playing"
+  const listItem = state.view !== "home" && state.view !== "settings" && state.view !== "insights" && state.view !== PLANNER_VIEW_KEY && state.view !== LIFE_AREA_VIEW_KEY && state.view !== "playing"
     ? activeList()
     : null;
   const accentColor = listItem?.color || null;
@@ -62,7 +65,7 @@ export function MainContent(props) {
 
   return (
     <main className="main" id="main" style={accentStyles}>
-      <AnimatedPage viewKey={state.view + (listItem ? `-${listItem.id}` : "")}>
+      <AnimatedPage viewKey={state.view + (listItem ? `-${listItem.id}` : state.activeAreaKey ? `-${state.activeAreaKey}` : "")}>
         {renderView()}
       </AnimatedPage>
     </main>

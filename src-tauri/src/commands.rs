@@ -2,6 +2,7 @@ use super::*;
 
 mod albums;
 mod data;
+mod goals;
 mod lists;
 mod metrics;
 mod music;
@@ -15,6 +16,7 @@ mod tasks;
 
 pub(crate) use albums::*;
 pub(crate) use data::*;
+pub(crate) use goals::*;
 pub(crate) use lists::*;
 pub(crate) use metrics::*;
 pub(crate) use music::*;

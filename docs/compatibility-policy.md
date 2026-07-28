@@ -52,6 +52,7 @@ Current capabilities:
 - `planned_sessions_v1`
 - `logical_sessions_v1`
 - `albums_v1`
+- `goals_v1`
 
 ## Serialization rules
 

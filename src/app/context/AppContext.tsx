@@ -47,6 +47,7 @@ function AppContextComposer({ children }) {
     setLifeBalanceAgainst: settings.actions.setLifeBalanceAgainst,
     setKeybindings: settings.actions.setKeybindings,
     setOpenTaskId: ui.actions.setOpenTaskId,
+    setOpenGoalId: ui.actions.setOpenGoalId,
     setOpenListId: ui.actions.setOpenListId,
     setOpenListArea: ui.actions.setOpenListArea,
     setLyricsId: ui.actions.setLyricsId,

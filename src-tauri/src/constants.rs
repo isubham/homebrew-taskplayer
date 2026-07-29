@@ -57,6 +57,85 @@ pub(crate) fn target_reached_notification_body(target_min: i64, task_name: &str)
 pub(crate) const SYSTEM_SLEEP_OBSERVER_REGISTERED_LOG: &str =
     "macOS sleep/wake observer registered";
 
+pub(crate) const LOCAL_NOTES_CONFIG_FILE: &str = "local-notes.json";
+pub(crate) const LOCAL_NOTES_ARCHIVE_DIRECTORY: &str = "_Archived";
+pub(crate) const LOCAL_NOTES_UNSORTED_DIRECTORY: &str = "_Unsorted";
+pub(crate) const LOCAL_NOTES_EXTENSION: &str = "md";
+pub(crate) const LOCAL_NOTES_FRONTMATTER_DELIMITER: &str = "---";
+pub(crate) const LOCAL_NOTES_TASK_ID_KEY: &str = "taskplayer_task_id";
+pub(crate) const LOCAL_NOTES_FORMAT_KEY: &str = "taskplayer_format";
+pub(crate) const LOCAL_NOTES_FORMAT_VERSION: u32 = 1;
+pub(crate) const LOCAL_NOTES_TEMP_PREFIX: &str = ".taskplayer-note";
+pub(crate) const LOCAL_NOTES_INVALID_FILENAME_CHARS: &str = "<>:\"/\\|?*";
+pub(crate) const LOCAL_NOTES_FILENAME_FALLBACK: &str = "Untitled";
+pub(crate) const LOCAL_NOTES_RESERVED_FILENAME_PREFIX: &str = "_";
+pub(crate) const LOCAL_NOTES_RESERVED_FILENAMES: &[&str] = &["CON", "PRN", "AUX", "NUL", "CLOCK$"];
+pub(crate) const LOCAL_NOTES_MAX_FILENAME_CHARS: usize = 120;
+pub(crate) const LOCAL_NOTES_SHORT_ID_CHARS: usize = 6;
+pub(crate) const LOCAL_NOTES_MAX_SCAN_DEPTH: usize = 6;
+#[cfg(unix)]
+pub(crate) const LOCAL_NOTES_FILE_MODE: u32 = 0o600;
+#[cfg(unix)]
+pub(crate) const LOCAL_NOTES_DIRECTORY_MODE: u32 = 0o700;
+#[cfg(all(unix, test))]
+pub(crate) const LOCAL_NOTES_PERMISSION_MASK: u32 = 0o777;
+pub(crate) const LOCAL_NOTES_CONFLICT_MSG: &str =
+    "This note changed outside TaskPlayer. Review the latest file before saving.";
+pub(crate) const LOCAL_NOTES_DISABLED_MSG: &str =
+    "Choose a local storage folder in Settings → Local Storage first.";
+pub(crate) const LOCAL_NOTES_UNAVAILABLE_MSG: &str =
+    "The local storage folder is unavailable. Reconnect it in Settings → Local Storage.";
+pub(crate) const LOCAL_NOTES_TASK_NOT_FOUND_MSG: &str = "That task is no longer available.";
+pub(crate) const LOCAL_NOTES_LIST_NOT_FOUND_MSG: &str = "That task's list is no longer available.";
+pub(crate) const LOCAL_NOTES_INVALID_DIRECTORY_MSG: &str =
+    "Choose an existing directory for Local Notes.";
+pub(crate) const LOCAL_NOTES_PATH_ESCAPE_MSG: &str =
+    "TaskPlayer refused a Local Notes path outside the selected folder.";
+pub(crate) const LOCAL_NOTES_SYMLINK_MSG: &str =
+    "TaskPlayer will not write Local Notes through a symbolic link.";
+pub(crate) const LOCAL_NOTES_INVALID_FRONTMATTER_MSG: &str =
+    "The Local Notes file has invalid TaskPlayer frontmatter.";
+pub(crate) const LOCAL_NOTES_DESTINATION_MSG: &str =
+    "TaskPlayer could not resolve the Local Notes destination.";
+pub(crate) const LOCAL_NOTES_PATH_OCCUPIED_MSG: &str =
+    "A different Local Notes file already uses that path.";
+pub(crate) const JOURNAL_DIRECTORY: &str = "Journal";
+pub(crate) const JOURNAL_ASSETS_DIRECTORY: &str = "_assets";
+pub(crate) const JOURNAL_FORMAT_KEY: &str = "taskplayer_journal_format";
+pub(crate) const JOURNAL_FORMAT_VERSION: u32 = 2;
+pub(crate) const JOURNAL_ID_KEY: &str = "taskplayer_journal_id";
+pub(crate) const JOURNAL_DATE_KEY: &str = "taskplayer_journal_date";
+pub(crate) const JOURNAL_CREATED_AT_KEY: &str = "taskplayer_journal_created_at";
+pub(crate) const JOURNAL_MOOD_KEY: &str = "taskplayer_journal_mood";
+pub(crate) const JOURNAL_RELATED_ITEMS_KEY: &str = "taskplayer_journal_related";
+pub(crate) const JOURNAL_ALLOWED_MOODS: &[&str] = &["sad", "okay", "happy"];
+pub(crate) const JOURNAL_ALLOWED_RELATED_KINDS: &[&str] = &["list", "album", "task"];
+pub(crate) const JOURNAL_INVALID_DATE_MSG: &str = "Choose a valid journal date.";
+pub(crate) const JOURNAL_INVALID_MOOD_MSG: &str = "Choose a supported journal mood.";
+pub(crate) const JOURNAL_INVALID_ENTRY_MSG: &str = "That journal entry is invalid.";
+pub(crate) const JOURNAL_ENTRY_NOT_FOUND_MSG: &str = "That journal entry is no longer available.";
+pub(crate) const JOURNAL_INVALID_RELATED_ITEM_MSG: &str =
+    "Choose a valid list, project, or task to relate.";
+pub(crate) const JOURNAL_INVALID_IMAGE_MSG: &str = "Paste a PNG, JPEG, GIF, or WebP image.";
+pub(crate) const JOURNAL_IMAGE_TOO_LARGE_MSG: &str = "Pasted images must be 10 MB or smaller.";
+pub(crate) const JOURNAL_MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+pub(crate) const JOURNAL_EXCERPT_CHARS: usize = 140;
+pub(crate) const JOURNAL_RELATED_LABEL_CHARS: usize = 120;
+pub(crate) const JOURNAL_ENTRY_ID_CHARS: usize = 64;
+pub(crate) const JOURNAL_TITLE_FALLBACK: &str = "Untitled";
+pub(crate) const JOURNAL_LEGACY_ID_PREFIX: &str = "legacy-";
+
+pub(crate) fn local_notes_area_directory(area: Option<&str>) -> &'static str {
+    match area {
+        Some("career") => "Career - Work",
+        Some("health") => "Health & Wellbeing",
+        Some("relationships") => "Relationships",
+        Some("finance") => "Finances",
+        Some("recreation") => "Recreation",
+        _ => LOCAL_NOTES_UNSORTED_DIRECTORY,
+    }
+}
+
 pub(crate) const SOUND_OPTIONS: &[&str] = &[
     "Basso",
     "Blow",

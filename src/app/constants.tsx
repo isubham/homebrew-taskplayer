@@ -68,6 +68,45 @@ export const SESSIONS_PAGE_COPY = {
 export const HOME_ICON_SIZE = 15;
 export const TOPBAR_HISTORY_ICON_SIZE = 20;
 export const TOPBAR_ACTION_ICON_SIZE = 26;
+export const TOPBAR_SEARCH_RESULT_KINDS = {
+  task: "task",
+  list: "list",
+  journal: "journal",
+} as const;
+export const TOPBAR_SEARCH_LIMITS = {
+  tasks: 8,
+  lists: 4,
+  journals: 6,
+  recentQueries: 5,
+} as const;
+export const TOPBAR_SEARCH_STORAGE_KEY = "tp.recentSearches";
+export const TOPBAR_SEARCH_SCROLL_BLOCK = "nearest";
+export const TOPBAR_SEARCH_KEYS = {
+  next: "ArrowDown",
+  previous: "ArrowUp",
+  activate: "Enter",
+  close: "Escape",
+} as const;
+export const TOPBAR_SEARCH_IDS = {
+  input: "topbarSearch",
+  wrapper: "topbarSearchWrap",
+  results: "searchResults",
+} as const;
+export const TOPBAR_SEARCH_COPY = {
+  placeholder: "/ Search tasks, lists, and Journal",
+  recentHeading: "Recent searches",
+  clearRecent: "Clear",
+  noMatches: (query) => `No matches for "${query}"`,
+  resultKindLabels: {
+    [TOPBAR_SEARCH_RESULT_KINDS.task]: "Task",
+    [TOPBAR_SEARCH_RESULT_KINDS.list]: "List",
+    [TOPBAR_SEARCH_RESULT_KINDS.journal]: "Journal",
+  },
+  journalMeta: "Journal entry",
+  unsortedMeta: "Unsorted",
+  taskFallbackIcon: "•",
+  resultsLabel: "Search results",
+} as const;
 
 // Bounded planner calendar
 export const PLANNER_VIEW_KEY = "planner";
@@ -633,6 +672,173 @@ export const SETTINGS_DATA_COPY = {
   signInHint: "Sign in to repair synced account data.",
 };
 
+export const LOCAL_STORAGE_SETTINGS_KEY = "local-storage";
+export const LOCAL_STORAGE_COPY = {
+  icon: "📁",
+  color: "#8d67ab",
+  title: "Local Storage",
+  subtitle: "Private files on this device",
+  description: "Choose where TaskPlayer stores private Markdown files and pasted journal images.",
+  requiredTitle: "Choose a folder for local files",
+  requiredDescription: "Your Journal and Local Notes stay in a folder you control. TaskPlayer needs access before it can read or write them.",
+  unavailableTitle: "Reconnect your local storage folder",
+  unavailableDescription: "The selected folder is unavailable. Reconnect it to continue using Journal and Local Notes.",
+  setupAction: "Set up local storage",
+  reconnectAction: "Reconnect local storage",
+  privacyHint: "Nothing is uploaded to the cloud",
+} as const;
+
+export const JOURNAL_VIEW_KEY = "journal";
+export const JOURNAL_ICON_SIZE = 18;
+export const JOURNAL_RELATED_RESULT_LIMIT = 20;
+export const JOURNAL_LIST_RELATED_LIMIT = 2;
+export const JOURNAL_RELATED_CONTEXT_SEPARATOR = " · ";
+export const JOURNAL_RELATED_KINDS = {
+  list: "list",
+  album: "album",
+  task: "task",
+} as const;
+export const JOURNAL_RELATED_KIND_LABELS = {
+  [JOURNAL_RELATED_KINDS.list]: "List",
+  [JOURNAL_RELATED_KINDS.album]: "Album",
+  [JOURNAL_RELATED_KINDS.task]: "Task",
+} as const;
+export const JOURNAL_COPY = {
+  navigationLabel: "Journal",
+  navigationTitle: "Open Journal",
+  title: "Journal",
+  subtitle: "A private place for anything on your mind.",
+  localBadge: "Local only · No cloud",
+  newEntry: "New entry",
+  editEntry: "Edit entry",
+  emptyTitle: "No journal entries yet",
+  emptyDescription: "Write anything you want to remember. It stays in your local folder.",
+  entryColumn: "Entry",
+  titleColumn: "Title",
+  dateColumn: "Date",
+  moodColumnLabel: "Mood",
+  noMoodLabel: "No mood",
+  pastedImageAlt: "Pasted journal image",
+  editorPlaceholder: "Start writing… You can paste an image here.",
+  editorAriaLabel: "Journal entry",
+  save: "Save entry",
+  cancel: "Cancel",
+  delete: "Delete entry",
+  deleteTitle: "Delete this journal entry?",
+  deleteBody: "This removes it from Journal and moves its Markdown file and pasted images to _Archived. Unsaved changes will be discarded.",
+  deleteConfirm: "Delete",
+  deleteError: "Could not delete this journal entry.",
+  back: "Journals",
+  edit: "Edit",
+  openExternally: "Open externally",
+  saveDialogTitle: "Save entry",
+  saveDialogHint: "Mood and relationships are optional.",
+  moodTitle: "How are you feeling?",
+  moodHint: "Optional",
+  relatedTitle: "Related to",
+  relatedHint: "Optional · connect this thought to existing work",
+  relatedAction: "Related to",
+  relatedSearchPlaceholder: "Search lists, albums, or tasks",
+  relatedEmpty: "No matching items.",
+  removeRelated: (label) => `Remove ${label}`,
+  relatedOverflow: (count) => `+${count}`,
+  relatedListLabel: (labels) => `Related to ${labels.join(", ")}`,
+  saving: "Saving…",
+  imageError: "Could not save the pasted image.",
+  loadError: "Could not load your local journal.",
+  saveError: "Could not save this journal entry.",
+  conflictError: "This entry changed in another editor. Reopen it before saving.",
+  conflictMatch: "changed outside",
+  imageEntryExcerpt: "Image entry",
+  fullPathLabel: "Full local file path",
+} as const;
+export const JOURNAL_MOODS = [
+  { key: "sad", emoji: "😔", label: "Sad" },
+  { key: "okay", emoji: "😐", label: "Okay" },
+  { key: "happy", emoji: "😊", label: "Happy" },
+] as const;
+export const JOURNAL_PENDING_IMAGE_PREFIX = "taskplayer-pending-image-";
+
+export const LOCAL_NOTES_AUTOSAVE_DELAY_MS = 650;
+export const LOCAL_NOTES_ALLOWED_LINK_PROTOCOLS = ["https:", "http:", "mailto:"] as const;
+export const LOCAL_NOTES_MODES = {
+  write: "write",
+  preview: "preview",
+} as const;
+export const LOCAL_NOTES_ICON_SIZES = {
+  badge: 13,
+  action: 14,
+  toolbar: 15,
+  maximize: 16,
+  settings: 18,
+} as const;
+export const LOCAL_NOTES_COPY = {
+  heading: "Local Notes",
+  settingsHeading: "Local Notes & Journal",
+  noCloudBadge: "No Cloud",
+  settingsDescription: "Private Markdown files and journal images stored in a folder you choose. TaskPlayer never uploads their contents.",
+  cloudFolderWarning: "If you choose an iCloud Drive, Dropbox, or OneDrive folder, that service may still upload the files.",
+  disabledStatus: "No local storage folder connected.",
+  connectedStatus: "Folder connected",
+  unavailableStatus: "The selected folder is unavailable.",
+  chooseFolder: "Choose folder",
+  folderPickerTitle: "Choose a local storage folder",
+  changeFolder: "Change folder",
+  reconnectFolder: "Reconnect folder",
+  revealFolder: "Reveal folder",
+  disable: "Disconnect",
+  disconnectHint: "Disabling disconnects the folder. It does not delete any Markdown files.",
+  settingsError: "Could not update the local storage folder.",
+  vimModeTitle: "Vim keybindings",
+  vimModeDescription: "Use Vim normal, insert, visual, and command modes in Local Notes and Journal editors.",
+  vimModeToggleLabel: "Toggle Vim keybindings for Local Notes and Journal",
+  enableVimMode: "Enable Vim keybindings",
+  disableVimMode: "Disable Vim keybindings",
+  vimIndicator: "VIM",
+  taskDescriptionHeading: "Task description",
+  taskDescriptionSyncHint: "Included in account sync",
+  taskDescriptionAriaLabel: "Task description",
+  taskDescriptionPlaceholder: "What will finishing this feel like? Add the goal, a note, a link…",
+  editorPlaceholder: "Private context, links, meeting notes, or anything that should stay on this device…",
+  editorDisabled: "Choose a folder in Settings → Local Storage to use Local Notes.",
+  editorUnavailable: "The local storage folder is unavailable. Reconnect it in Settings → Local Storage.",
+  writeMode: "Write",
+  previewMode: "Preview",
+  emptyPreview: "Nothing to preview yet.",
+  savingStatus: "Saving…",
+  savedStatus: "Saved locally",
+  unsavedStatus: "Waiting to save",
+  conflictStatus: "Changed externally",
+  loadErrorStatus: "Could not load this local note",
+  saveErrorStatus: "Could not save this local note",
+  conflictMessage: "This note changed in another editor.",
+  reloadExternal: "Reload file",
+  keepMine: "Keep mine",
+  openExternally: "Open externally",
+  maximize: "Maximize Local Notes",
+  restore: "Restore task details",
+  fullPathLabel: "Full local file path",
+  remoteImageLabel: (alt) => `Remote image blocked${alt ? `: ${alt}` : ""}`,
+};
+
+export const NOW_PLAYING_COPY = {
+  playingLabel: "Currently playing",
+  contextSeparator: "·",
+  pausedStatus: "Paused",
+  breakStatus: "Break",
+  longBreakStatus: "Long break",
+  recordingStatus: "Recording",
+  waitingStatus: "Waiting",
+  taskContentHeading: "Task content",
+  taskContentSyncHint: "Account sync",
+  taskContentAriaLabel: "Task content",
+  taskContentPlaceholder: "Add the goal, where you left off, or useful links…",
+  emptyIcon: "▤",
+  emptyTitle: "Nothing playing",
+  emptyDescription: "Start a task from its row, then open its title here.",
+  unsortedList: "Unsorted",
+} as const;
+
 export const SETTINGS_SECTION_STORAGE_KEY = "tp.settingsSection";
 export const SETTINGS_NAV_LABEL = "Settings sections";
 export const KEYBINDINGS_STORAGE_KEY = "tp.keybindings";
@@ -665,6 +871,7 @@ export const SETTINGS_SECTIONS = [
   { key: "music", icon: "🎵", color: "#1db954", title: "Focus Music", subtitle: "Automatic work soundtrack" },
   { key: "notifications", icon: "🔔", color: "#f5a623", title: "Notifications", subtitle: "Sounds & alerts" },
   { key: "keyboard", icon: "⌨️", color: "#8d67ab", title: "Keyboard", subtitle: "Shortcuts" },
+  { key: LOCAL_STORAGE_SETTINGS_KEY, icon: LOCAL_STORAGE_COPY.icon, color: LOCAL_STORAGE_COPY.color, title: LOCAL_STORAGE_COPY.title, subtitle: LOCAL_STORAGE_COPY.subtitle },
   { key: "data", icon: SETTINGS_DATA_COPY.icon, color: SETTINGS_DATA_COPY.color, title: SETTINGS_DATA_COPY.title, subtitle: SETTINGS_DATA_COPY.subtitle },
   { key: "diagnostics", icon: "🛠️", color: "#9aa0a6", title: "Diagnostics", subtitle: "Backups & logs" },
   { key: "about", icon: "ℹ️", color: "#6a6a6a", title: "About", subtitle: "Version & updates" },
@@ -743,6 +950,7 @@ export const TOAST_TASK_CREATED = "Task created";
 export const TOAST_TASK_SAVED = "Task saved";
 export const TOAST_TASK_RENAMED = "Task renamed";
 export const TOAST_TASK_DELETED = "Task deleted";
+export const TASK_DELETE_ERROR_TITLE = "Couldn't delete task";
 export const TOAST_PLANNING_PRIORITY_UPDATED_TITLE = "Planning priority updated";
 
 // Styling & Category Defaults

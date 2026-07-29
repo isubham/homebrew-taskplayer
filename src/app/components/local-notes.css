@@ -1,0 +1,45 @@
+.local-notes-panel{margin-bottom:24px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.local-notes-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.local-notes-heading>div,.local-notes-settings-title{display:flex;align-items:center;gap:8px}
+.modal .body .local-notes-heading h4,.local-notes-settings-title h4{margin:0}
+.local-notes-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:rgba(47,158,143,.13);color:var(--green-hi);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.local-notes-heading-actions{display:flex;align-items:center;gap:5px}
+.local-notes-heading-actions button,.local-notes-status button,.local-notes-conflict button{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:1px solid transparent;border-radius:6px;color:var(--muted);padding:6px 8px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.local-notes-heading-actions button:hover,.local-notes-status button:hover,.local-notes-conflict button:hover{color:#fff;background:var(--bg3)}
+.local-notes-heading-actions button.sel{color:var(--green-hi);background:rgba(47,158,143,.13);border-color:var(--green)}
+.local-notes-heading-actions .local-notes-maximize{padding:6px}
+.local-notes-preview{min-height:210px;padding:13px 15px;border:1px solid #3a3a3a;border-radius:9px;background:var(--bg3);color:#e6e6e6;font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.local-notes-preview>:first-child{margin-top:0}
+.local-notes-preview>:last-child{margin-bottom:0}
+.local-notes-preview input[type=checkbox]{width:auto}
+.local-notes-preview pre{overflow:auto;padding:10px;border-radius:7px;background:var(--bg)}
+.local-notes-preview code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+.local-notes-link{display:inline;background:none;border:0;padding:0;color:var(--blue);font:inherit;text-decoration:underline;cursor:pointer}
+.local-notes-blocked-image,.local-notes-empty{color:var(--muted);font-style:italic}
+.local-notes-unavailable{padding:16px;border:1px dashed #444;border-radius:9px;color:var(--muted);font-size:12px}
+.local-notes-conflict{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px;padding:8px 10px;border:1px solid rgba(232,185,35,.38);border-radius:7px;background:rgba(232,185,35,.08);color:#e8c95d;font-size:11px}
+.local-notes-conflict span{flex:1;min-width:160px}
+.local-notes-conflict button{color:#e8c95d;border-color:rgba(232,185,35,.3)}
+.local-notes-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:10px}
+.local-notes-status span,.local-notes-status button{display:inline-flex;align-items:center;gap:5px}
+.local-notes-status .local-notes-path{min-width:0;overflow-wrap:anywhere}
+.local-notes-status button{margin-left:auto}
+.task-description-heading{justify-content:space-between}
+.task-description-heading small{color:var(--muted);font-size:9px;font-weight:500;letter-spacing:0;text-transform:none}
+.modal.local-notes-focus{width:min(1080px,96vw);max-height:92vh}
+.modal.local-notes-focus>.top,.modal.local-notes-focus>.foot{display:none}
+.modal.local-notes-focus .task-detail-grid{grid-template-columns:minmax(0,1fr)}
+.modal.local-notes-focus .task-detail-primary>:not(.local-notes-panel),.modal.local-notes-focus .task-detail-sessions{display:none}
+.modal.local-notes-focus .local-notes-panel{margin:0;padding:0;border:0}
+.modal.local-notes-focus .markdown-editor-codemirror .cm-editor,.modal.local-notes-focus .local-notes-preview{min-height:62vh}
+.local-notes-settings{margin-bottom:24px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.local-notes-settings-title{margin-bottom:10px}
+.local-notes-folder{display:flex;flex-direction:column;gap:5px;margin:12px 0;padding:10px 12px;border-radius:8px;background:var(--bg3);font-size:12px}
+.local-notes-folder span{color:var(--green-hi);font-weight:700}
+.local-notes-folder.unavailable span{color:#e8c95d}
+.local-notes-folder code{color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.local-notes-settings .pill{display:inline-flex;align-items:center;gap:6px}
+.local-notes-vim-setting{margin-top:14px}
+.local-notes-vim-setting>div{min-width:0}
+.local-notes-vim-setting strong{font-size:12px}
+.local-notes-vim-setting .hint{margin:3px 0 0}

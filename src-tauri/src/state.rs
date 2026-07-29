@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use taskplayer_core::{Db, RunState, SessionConfig};
 
 use crate::auth;
+use crate::local_notes::LocalNotesState;
 
 pub(crate) struct AppState {
     pub(crate) db: Mutex<Db>,
@@ -42,6 +43,9 @@ pub(crate) struct AppState {
     pub(crate) last_notified_update_version: Mutex<Option<String>>,
     /// OS app-data directory — also where the SQLite file and session.json live.
     pub(crate) data_dir: PathBuf,
+    /// Device-local Markdown-note root. It is deliberately separate from
+    /// SQLite snapshots and every sync wire model.
+    pub(crate) local_notes: Mutex<LocalNotesState>,
     /// Dedupe state for the tick loop's non-pomodoro notifications (target
     /// reached, open-mode hourly check-in). Keyed on logical session id, so
     /// pause/resume never fires the same cue twice. Purely in-memory: after

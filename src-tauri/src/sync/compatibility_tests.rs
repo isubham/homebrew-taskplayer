@@ -101,6 +101,24 @@ mod compatibility_tests {
     }
 
     #[test]
+    fn remote_task_payload_cannot_contain_local_notes() {
+        let task: Task = serde_json::from_value(serde_json::json!({
+            "id": "task-1",
+            "listId": "list-1",
+            "name": "Private task",
+            "depth": null,
+            "order": 1,
+            "updatedAt": 2000
+        }))
+        .unwrap();
+        let payload = serde_json::to_value(RemoteTask::from_local(&task, "user-1")).unwrap();
+
+        assert!(payload.get("local_notes").is_none());
+        assert!(payload.get("localNotes").is_none());
+        assert!(payload.get("local_note_path").is_none());
+    }
+
+    #[test]
     fn rejects_backend_missing_a_required_capability() {
         let schema = BackendSchema {
             schema_version: MIN_BACKEND_SCHEMA_VERSION,

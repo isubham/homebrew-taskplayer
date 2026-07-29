@@ -11,11 +11,11 @@ import { TourOverlay } from "./components/tour-overlay.jsx";
 import { AppLoadingScreen } from "./components/AppLoadingScreen";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { ACCOUNT_STORAGE_KEYS, LIFE_AREA_VIEW_KEY, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
+import { ACCOUNT_STORAGE_KEYS, JOURNAL_COPY, JOURNAL_ICON_SIZE, JOURNAL_VIEW_KEY, LIFE_AREA_VIEW_KEY, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { CalendarDays, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
+import { BookHeart, CalendarDays, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
 
 import { useTauriSubscriptions } from "./hooks/use-tauri-subscriptions.jsx";
 import { useSidebarSections } from "./hooks/use-sidebar-sections.jsx";
@@ -80,6 +80,10 @@ export function App() {
               <div data-tour-id="planner-nav" className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
                 <span className="li-icon"><CalendarDays size={PLANNER_ICON_SIZE} /></span>
                 <span className="li-label">{PLANNER_COPY.navigationLabel}</span>
+              </div>
+              <div className={`list-item ${state.view === JOURNAL_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: JOURNAL_VIEW_KEY })} title={JOURNAL_COPY.navigationTitle}>
+                <span className="li-icon"><BookHeart size={JOURNAL_ICON_SIZE} /></span>
+                <span className="li-label">{JOURNAL_COPY.navigationLabel}</span>
               </div>
             </div>
             <div className="side-lists-heading">

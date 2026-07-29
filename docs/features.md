@@ -1,6 +1,6 @@
 # TaskPlayer feature catalog
 
-Last reviewed: 2026-07-19
+Last reviewed: 2026-07-29
 Applies to: Unreleased after TaskPlayer 0.9.3
 Primary platform: macOS desktop
 
@@ -54,11 +54,18 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 
 ### Search — Shipped
 
-- Live top-bar search over list names and incomplete task names.
-- Search text uses the field's full height at a readable type size.
-- Shows up to four matching lists and eight matching tasks.
-- Selecting a list opens it; selecting a task opens its list and task detail.
-- `/` focuses search and Escape clears it.
+- Live top-bar search over list names, incomplete task names, and local Journal entry titles and
+  excerpts.
+- Search text uses the field's full height at a readable type size, with `/` shown at the start
+  of the placeholder instead of a search icon. The field widens with a short focus animation,
+  while reduced-motion settings disable that transition.
+- Shows up to eight matching tasks, four lists, and six Journal entries.
+- Focusing an empty search shows up to five recent device-local query strings, which can be
+  restored or cleared without storing Journal result contents.
+- Arrow keys move through results, Enter opens the highlighted result, and mouse clicks use the
+  same action. Tasks open in Task Detail, lists open their list page, and Journal results open
+  the selected entry.
+- `/` focuses search and Escape clears and closes it.
 
 ### Keyboard control — Shipped
 
@@ -217,6 +224,70 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Task lists surface up to three unfinished tasks most recently worked on in that list, with
   direct task-detail and session-start controls.
 - Completed tasks live in an animated collapsible section.
+
+### Local Notes (No Cloud) — Shipped
+
+- Settings → Local Storage can connect one user-selected directory shared by device-local
+  Markdown notes and Journal. Folder-action button icons stay vertically aligned with their
+  labels in both disconnected and connected states.
+- Below the folder-disconnection guidance, the same settings surface can opt into Vim keybindings
+  for Local Notes and Journal Markdown editors; the preference is device-local and disabled by
+  default. Insert and Vim cursors use the same neutral grey treatment.
+- Task detail keeps the synced Task description distinct from a Local Notes editor marked
+  **No Cloud**, with Write and Preview modes, autosave, the local full file path, and an action to
+  open the file in its default external editor.
+- Task descriptions in Task Detail and Now Playing use the same minimal Markdown editor as Local
+  Notes. The editor has no formatting toolbar; Local Notes alone can opt into Vim keybindings.
+- Now Playing uses a compact single-column context surface: a reduced task title, editable synced
+  Task content, then the same Local Notes editor. Timing and transport controls remain in the
+  persistent player rather than being duplicated on the page.
+- A maximize control temporarily hides the task header, other task fields, sessions, and footer
+  so the Markdown editor becomes a focused writing surface; restoring returns to the same task.
+- Files use the readable life area → list → task-title hierarchy and a stable task ID in preserved
+  frontmatter, so renames and moves can reorganize paths without losing their association.
+- Saves are atomic and revision checked. Changes made by another editor are detected on app focus
+  or save and require an explicit reload or overwrite rather than being replaced silently.
+- Task and list deletion archives associated Markdown files beneath `_Archived`; an unavailable
+  configured directory blocks deletion instead of risking note loss.
+- Note contents, paths, filenames, and previews are absent from TaskPlayer account sync, task
+  models, diagnostics, and backup exports. Raw HTML and remote images are not rendered.
+- **Known gap:** changing roots leaves the old folder untouched, and external edits are checked on
+  app focus rather than through a continuous filesystem watcher.
+
+### Journal — Shipped
+
+- Journal is a top-level destination rather than a Health & Wellbeing subsection, so writing does
+  not require choosing a life-area category.
+- If local storage is not configured or is unavailable, Journal and task Local Notes show the
+  same setup/reconnect state and link directly to Settings → Local Storage.
+- The newest-first list has an unlabeled fixed-width mood column followed by Date and Entry. It
+  supports multiple entries per local day, shows their creation times and first-line titles, and
+  uses a neutral dash when mood is absent. Up to two **Related to** labels appear beneath an
+  entry, with a compact overflow count when more are connected.
+- New entries use the current local calendar date and a blank single-column text field. The first
+  non-empty line becomes the title and readable filename; a stable short entry ID prevents title
+  collisions. Journal uses the shared Markdown editor in a minimal headerless configuration with
+  readable 14px text, syntax highlighting, history, search shortcuts, and pasted-image handling.
+  There is no separate title field, date picker, formatting toolbar, or mode header. The existing
+  device-local Vim preference applies without adding editor chrome. The edit surface fills the
+  available height while retaining Journal's bounded reading width.
+- Save opens one compact optional-context dialog. Mood can be sad/okay/happy or absent, and
+  **Related to** can connect the entry to existing lists, albums, or tasks without requiring a
+  category. Saving remains available without choosing either.
+- Switching to another page automatically saves changed Journal text locally with its current
+  mood and relationships, then continues to the requested page so the entry can be resumed later.
+  A save failure keeps the editor open and shows the error.
+- Editing a saved entry offers a confirmed delete action. Deleted entries disappear from Journal
+  and move with their pasted images to `_Archived/Journal` for manual recovery.
+- Pasted PNG, JPEG, GIF, and WebP images are stored below `Journal/_assets/<entry-id>/` and referenced
+  with relative Markdown paths. Remote images and raw HTML are not rendered.
+- Each entry has a stable local ID and a readable
+  `Journal/YYYY-MM-DD - first-line-title - short-id.md` path. Versioned frontmatter keeps its date,
+  creation time, optional mood, and optional local-only relationship references. Reads and writes
+  use the same containment, symlink, owner-permission, atomic-write, and revision-conflict rules
+  as Local Notes. Existing date-only Journal files remain readable and upgrade on their next save.
+- Journal contents, mood, paths, and images are excluded from SQLite, account sync, diagnostics,
+  and TaskPlayer backup exports. Journal has no mood analytics, streaks, rewards, or shame record.
 
 ### One-time tasks — Shipped
 

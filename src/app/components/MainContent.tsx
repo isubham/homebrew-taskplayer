@@ -5,10 +5,11 @@ import { SettingsPage } from "./SettingsPage.jsx";
 import { InsightsPage } from "./InsightsPage.jsx";
 import { NowPlayingPage } from "./NowPlayingPage.jsx";
 import { PlannerPage } from "./PlannerPage.jsx";
+import { JournalPage } from "./JournalPage";
 import { TaskListPage } from "./task-list-page.jsx";
 import { LifeAreaPage } from "./LifeAreaPage";
 import { AnimatedPage } from "./motion-transitions.jsx";
-import { LIFE_AREA_VIEW_KEY, PLANNER_VIEW_KEY } from "../constants";
+import { JOURNAL_VIEW_KEY, LIFE_AREA_VIEW_KEY, PLANNER_VIEW_KEY } from "../constants";
 
 export function MainContent(props) {
   const { state, activeList, tasksForList, attentionTasks, dispatch } = props;
@@ -27,6 +28,8 @@ export function MainContent(props) {
         return <InsightsPage {...props} />;
       case PLANNER_VIEW_KEY:
         return <PlannerPage />;
+      case JOURNAL_VIEW_KEY:
+        return <JournalPage />;
       case "playing":
         return <NowPlayingPage {...props} />;
       case LIFE_AREA_VIEW_KEY:
@@ -52,7 +55,7 @@ export function MainContent(props) {
     }
   };
 
-  const listItem = state.view !== "home" && state.view !== "settings" && state.view !== "insights" && state.view !== PLANNER_VIEW_KEY && state.view !== LIFE_AREA_VIEW_KEY && state.view !== "playing"
+  const listItem = state.view !== "home" && state.view !== "settings" && state.view !== "insights" && state.view !== PLANNER_VIEW_KEY && state.view !== JOURNAL_VIEW_KEY && state.view !== LIFE_AREA_VIEW_KEY && state.view !== "playing"
     ? activeList()
     : null;
   const accentColor = listItem?.color || null;

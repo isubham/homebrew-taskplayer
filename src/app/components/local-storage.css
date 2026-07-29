@@ -1,0 +1,8 @@
+.local-storage-required{max-width:520px;margin:52px auto;padding:16px;text-align:center}
+.local-storage-required-icon{width:48px;height:48px;margin:0 auto 16px;border-radius:50%;display:grid;place-items:center;background:var(--bg3);color:var(--muted)}
+.local-storage-required-icon svg{width:22px;height:22px}
+.local-storage-required h3{margin:0 0 9px;font-size:18px}
+.local-storage-required p{margin:0 auto 18px;max-width:460px;color:var(--muted);font-size:13px;line-height:1.55}
+.local-storage-required small{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;color:var(--muted);font-size:11px}
+.local-storage-required small svg{width:13px;height:13px}
+.local-storage-required .pill.primary{border-color:var(--green);background:var(--green);color:var(--bg)}

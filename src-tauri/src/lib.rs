@@ -4,6 +4,8 @@ mod background_jobs;
 mod bindings;
 mod config;
 mod constants;
+mod journal;
+mod local_notes;
 mod startup;
 mod sync;
 mod system_sleep;
@@ -31,6 +33,8 @@ use taskplayer_core::{
 };
 
 use constants::*;
+use journal::*;
+use local_notes::*;
 
 mod state;
 use state::*;
@@ -71,6 +75,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(startup::setup)
         .on_window_event(|window, event| {
             if window.label() != "main" {
@@ -92,6 +97,21 @@ pub fn run() {
             get_snapshot,
             get_life_balance_scores,
             get_rank_info,
+            get_local_notes_settings,
+            set_local_notes_directory,
+            disable_local_notes,
+            set_local_notes_vim_mode,
+            read_local_note,
+            save_local_note,
+            open_local_note_externally,
+            reveal_local_notes_directory,
+            list_journal_entries,
+            new_journal_entry,
+            read_journal_entry,
+            save_journal_entry,
+            delete_journal_entry,
+            save_journal_image,
+            open_journal_entry_externally,
             add_list,
             rename_list,
             set_list_style,

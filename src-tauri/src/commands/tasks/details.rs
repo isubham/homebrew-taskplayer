@@ -31,6 +31,7 @@ pub(crate) fn rename_task(
         let db = state.db.lock().unwrap();
         let _ = db.rename_task(&id, &name);
     }
+    reconcile_task_note(state.inner(), &id);
     push(&app);
     build_snapshot(state.inner())
 }
@@ -149,6 +150,7 @@ pub(crate) fn move_task(
         let db = state.db.lock().unwrap();
         let _ = db.move_task(&id, &list_id);
     }
+    reconcile_task_note(state.inner(), &id);
     push(&app);
     build_snapshot(state.inner())
 }

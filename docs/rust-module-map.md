@@ -15,6 +15,32 @@ persistence logic remains in `src-tauri/core`.
 | `state.rs` | Process-wide `AppState` and its synchronization/deduplication state. |
 | `constants.rs` | Shared shell constants and stable user-facing backend messages. |
 | `config.rs` | Compile-time Supabase configuration. |
+| `local_notes.rs` | Facade and frontend payload types for device-local Markdown notes. |
+| `journal.rs` | Facade and frontend payload types for device-local journal entries. |
+
+## Local Notes
+
+| File | Responsibility |
+|---|---|
+| `local_notes/config.rs` | Owner-readable device-local root configuration. |
+| `local_notes/format.rs` | Managed frontmatter parsing and whole-file revision hashes. |
+| `local_notes/paths.rs` | Portable path sanitization, discovery, containment, and hierarchy. |
+| `local_notes/document.rs` | Atomic read/write, path reconciliation, and non-destructive archive operations. |
+| `local_notes/tests.rs` | Filename, lifecycle, conflict, frontmatter, collision, and symlink tests. |
+
+## Journal
+
+| File | Responsibility |
+|---|---|
+| `journal/format.rs` | Journal frontmatter serialization, mood validation, excerpts, and revision hashes. |
+| `journal/paths.rs` | ISO-date validation and journal/asset path construction. |
+| `journal/document.rs` | Journal drafts, listing, Markdown reads, and local asset loading. |
+| `journal/deletion.rs` | Revision-checked archival of journal entries with their pasted images. |
+| `journal/storage.rs` | Atomic entry writes, title-based path reconciliation, and revision checks. |
+| `journal/images.rs` | Pasted-image validation and owner-readable atomic storage. |
+| `journal/tests.rs` | Journal lifecycle, validation, rename, and conflict tests. |
+| `journal/image_tests.rs` | Journal pasted-image storage, archival, and symlink tests. |
+| `journal/legacy_tests.rs` | Compatibility coverage for date-only version-one Journal files. |
 
 ## Runtime services
 
@@ -78,6 +104,8 @@ persistence logic remains in `src-tauri/core`.
 | File | Responsibility |
 |---|---|
 | `commands/data.rs` | Backup import/export and log-file reveal commands. |
+| `commands/local_notes.rs` | Folder configuration and task-note read/write/open commands. |
+| `commands/journal.rs` | Journal list, read, write, pasted-image, and external-open commands. |
 | `commands/albums.rs` | Persistent album creation commands. |
 | `commands/goals.rs` | Goal create/edit/archive and task-link commands. |
 | `commands/lists.rs` | List CRUD, style, availability, and snapshot command. |

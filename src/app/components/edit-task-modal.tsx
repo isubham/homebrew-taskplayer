@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { CalendarPlus, ChevronDown, Pencil, Check } from "lucide-react";
 import { fmt, toDateInputValue, jewelPayout, IMPACT_TIERS, IMPACT_TIER_KEYS, LIFE_AREAS } from "../utils.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import { CADENCE_ICONS, DEPTH_ICONS, LOGICAL_SESSION_STATUS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_COPY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
+import { CADENCE_ICONS, DEPTH_ICONS, LOCAL_NOTES_COPY, LOGICAL_SESSION_STATUS, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_ROW_ICON_SIZE, PLANNER_VIEW_KEY, SESSION_COPY, SESSION_PLAYBACK_COPY, TASK_REPEAT_COPY, TOAST_TASK_SAVED, UNTAGGED_LIST_COLOR } from "../constants.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
 import { WeeklyAvailabilityEditor } from "./weekly-availability-editor.jsx";
 import { JewelDots } from "./jewel-dots.jsx";
@@ -10,6 +10,13 @@ import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
 import { sessionRangeLabel } from "../session-time";
 import { validateTaskSchedule } from "../schedule-validation";
 import { useSessionNow } from "../hooks/use-session-now";
+
+const LocalNotePanel = lazy(() => import("./local-note-panel").then((module) => ({
+  default: module.LocalNotePanel,
+})));
+const MarkdownEditor = lazy(() => import("./markdown-editor").then((module) => ({
+  default: module.MarkdownEditor,
+})));
 
 export function TaskDetailModal() {
   const { state, helpers, actions } = useApp();
@@ -19,9 +26,11 @@ export function TaskDetailModal() {
   // Hooks must be called unconditionally — before the early return guard
   const [notes, setNotes] = useState("");
   const [scheduleBlocked, setScheduleBlocked] = useState(false);
+  const [localNotesMaximized, setLocalNotesMaximized] = useState(false);
 
   useEffect(() => {
     setNotes(task?.description || "");
+    setLocalNotesMaximized(false);
   }, [task?.id, task?.description]);
 
   if (!task) return null;
@@ -46,7 +55,7 @@ export function TaskDetailModal() {
   const earnsLabel = task.cadence === "daily" ? TASK_REPEAT_COPY.rewardTiming : "Earns on completion";
 
   return (
-    <AnimatedModal onClose={() => actions.setOpenTaskId(null)} className="modal task-detail-two-column show" id="modal">
+    <AnimatedModal onClose={() => actions.setOpenTaskId(null)} className={`modal task-detail-two-column show${localNotesMaximized ? " local-notes-focus" : ""}`} id="modal">
         <div className="top">
           <div className="art" style={{ background: `linear-gradient(135deg,${listItem.color},${listItem.color}55)` }}>{listItem.emoji}</div>
           <div>
@@ -67,15 +76,29 @@ export function TaskDetailModal() {
         <div className="body">
           <div className="task-detail-grid">
             <div className="task-detail-column task-detail-primary">
-              <h4 className="lyr-h">♪ Notes</h4>
-              <textarea
-                className="lyrics-inline"
-                placeholder="What will finishing this feel like? Add the goal, a note, a link…"
-                rows={3}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                onBlur={(e) => actions.setLyricsInline(task.id, e.target.value)}
-              />
+              <Suspense fallback={<div className="local-notes-unavailable">{LOCAL_NOTES_COPY.savingStatus}</div>}>
+                <LocalNotePanel
+                  key={task.id}
+                  taskId={task.id}
+                  maximized={localNotesMaximized}
+                  onMaximizedChange={setLocalNotesMaximized}
+                />
+              </Suspense>
+              <h4 className="lyr-h task-description-heading">
+                {LOCAL_NOTES_COPY.taskDescriptionHeading}
+                <small>{LOCAL_NOTES_COPY.taskDescriptionSyncHint}</small>
+              </h4>
+              <Suspense fallback={<div className="markdown-editor-loading" />}>
+                <MarkdownEditor
+                  className="task-description-editor"
+                  ariaLabel={LOCAL_NOTES_COPY.taskDescriptionAriaLabel}
+                  placeholder={LOCAL_NOTES_COPY.taskDescriptionPlaceholder}
+                  vimMode={false}
+                  value={notes}
+                  onChange={setNotes}
+                  onBlur={() => actions.setLyricsInline(task.id, notes)}
+                />
+              </Suspense>
               <h4>Effort</h4>
               <span className="depth-seg">
                 <button className={task.depth === "deep" ? "sel" : ""} onClick={() => actions.setDepth(task.id, "deep")}>{DEPTH_ICONS.deep}<span>Deep</span></button>

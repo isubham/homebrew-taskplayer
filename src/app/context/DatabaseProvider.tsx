@@ -11,7 +11,8 @@ import {
   TOAST_LIST_DELETED, 
   TOAST_TASK_CREATED, 
   TOAST_TASK_RENAMED, 
-  TOAST_TASK_DELETED
+  TOAST_TASK_DELETED,
+  TASK_DELETE_ERROR_TITLE
 } from "../constants.jsx";
 import { createSessionDraft, parseSessionDraft, sessionDraftFromRange } from "../session-time";
 import { useRoutineSessionAction } from "../hooks/use-routine-session-action";
@@ -206,10 +207,14 @@ export function DatabaseProvider({ children }) {
       "Delete"
     );
     if (!ok) return;
-    apply(await invoke("delete_task", { id }));
-    setOpenTaskId(null);
-    showToast({ message: TOAST_TASK_DELETED, tone: "danger" });
-  }, [findTask, uiConfirm, apply, setOpenTaskId, showToast]);
+    try {
+      apply(await invoke("delete_task", { id }));
+      setOpenTaskId(null);
+      showToast({ message: TOAST_TASK_DELETED, tone: "danger" });
+    } catch (error) {
+      await uiNote(TASK_DELETE_ERROR_TITLE, esc(String(error)));
+    }
+  }, [findTask, uiConfirm, apply, setOpenTaskId, showToast, uiNote]);
 
   const setEstimateInline = useCallback(async (id, value) => {
     const val = value.trim();

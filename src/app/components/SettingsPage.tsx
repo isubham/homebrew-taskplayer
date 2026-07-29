@@ -3,9 +3,10 @@ import { whenLabel } from "../utils.jsx";
 import { StickyHeader } from "./sticky-header.jsx";
 import { useApp } from "../context/AppContext.jsx";
 import { AnimatedModal } from "./motion-transitions.jsx";
-import { KEYBOARD_SETTINGS_COPY, MUSIC_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
+import { KEYBOARD_SETTINGS_COPY, LOCAL_STORAGE_COPY, LOCAL_STORAGE_SETTINGS_KEY, MUSIC_COPY, SETTINGS_DATA_COPY, SETTINGS_SECTIONS, SETTINGS_SECTION_STORAGE_KEY, WORKFLOW_SETTINGS_COPY } from "../constants.jsx";
 import { SettingsNavigation } from "./settings-navigation";
 import { FocusMusicToggle } from "./focus-music-toggle";
+import { LocalNotesSettingsSection } from "./local-notes-settings";
 
 function SettingsAlbum({ icon, color, title, subtitle, children }) {
   return (
@@ -89,6 +90,13 @@ export function SettingsPage() {
         </button>
       </div>
       {account ? <p className={`hint${syncFailed ? " hint-error" : ""}`}>{syncLabel}</p> : null}
+    </>
+  );
+
+  const renderLocalStorageSection = () => (
+    <>
+      <p className="hint" style={{ marginTop: 0 }}>{LOCAL_STORAGE_COPY.description}</p>
+      <LocalNotesSettingsSection />
     </>
   );
 
@@ -407,6 +415,7 @@ export function SettingsPage() {
     music: renderFocusMusicSection(),
     notifications: renderNotificationsSection(),
     keyboard: renderKeyboardSection(),
+    [LOCAL_STORAGE_SETTINGS_KEY]: renderLocalStorageSection(),
     data: renderDataSection(),
     diagnostics: renderDiagnosticsSection(),
     about: renderAboutSection(),

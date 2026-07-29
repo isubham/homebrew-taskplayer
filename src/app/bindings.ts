@@ -7,6 +7,21 @@ export const commands = {
 	getSnapshot: () => __TAURI_INVOKE<Snapshot>("get_snapshot"),
 	getLifeBalanceScores: () => typedError<LifeBalanceScore[], string>(__TAURI_INVOKE("get_life_balance_scores")),
 	getRankInfo: () => typedError<RankInfo, string>(__TAURI_INVOKE("get_rank_info")),
+	getLocalNotesSettings: () => __TAURI_INVOKE<LocalNotesSettings>("get_local_notes_settings"),
+	setLocalNotesDirectory: (path: string) => typedError<LocalNotesSettings, string>(__TAURI_INVOKE("set_local_notes_directory", { path })),
+	disableLocalNotes: () => typedError<LocalNotesSettings, string>(__TAURI_INVOKE("disable_local_notes")),
+	setLocalNotesVimMode: (enabled: boolean) => typedError<LocalNotesSettings, string>(__TAURI_INVOKE("set_local_notes_vim_mode", { enabled })),
+	readLocalNote: (taskId: string) => typedError<LocalNoteDocument, string>(__TAURI_INVOKE("read_local_note", { taskId })),
+	saveLocalNote: (taskId: string, body: string, expectedRevision: string | null, force: boolean) => typedError<LocalNoteDocument, string>(__TAURI_INVOKE("save_local_note", { taskId, body, expectedRevision, force })),
+	openLocalNoteExternally: (taskId: string) => typedError<null, string>(__TAURI_INVOKE("open_local_note_externally", { taskId })),
+	revealLocalNotesDirectory: () => typedError<null, string>(__TAURI_INVOKE("reveal_local_notes_directory")),
+	listJournalEntries: () => typedError<JournalEntrySummary[], string>(__TAURI_INVOKE("list_journal_entries")),
+	newJournalEntry: (date: string) => typedError<JournalDocument, string>(__TAURI_INVOKE("new_journal_entry", { date })),
+	readJournalEntry: (id: string) => typedError<JournalDocument, string>(__TAURI_INVOKE("read_journal_entry", { id })),
+	saveJournalEntry: (id: string, date: string, createdAt: number | null, body: string, mood: string | null, relatedItems: JournalRelatedItem[], expectedRevision: string | null, force: boolean) => typedError<JournalDocument, string>(__TAURI_INVOKE("save_journal_entry", { id, date, createdAt, body, mood, relatedItems, expectedRevision, force })),
+	deleteJournalEntry: (id: string, expectedRevision: string | null) => typedError<null, string>(__TAURI_INVOKE("delete_journal_entry", { id, expectedRevision })),
+	saveJournalImage: (entryId: string, mimeType: string, bytes: number[]) => typedError<JournalImageResult, string>(__TAURI_INVOKE("save_journal_image", { entryId, mimeType, bytes })),
+	openJournalEntryExternally: (id: string) => typedError<null, string>(__TAURI_INVOKE("open_journal_entry_externally", { id })),
 	addList: (name: string) => __TAURI_INVOKE<Snapshot>("add_list", { name }),
 	renameList: (id: string, name: string) => __TAURI_INVOKE<Snapshot>("rename_list", { id, name }),
 	setListStyle: (id: string, emoji: string, color: string) => __TAURI_INVOKE<Snapshot>("set_list_style", { id, emoji, color }),
@@ -14,7 +29,7 @@ export const commands = {
 	setListAvailability: (id: string, windows: WeeklyTimeWindow[]) => __TAURI_INVOKE<Snapshot>("set_list_availability", { id, windows }),
 	reorderLists: (orderedIds: string[]) => __TAURI_INVOKE<Snapshot>("reorder_lists", { orderedIds }),
 	reorderLifeAreas: (orderedAreaKeys: string[]) => __TAURI_INVOKE<Snapshot>("reorder_life_areas", { orderedAreaKeys }),
-	deleteList: (id: string) => __TAURI_INVOKE<Snapshot>("delete_list", { id }),
+	deleteList: (id: string) => typedError<Snapshot, string>(__TAURI_INVOKE("delete_list", { id })),
 	createAlbum: (listId: string, name: string) => typedError<Snapshot, string>(__TAURI_INVOKE("create_album", { listId, name })),
 	saveGoal: (id: string | null, lifeArea: string, title: string, description: string | null, status: string, isCurrentFocus: boolean, nextTaskId: string | null, taskIds: string[]) => typedError<Snapshot, string>(__TAURI_INVOKE("save_goal", { id, lifeArea, title, description, status, isCurrentFocus, nextTaskId, taskIds })),
 	archiveGoal: (id: string) => typedError<Snapshot, string>(__TAURI_INVOKE("archive_goal", { id })),
@@ -32,7 +47,7 @@ export const commands = {
 	setAlbum: (id: string, album: string | null) => __TAURI_INVOKE<Snapshot>("set_album", { id, album }),
 	moveTask: (id: string, listId: string) => __TAURI_INVOKE<Snapshot>("move_task", { id, listId }),
 	reorderTasks: (listId: string, orderedIds: string[]) => __TAURI_INVOKE<Snapshot>("reorder_tasks", { listId, orderedIds }),
-	deleteTask: (id: string) => __TAURI_INVOKE<Snapshot>("delete_task", { id }),
+	deleteTask: (id: string) => typedError<Snapshot, string>(__TAURI_INVOKE("delete_task", { id })),
 	addSession: (taskId: string, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("add_session", { taskId, start, end })),
 	updateSession: (id: string, taskId: string | null, start: number | null, end: number | null) => typedError<Snapshot, string>(__TAURI_INVOKE("update_session", { id, taskId, start, end })),
 	deleteSession: (id: string) => __TAURI_INVOKE<Snapshot>("delete_session", { id }),
@@ -215,6 +230,46 @@ export type GoalTaskLink = {
 	updatedAt?: number | null,
 };
 
+export type JournalAsset = {
+	markdownPath: string,
+	mimeType: string,
+	bytes: number[],
+};
+
+export type JournalDocument = {
+	id: string,
+	date: string,
+	createdAt: number | null,
+	title: string,
+	mood: string | null,
+	relatedItems: JournalRelatedItem[],
+	body: string,
+	revision: string | null,
+	relativePath: string,
+	absolutePath: string,
+	assets: JournalAsset[],
+};
+
+export type JournalEntrySummary = {
+	id: string,
+	date: string,
+	createdAt: number | null,
+	title: string,
+	mood: string | null,
+	excerpt: string,
+	relatedItems: JournalRelatedItem[],
+};
+
+export type JournalImageResult = {
+	markdown: string,
+};
+
+export type JournalRelatedItem = {
+	kind: string,
+	id: string,
+	label: string,
+};
+
 /**
  *  User-controlled planning precedence for one fixed life area. Rank 1 is
  *  highest. The area name/color remain defined by the app; only this order is
@@ -234,6 +289,24 @@ export type LifeBalanceScore = {
 	pct: number | null,
 	negMs: number | null,
 	negPct: number | null,
+};
+
+export type LocalNoteDocument = {
+	enabled: boolean,
+	available: boolean,
+	exists: boolean,
+	body: string,
+	revision: string | null,
+	relativePath: string | null,
+	absolutePath: string | null,
+	vimMode: boolean,
+};
+
+export type LocalNotesSettings = {
+	enabled: boolean,
+	available: boolean,
+	rootPath: string | null,
+	vimMode: boolean,
 };
 
 /**

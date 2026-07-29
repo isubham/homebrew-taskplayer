@@ -38,6 +38,7 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
         pending_update: Mutex::new(None),
         last_notified_update_version: Mutex::new(None),
         data_dir: dir.clone(),
+        local_notes: Mutex::new(local_notes::load_state(&dir)),
         session_notify: Mutex::new(SessionNotify::default()),
     });
     system_sleep::register(app.handle());

@@ -8,6 +8,64 @@ move those entries into a dated version section.
 
 ## Unreleased
 
+## 0.9.9 - 2026-07-29
+
+### Added
+
+- Added opt-in **Local Notes (No Cloud)** under Settings → Local Storage. Each task can keep a private
+  Markdown file in a user-selected life area/list/task hierarchy, edit or preview it in task
+  detail or a compact single-column Now Playing view, open it externally, and maximize the editor
+  into a distraction-free surface. The editor shows the full local file path, and Now Playing no
+  longer duplicates session timing.
+- Added atomic autosave, external-edit conflict detection, stable frontmatter identity, safe path
+  reconciliation after task/list changes, owner-only Unix permissions, and non-destructive
+  `_Archived` handling on deletion. Local-note contents and paths never enter task sync,
+  diagnostics, or TaskPlayer backups.
+- Added an optional device-local Vim keybindings toggle below the Local Notes disconnect guidance.
+- Changed Local Notes insertion and Vim-mode cursors to a neutral grey.
+- Added a top-level **Journal** backed by local Markdown files. Entries are listed newest first,
+  use the current local date automatically, support optional sad/okay/happy mood metadata chosen
+  while saving, render pasted local images, show their full filesystem path, and can open in an
+  external editor.
+- Journal now supports multiple entries per day. The first non-empty line becomes each entry's
+  title and readable collision-safe filename, while a stable local ID preserves identity across
+  title edits.
+- Replaced the mood-only Journal save prompt with one compact optional-context dialog. Entries can
+  keep an optional mood and optional **Related to** references to existing lists, albums, or tasks;
+  saving never requires either.
+- Journal list rows now show up to two **Related to** labels beneath the entry, followed by a
+  compact overflow count when needed.
+- Navigating away from changed Journal text now saves it locally before switching pages, preserving
+  its current mood and relationships so the entry can be resumed later. Failed saves keep the
+  editor open.
+- Added a reusable local-storage setup/reconnect state to Journal, task detail, and Now Playing.
+  Its action opens the dedicated Settings → Local Storage section; Data now contains only account
+  sync recovery.
+- Added a confirmed delete action to saved Journal entries. Deleted Markdown files and pasted
+  images move together to `_Archived/Journal` for manual recovery.
+
+### Changed
+
+- Replaced the top-bar search icon with a `/` prefix and added a short focus expansion. Search
+  now includes local Journal entries, shows device-local recent queries when empty, supports
+  arrow-key selection and Enter, and opens task, list, or Journal results in their proper detail
+  surfaces.
+- Replaced the task-description textareas in Task Detail and Now Playing with the same Markdown
+  editor used by Local Notes. Removed the Markdown formatting toolbar and Vim badge from the
+  editor so all three writing surfaces stay minimal; the Local Notes Vim preference still
+  controls its keybindings.
+- Set the Journal editor to an explicit inherited 14px typeface for more readable writing.
+- Expanded the Journal edit surface to fill the available height while retaining its previous
+  bounded width.
+- Replaced the Journal textarea with the shared Markdown editor in a minimal headerless
+  configuration, retaining pasted images and the 14px full-height writing surface.
+- Applied the existing device-local Vim preference to Journal without adding a mode header or
+  toolbar.
+
+### Fixed
+
+- Vertically aligned folder-action icons with their labels in Settings → Local Storage.
+
 ## 0.9.8 - 2026-07-28
 
 ### Added

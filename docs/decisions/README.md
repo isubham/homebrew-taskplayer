@@ -37,6 +37,10 @@ would otherwise be repeatedly debated. Do not create one for routine implementat
 | [0021](0021-adaptive-life-area-pages.md) | Accepted | Give life areas a shared shell with area-specific modules |
 | [0022](0022-goals-organize-existing-work.md) | Accepted | Let goals organize existing executable work without owning rewards |
 | [0023](0023-routine-done-logs-factual-session.md) | Accepted | Make Done today confirm and store a factual routine session |
+| [0024](0024-local-markdown-notes.md) | Accepted | Keep private task notes as local Markdown files |
+| [0025](0025-shared-local-storage-journal.md) | Accepted | Share one local-files root and keep Journal independent of life areas |
+| [0026](0026-journal-deletion-is-recoverable.md) | Accepted | Make Journal deletion recoverable |
+| [0027](0027-journal-entry-identity-and-context.md) | Accepted | Give Journal entries stable identity and optional factual context |
 
 ## Creating a record
 

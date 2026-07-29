@@ -152,7 +152,14 @@ pub(crate) fn set_task_impact(
 
 #[specta::specta]
 #[tauri::command]
-pub(crate) fn delete_task(app: AppHandle, state: State<AppState>, id: String) -> Snapshot {
+pub(crate) fn delete_task(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+) -> Result<Snapshot, String> {
+    // Preserve private writing before changing timer history or task state.
+    // If the selected directory is unavailable, deletion stops here.
+    archive_task_note(state.inner(), &id)?;
     // See the comment in `set_done`: the guard must drop before Finish
     // acquires the run lock again.
     let has_open_session = {
@@ -169,11 +176,15 @@ pub(crate) fn delete_task(app: AppHandle, state: State<AppState>, id: String) ->
     }
     {
         let db = state.db.lock().unwrap();
-        let _ = db.delete_task(&id);
+        if let Err(error) = db.delete_task(&id) {
+            drop(db);
+            reconcile_task_note(state.inner(), &id);
+            return Err(error.to_string());
+        }
     }
     reset_run_if_orphaned(state.inner(), TIMER_PAUSE_TRIGGER_TASK_DELETE);
     push(&app);
-    build_snapshot(state.inner())
+    Ok(build_snapshot(state.inner()))
 }
 
 #[cfg(test)]

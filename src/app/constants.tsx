@@ -1,5 +1,9 @@
 import React from "react";
 
+export const SYSTEM_LIST_ID = "system";
+export const SYSTEM_JOURNALING_TASK_ID = "system_journaling";
+export const SYSTEM_PLANNING_TASK_ID = "system_planning";
+
 export const ATTENTION_TASKS_SIZE = 6;
 export const RECENT_TASKS_SIZE = 6;
 export const RECENT_LIST_TASKS_SIZE = 3;
@@ -450,6 +454,7 @@ export const TIMER_PLAY_TRIGGERS = {
   playerResume: "player_resume",
   playerToggle: "player_toggle",
   albumPlay: "album_play",
+  autoSession: "auto_session",
 } as const;
 export const TASK_ROW_CONTEXTS = {
   list: "list",
@@ -469,11 +474,15 @@ export const SIDEBAR_FOLDER_MOTION = {
   ease: [0.22, 1, 0.36, 1] as const,
 };
 export const SIDEBAR_COPY = {
-  lifeAreasHeading: "Life Areas",
+  captureHeading: "Capture",
+  organizeHeading: "Organize",
+  planHeading: "Plan",
+  addListTitle: "Add list",
   unsortedLabel: "Unsorted",
   openAreaLabel: (areaName: string) => `Open ${areaName}`,
   toggleAreaLabel: (areaName: string, expanded: boolean) => `${expanded ? "Collapse" : "Expand"} ${areaName} lists`,
 };
+export const SIDEBAR_HEADER_ACTION_ICON_SIZE_PX = 16;
 export const SIDEBAR_UNSORTED_KEY = "__unsorted__";
 export const LIFE_AREA_ICON_SIZE_PX = 20;
 export const LIFE_AREA_VIEW_KEY = "lifeArea";
@@ -715,8 +724,10 @@ export const JOURNAL_COPY = {
   emptyDescription: "Write anything you want to remember. It stays in your local folder.",
   entryColumn: "Entry",
   titleColumn: "Title",
+  relatedColumn: "Related To",
   dateColumn: "Date",
   moodColumnLabel: "Mood",
+  imageColumnLabel: "Image",
   noMoodLabel: "No mood",
   pastedImageAlt: "Pasted journal image",
   editorPlaceholder: "Start writing… You can paste an image here.",
@@ -728,9 +739,7 @@ export const JOURNAL_COPY = {
   deleteBody: "This removes it from Journal and moves its Markdown file and pasted images to _Archived. Unsaved changes will be discarded.",
   deleteConfirm: "Delete",
   deleteError: "Could not delete this journal entry.",
-  back: "Journals",
   edit: "Edit",
-  openExternally: "Open externally",
   saveDialogTitle: "Save entry",
   saveDialogHint: "Mood and relationships are optional.",
   moodTitle: "How are you feeling?",
@@ -750,7 +759,6 @@ export const JOURNAL_COPY = {
   conflictError: "This entry changed in another editor. Reopen it before saving.",
   conflictMatch: "changed outside",
   imageEntryExcerpt: "Image entry",
-  fullPathLabel: "Full local file path",
 } as const;
 export const JOURNAL_MOODS = [
   { key: "sad", emoji: "😔", label: "Sad" },
@@ -790,8 +798,8 @@ export const LOCAL_NOTES_COPY = {
   disconnectHint: "Disabling disconnects the folder. It does not delete any Markdown files.",
   settingsError: "Could not update the local storage folder.",
   vimModeTitle: "Vim keybindings",
-  vimModeDescription: "Use Vim normal, insert, visual, and command modes in Local Notes and Journal editors.",
-  vimModeToggleLabel: "Toggle Vim keybindings for Local Notes and Journal",
+  vimModeDescription: "Use Vim normal, insert, visual, and command modes in Local Notes and task-content editors.",
+  vimModeToggleLabel: "Toggle Vim keybindings for Markdown editors",
   enableVimMode: "Enable Vim keybindings",
   disableVimMode: "Disable Vim keybindings",
   vimIndicator: "VIM",

@@ -179,3 +179,14 @@ pub(crate) fn reveal_local_notes_directory(
         .open_path(root.to_string_lossy().into_owned(), None::<&str>)
         .map_err(|error| error.to_string())
 }
+#[specta::specta]
+#[tauri::command]
+pub(crate) fn save_local_note_image(
+    state: State<AppState>,
+    task_id: String,
+    mime_type: String,
+    bytes: Vec<u8>,
+) -> Result<crate::journal::JournalImageResult, String> {
+    let context = note_context(state.inner(), &task_id)?;
+    local_notes::save_image(&available_root(state.inner())?, &context, &mime_type, &bytes)
+}

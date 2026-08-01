@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useCallback } from "react";
 import { useCore } from "./CoreProvider.jsx";
 import { useUI } from "./UIProvider.jsx";
-import { SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS, SYSTEM_JOURNALING_TASK_ID, SYSTEM_PLANNING_TASK_ID } from "../constants.jsx";
 
 const { invoke } = window.__TAURI__.core;
 
@@ -17,6 +17,7 @@ export function PlaybackProvider({ children }) {
 
   const lastMusicPhaseRef = useRef(null);
   const lastMusicTaskIdRef = useRef(null);
+  const suppressMusicRef = useRef(false);
 
   // Sync Music Logic (runs reactively on S change)
   useEffect(() => {
@@ -30,12 +31,27 @@ export function PlaybackProvider({ children }) {
       && run.deviceId
       && run.deviceId !== S.deviceId,
     );
+    
+    if (musicTaskId !== lastMusicTaskIdRef.current) {
+      if (musicTaskId === SYSTEM_JOURNALING_TASK_ID || musicTaskId === SYSTEM_PLANNING_TASK_ID) {
+        suppressMusicRef.current = lastMusicPhaseRef.current !== "work";
+      } else {
+        suppressMusicRef.current = false;
+      }
+    }
 
     if (!isForeignSession) {
-      if (musicPhase === "work" && lastMusicPhaseRef.current === "work" && musicTaskId !== lastMusicTaskIdRef.current) {
+      const wantsToPlay = musicPhase === "work" && !suppressMusicRef.current;
+      const lastWantsToPlay = lastMusicPhaseRef.current === "work" && !(lastMusicTaskIdRef.current === SYSTEM_JOURNALING_TASK_ID || lastMusicTaskIdRef.current === SYSTEM_PLANNING_TASK_ID ? suppressMusicRef.current : false);
+      const isSystemSwitch = (
+        musicTaskId === SYSTEM_JOURNALING_TASK_ID || musicTaskId === SYSTEM_PLANNING_TASK_ID ||
+        lastMusicTaskIdRef.current === SYSTEM_JOURNALING_TASK_ID || lastMusicTaskIdRef.current === SYSTEM_PLANNING_TASK_ID
+      );
+
+      if (wantsToPlay && lastWantsToPlay && musicTaskId !== lastMusicTaskIdRef.current && !isSystemSwitch) {
         window.Music.next();
-      } else if (musicPhase !== lastMusicPhaseRef.current) {
-        window.Music.setActive(musicPhase === "work");
+      } else if (wantsToPlay !== lastWantsToPlay) {
+        window.Music.setActive(wantsToPlay);
       }
       lastMusicPhaseRef.current = musicPhase;
       lastMusicTaskIdRef.current = musicTaskId;
@@ -53,13 +69,20 @@ export function PlaybackProvider({ children }) {
         ? run.activeTaskId || run.lastTaskId
         : null;
       if (currentTaskId && currentTaskId !== id) {
-        const task = findTask(id);
-        const confirmed = await uiConfirm(
-          SESSION_PLAYBACK_COPY.switchTitle,
-          SESSION_PLAYBACK_COPY.switchDescription(task?.name || SESSION_PLAYBACK_COPY.fallbackTaskName),
-          SESSION_PLAYBACK_COPY.switchConfirm,
-          false,
+        const isSystemSwitch = (
+          id === SYSTEM_JOURNALING_TASK_ID || id === SYSTEM_PLANNING_TASK_ID ||
+          currentTaskId === SYSTEM_JOURNALING_TASK_ID || currentTaskId === SYSTEM_PLANNING_TASK_ID
         );
+        let confirmed = true;
+        if (!isSystemSwitch) {
+          const task = findTask(id);
+          confirmed = await uiConfirm(
+            SESSION_PLAYBACK_COPY.switchTitle,
+            SESSION_PLAYBACK_COPY.switchDescription(task?.name || SESSION_PLAYBACK_COPY.fallbackTaskName),
+            SESSION_PLAYBACK_COPY.switchConfirm,
+            false,
+          );
+        }
         if (!confirmed) return false;
         apply(await invoke("finish_session"));
       }

@@ -87,8 +87,8 @@ user selects them.
 
 The optional Vim mode supports normal, insert, visual, and command modes through the CodeMirror 6
 Vim extension. It is disabled by default and persisted beside the selected root in the local-only
-configuration file. Synced task descriptions use the same editor without inheriting this
-Local-Notes-only preference.
+configuration file. Synced task descriptions in Task Detail and Now Playing inherit the same
+preference; Journal intentionally retains its plain writing field.
 
 ## Known gaps
 

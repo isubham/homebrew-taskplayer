@@ -21,6 +21,7 @@ export const commands = {
 	saveJournalEntry: (id: string, date: string, createdAt: number | null, body: string, mood: string | null, relatedItems: JournalRelatedItem[], expectedRevision: string | null, force: boolean) => typedError<JournalDocument, string>(__TAURI_INVOKE("save_journal_entry", { id, date, createdAt, body, mood, relatedItems, expectedRevision, force })),
 	deleteJournalEntry: (id: string, expectedRevision: string | null) => typedError<null, string>(__TAURI_INVOKE("delete_journal_entry", { id, expectedRevision })),
 	saveJournalImage: (entryId: string, mimeType: string, bytes: number[]) => typedError<JournalImageResult, string>(__TAURI_INVOKE("save_journal_image", { entryId, mimeType, bytes })),
+	saveLocalNoteImage: (taskId: string, mimeType: string, bytes: number[]) => typedError<JournalImageResult, string>(__TAURI_INVOKE("save_local_note_image", { taskId, mimeType, bytes })),
 	openJournalEntryExternally: (id: string) => typedError<null, string>(__TAURI_INVOKE("open_journal_entry_externally", { id })),
 	addList: (name: string) => __TAURI_INVOKE<Snapshot>("add_list", { name }),
 	renameList: (id: string, name: string) => __TAURI_INVOKE<Snapshot>("rename_list", { id, name }),
@@ -258,6 +259,7 @@ export type JournalEntrySummary = {
 	mood: string | null,
 	excerpt: string,
 	relatedItems: JournalRelatedItem[],
+	firstAsset: JournalAsset | null,
 };
 
 export type JournalImageResult = {

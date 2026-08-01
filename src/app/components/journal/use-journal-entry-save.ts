@@ -1,13 +1,13 @@
 import type { JournalDocument, JournalImageResult, JournalRelatedItem } from "../../bindings";
 import { JOURNAL_COPY } from "../../constants";
-import type { PendingJournalImage } from "./journal-editor";
+import type { PendingMarkdownImage } from "../../hooks/use-markdown-images";
 
 const { invoke } = window.__TAURI__.core;
 
 type JournalEntrySaveOptions = {
   document: JournalDocument | null;
   body: string;
-  pendingImages: PendingJournalImage[];
+  pendingImages: PendingMarkdownImage[];
   onSaved: (document: JournalDocument) => Promise<void>;
   onError: (message: string) => void;
   onSavingChange: (saving: boolean) => void;
@@ -24,7 +24,7 @@ export function useJournalEntrySave(options: JournalEntrySaveOptions) {
         const result: JournalImageResult = await invoke("save_journal_image", {
           entryId: options.document.id,
           mimeType: image.file.type,
-          bytes: Array.from(new Uint8Array(await image.file.arrayBuffer())),
+          bytes: new Uint8Array(await image.file.arrayBuffer()) as unknown as number[],
         });
         savedBody = savedBody.replace(image.token, result.markdown.slice(4, -1));
       }
@@ -42,9 +42,10 @@ export function useJournalEntrySave(options: JournalEntrySaveOptions) {
       return true;
     } catch (reason) {
       const message = String(reason);
+      console.error("Journal entry save failed. Backend reason:", reason);
       options.onError(message.includes(JOURNAL_COPY.conflictMatch)
         ? JOURNAL_COPY.conflictError
-        : JOURNAL_COPY.saveError);
+        : `${JOURNAL_COPY.saveError} (${message})`);
       return false;
     } finally {
       options.onSavingChange(false);

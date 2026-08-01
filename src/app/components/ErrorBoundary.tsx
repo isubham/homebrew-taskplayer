@@ -13,6 +13,13 @@ export class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+    if (window.__TAURI__?.core?.invoke) {
+      window.__TAURI__.core.invoke("log_client_error", {
+        source: "react_error_boundary",
+        message: error?.toString() || "Unknown error",
+        stack: errorInfo?.componentStack || error?.stack || null
+      }).catch(console.error);
+    }
   }
 
   render() {

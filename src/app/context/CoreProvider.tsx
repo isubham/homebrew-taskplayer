@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { LIFE_AREAS, IMPACT_TIERS, jewelPayout, dailyPayoutDayCount, dailyPayoutOn, isTaskTerminallyCompleted, RANKS, RANK_AREA_CAP_RATIO } from "../utils.jsx";
-import { ACCOUNT_STORAGE_KEYS, ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS } from "../constants.jsx";
+import { ACCOUNT_STORAGE_KEYS, ATTENTION_TASKS_SIZE, RECENT_TASKS_SIZE, IMPACT_WEIGHT_TO_MS, LIFE_BALANCE_CAP_MS, SYSTEM_LIST_ID } from "../constants.jsx";
 import { buildDailyJamAttentionEntries } from "../daily-jam-attention";
 import { buildLogicalSessions } from "../logical-sessions";
 import { commands } from "../bindings";
@@ -27,7 +27,12 @@ export function CoreProvider({ children }) {
     } else {
       localStorage.removeItem(ACCOUNT_STORAGE_KEYS.displayName);
     }
-    setS(snap);
+    // Hide system list from UI rendering while preserving tasks
+    const filteredSnap = {
+      ...snap,
+      lists: snap.lists.filter((l) => l.id !== SYSTEM_LIST_ID),
+    };
+    setS(filteredSnap);
   }, []);
 
   useEffect(() => {

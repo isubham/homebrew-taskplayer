@@ -10,22 +10,31 @@ use crate::constants::{
 };
 use crate::local_notes::ensure_safe_parent;
 
-fn image_extension(mime_type: &str) -> Option<&'static str> {
+pub(crate) fn image_extension(mime_type: &str) -> Option<&'static str> {
     match mime_type {
         "image/png" => Some("png"),
         "image/jpeg" => Some("jpg"),
         "image/gif" => Some("gif"),
         "image/webp" => Some("webp"),
+        "image/heic" | "image/heif" => Some("heic"),
         _ => None,
     }
 }
 
-fn has_valid_signature(mime_type: &str, bytes: &[u8]) -> bool {
+pub(crate) fn has_valid_signature(mime_type: &str, bytes: &[u8]) -> bool {
     match mime_type {
         "image/png" => bytes.starts_with(&[137, 80, 78, 71, 13, 10, 26, 10]),
         "image/jpeg" => bytes.starts_with(&[255, 216, 255]),
         "image/gif" => bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a"),
         "image/webp" => bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP"),
+        "image/heic" | "image/heif" => {
+            bytes.len() >= 12 && bytes.get(4..8) == Some(b"ftyp") && (
+                bytes.get(8..12) == Some(b"heic") ||
+                bytes.get(8..12) == Some(b"heix") ||
+                bytes.get(8..12) == Some(b"mif1") ||
+                bytes.get(8..12) == Some(b"msf1")
+            )
+        }
         _ => false,
     }
 }

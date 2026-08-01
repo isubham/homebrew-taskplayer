@@ -71,6 +71,38 @@ pub(crate) fn install_panic_hook() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         default_hook(info);
-        log_line(format!("PANIC: {info}"));
+        let msg = format!("PANIC: {info}");
+        log_line(&msg);
+        push_client_error("rust_panic".to_string(), msg, None);
     }));
+}
+
+pub(crate) fn push_client_error(source: String, message: String, stack: Option<String>) {
+    std::thread::spawn(move || {
+        let url = format!("{}/rest/v1/client_errors", crate::config::SUPABASE_URL);
+        
+        let mut body = std::collections::HashMap::new();
+        body.insert("source", source);
+        body.insert("message", message);
+        if let Some(s) = stack {
+            body.insert("stack", s);
+        }
+
+        let _ = reqwest::blocking::Client::new()
+            .post(url)
+            .header("apikey", crate::config::SUPABASE_PUBLISHABLE_KEY)
+            .header("Authorization", format!("Bearer {}", crate::config::SUPABASE_PUBLISHABLE_KEY))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send();
+    });
+}
+
+#[tauri::command]
+pub(crate) fn log_client_error(
+    source: String,
+    message: String,
+    stack: Option<String>,
+) {
+    push_client_error(source, message, stack);
 }

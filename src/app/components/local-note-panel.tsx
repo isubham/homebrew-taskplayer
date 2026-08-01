@@ -16,6 +16,7 @@ import {
   LOCAL_NOTES_MODES,
 } from "../constants";
 import { useLocalNote } from "../hooks/use-local-note";
+import { useMarkdownImages } from "../hooks/use-markdown-images";
 import { MarkdownEditor } from "./markdown-editor";
 import { LocalStorageRequired } from "./local-storage-required";
 import "./local-notes.css";
@@ -45,7 +46,8 @@ export function LocalNotePanel({
   onMaximizedChange,
 }: LocalNotePanelProps) {
   const [mode, setMode] = useState<LocalNotesMode>(LOCAL_NOTES_MODES.write);
-  const note = useLocalNote(taskId);
+  const { pendingImages, onPasteImage } = useMarkdownImages();
+  const note = useLocalNote(taskId, { pendingImages });
   const document = note.document;
 
   const preview = (
@@ -119,13 +121,17 @@ export function LocalNotePanel({
         : !document.enabled ? <LocalStorageRequired />
           : !document.available ? <LocalStorageRequired unavailable />
             : mode === LOCAL_NOTES_MODES.write ? (
-              <MarkdownEditor
-                value={note.body}
-                placeholder={LOCAL_NOTES_COPY.editorPlaceholder}
-                vimMode={document.vimMode}
-                onChange={note.setBody}
-                onBlur={() => void note.saveNow()}
-              />
+              <>
+                <MarkdownEditor
+                  value={note.body}
+                  placeholder={LOCAL_NOTES_COPY.editorPlaceholder}
+                  vimMode={document.vimMode}
+                  onChange={note.setBody}
+                  onBlur={() => void note.saveNow()}
+                  onPasteImage={onPasteImage}
+                />
+                {pendingImages.filter((image) => note.body.includes(image.token)).map((image) => <img key={image.token} src={image.previewUrl} alt="Pasted Image" />)}
+              </>
             ) : preview}
 
       <div className="local-notes-status">

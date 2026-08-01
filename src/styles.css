@@ -7,6 +7,36 @@
   --topbar-search-focused-width:430px;
   --topbar-search-transition-duration:180ms;
   --journal-editor-font-size:14px;
+  --journal-editor-title-font-size:24px;
+  --journal-editor-title-font-weight:650;
+  --journal-editor-title-line-height:1.35;
+  --journal-editor-title-bottom-spacing:8px;
+  --journal-editor-page-z-index:1000;
+  --journal-editor-page-top-padding:48px;
+  --journal-editor-page-inline-padding:40px;
+  --journal-editor-page-mobile-inline-padding:24px;
+  --journal-editor-page-bottom-padding:32px;
+  --journal-editor-content-max-width:920px;
+  --journal-reader-content-max-width:700px;
+  --journal-reader-top-padding:28px;
+  --journal-reader-bottom-padding:64px;
+  --journal-reader-meta-gap:10px;
+  --journal-reader-meta-bottom-spacing:16px;
+  --journal-reader-meta-font-size:13px;
+  --journal-reader-mood-font-size:20px;
+  --journal-reader-mood-line-height:1;
+  --journal-reader-title-font-size:30px;
+  --journal-reader-title-line-height:1.2;
+  --journal-reader-title-bottom-spacing:24px;
+  --journal-reader-body-font-size:16px;
+  --journal-reader-body-line-height:1.7;
+  --journal-reader-paragraph-spacing:1.15em;
+  --journal-reader-action-size:34px;
+  --journal-reader-action-radius:50%;
+  --markdown-image-preview-max-width:620px;
+  --markdown-image-preview-max-height:420px;
+  --markdown-image-preview-spacing:12px;
+  --markdown-image-preview-radius:8px;
   /* Calm teal, not Spotify's brand green — deliberately distinct hue (not just
      a darker/lighter shade of it) so the app's identity doesn't read as
      borrowed. Variable names (--green/--green-hi) are kept as-is rather than

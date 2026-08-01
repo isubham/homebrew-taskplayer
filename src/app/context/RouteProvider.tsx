@@ -14,7 +14,7 @@ export function RouteProvider({ children }) {
   const [activeListId, setActiveListId] = useState(null);
   const [view, setView] = useState("home");
   const [activeAreaKey, setActiveAreaKey] = useState(null);
-  const [route, setRouteState] = useState({ view: "home", listId: null, areaKey: null });
+  const [route, setRouteState] = useState({ view: "home", listId: null, areaKey: null, journalEntryId: null });
   const [navBack, setNavBack] = useState([]);
   const [navFwd, setNavFwd] = useState([]);
   const [plannerTarget, setPlannerTarget] = useState(null);
@@ -48,8 +48,9 @@ export function RouteProvider({ children }) {
     const nextView = target.view || "tasks";
     const nextListId = target.listId || null;
     const nextAreaKey = target.areaKey || null;
+    const nextJournalEntryId = nextView === JOURNAL_VIEW_KEY ? target.journalEntryId || null : null;
 
-    setNavBack((prev) => [...prev, { view, listId: activeListId, areaKey: activeAreaKey }]);
+    setNavBack((prev) => [...prev, { view, listId: activeListId, areaKey: activeAreaKey, journalEntryId: route.journalEntryId || null }]);
     setNavFwd([]);
     setView(nextView);
     setPlannerTarget(nextView === PLANNER_VIEW_KEY && target.planTaskId
@@ -62,39 +63,60 @@ export function RouteProvider({ children }) {
       setActiveListId(nextListId);
     }
     setActiveAreaKey(nextView === LIFE_AREA_VIEW_KEY ? nextAreaKey : null);
-    setRouteState({ view: nextView, listId: nextListId, areaKey: nextAreaKey });
+    setRouteState({ view: nextView, listId: nextListId, areaKey: nextAreaKey, journalEntryId: nextJournalEntryId });
     return true;
-  }, [view, activeListId, activeAreaKey, canNavigate]);
+  }, [view, activeListId, activeAreaKey, route.journalEntryId, canNavigate]);
 
   const goBack = useCallback(async () => {
     if (!navBack.length) return false;
     const previous = navBack[navBack.length - 1];
     if (!await canNavigate(previous)) return false;
     setNavBack(navBack.slice(0, -1));
-    setNavFwd((current) => [...current, { view, listId: activeListId, areaKey: activeAreaKey }]);
+    setNavFwd((current) => [...current, { view, listId: activeListId, areaKey: activeAreaKey, journalEntryId: route.journalEntryId || null }]);
     setView(previous.view);
     setActiveListId(previous.listId);
     setActiveAreaKey(previous.areaKey || null);
-    setRouteState({ view: previous.view, listId: previous.listId, areaKey: previous.areaKey || null });
+    setRouteState({ view: previous.view, listId: previous.listId, areaKey: previous.areaKey || null, journalEntryId: previous.journalEntryId || null });
     setPlannerTarget(null);
-    setJournalTarget(null);
+    setJournalTarget(previous.view === JOURNAL_VIEW_KEY && previous.journalEntryId
+      ? { entryId: previous.journalEntryId }
+      : null);
     return true;
-  }, [view, activeListId, activeAreaKey, navBack, canNavigate]);
+  }, [view, activeListId, activeAreaKey, route.journalEntryId, navBack, canNavigate]);
 
   const goForward = useCallback(async () => {
     if (!navFwd.length) return false;
     const next = navFwd[navFwd.length - 1];
     if (!await canNavigate(next)) return false;
     setNavFwd(navFwd.slice(0, -1));
-    setNavBack((current) => [...current, { view, listId: activeListId, areaKey: activeAreaKey }]);
+    setNavBack((current) => [...current, { view, listId: activeListId, areaKey: activeAreaKey, journalEntryId: route.journalEntryId || null }]);
     setView(next.view);
     setActiveListId(next.listId);
     setActiveAreaKey(next.areaKey || null);
-    setRouteState({ view: next.view, listId: next.listId, areaKey: next.areaKey || null });
+    setRouteState({ view: next.view, listId: next.listId, areaKey: next.areaKey || null, journalEntryId: next.journalEntryId || null });
     setPlannerTarget(null);
-    setJournalTarget(null);
+    setJournalTarget(next.view === JOURNAL_VIEW_KEY && next.journalEntryId
+      ? { entryId: next.journalEntryId }
+      : null);
     return true;
-  }, [view, activeListId, activeAreaKey, navFwd, canNavigate]);
+  }, [view, activeListId, activeAreaKey, route.journalEntryId, navFwd, canNavigate]);
+
+  const enterJournalEntry = useCallback((entryId) => {
+    setNavBack((current) => [...current, {
+      view,
+      listId: activeListId,
+      areaKey: activeAreaKey,
+      journalEntryId: route.journalEntryId || null,
+    }]);
+    setNavFwd([]);
+    setRouteState({
+      view: JOURNAL_VIEW_KEY,
+      listId: null,
+      areaKey: null,
+      journalEntryId: entryId,
+    });
+    setJournalTarget(null);
+  }, [activeAreaKey, activeListId, route.journalEntryId, view]);
 
   const goHome = useCallback(() => {
     navigate({ view: "home" });
@@ -114,7 +136,7 @@ export function RouteProvider({ children }) {
   return (
     <RouteContext.Provider value={{
       state: { view, activeListId, activeAreaKey, route, navBack, navFwd, plannerTarget, journalTarget },
-      actions: { navigate, goBack, goForward, goHome, selectList, selectLifeArea, clearPlannerTarget, clearJournalTarget, registerNavigationGuard }
+      actions: { navigate, goBack, goForward, goHome, selectList, selectLifeArea, clearPlannerTarget, clearJournalTarget, enterJournalEntry, registerNavigationGuard }
     }}>
       {children}
     </RouteContext.Provider>

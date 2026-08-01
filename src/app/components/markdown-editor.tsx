@@ -1,12 +1,15 @@
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, keymap, placeholder as editorPlaceholder } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { searchKeymap } from "@codemirror/search";
 import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { vim } from "@replit/codemirror-vim";
+import { markdownImagePreviews } from "./markdown-image-previews";
 import "./markdown-editor.css";
+
+const EMPTY_IMAGE_PREVIEWS: ReadonlyMap<string, string> = new Map();
 
 type MarkdownEditorProps = {
   value: string;
@@ -18,6 +21,8 @@ type MarkdownEditorProps = {
   ariaLabel?: string;
   autoFocus?: boolean;
   onPasteImage?: (file: File, insertText: (text: string) => void) => void;
+  imagePreviews?: ReadonlyMap<string, string>;
+  imagePreviewAlt?: string;
 };
 
 export function MarkdownEditor({
@@ -30,12 +35,15 @@ export function MarkdownEditor({
   ariaLabel,
   autoFocus = false,
   onPasteImage,
+  imagePreviews = EMPTY_IMAGE_PREVIEWS,
+  imagePreviewAlt = "",
 }: MarkdownEditorProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   const onPasteImageRef = useRef(onPasteImage);
+  const imagePreviewCompartmentRef = useRef(new Compartment());
   onChangeRef.current = onChange;
   onBlurRef.current = onBlur;
   onPasteImageRef.current = onPasteImage;
@@ -51,6 +59,7 @@ export function MarkdownEditor({
           drawSelection(),
           history(),
           markdown(),
+          imagePreviewCompartmentRef.current.of(markdownImagePreviews(imagePreviews, imagePreviewAlt)),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           EditorView.lineWrapping,
           editorPlaceholder(placeholder),
@@ -89,6 +98,16 @@ export function MarkdownEditor({
       view.destroy();
     };
   }, [ariaLabel, autoFocus, placeholder, vimMode]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: imagePreviewCompartmentRef.current.reconfigure(
+        markdownImagePreviews(imagePreviews, imagePreviewAlt),
+      ),
+    });
+  }, [imagePreviewAlt, imagePreviews]);
 
   useEffect(() => {
     const view = viewRef.current;

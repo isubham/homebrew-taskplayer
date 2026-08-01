@@ -7,6 +7,7 @@ import {
   UNTAGGED_LIST_COLOR,
 } from "../constants.jsx";
 import type { RunState, Task } from "../bindings";
+import { useLocalStorageSettings } from "../hooks/use-local-storage-settings";
 
 const LocalNotePanel = lazy(() => import("./local-note-panel").then((module) => ({
   default: module.LocalNotePanel,
@@ -31,6 +32,7 @@ function statusFor(run: RunState | undefined, running: Task | null | undefined) 
 
 export function NowPlayingPage() {
   const { state, actions } = useApp();
+  const { settings: localStorageSettings } = useLocalStorageSettings();
   const run = state.S?.run;
   const running = run?.activeTaskId && run.phase
     ? state.S.tasks.find((candidate) => candidate.id === run.activeTaskId)
@@ -97,7 +99,7 @@ export function NowPlayingPage() {
               className="focus-notes-editor"
               ariaLabel={NOW_PLAYING_COPY.taskContentAriaLabel}
               placeholder={NOW_PLAYING_COPY.taskContentPlaceholder}
-              vimMode={false}
+              vimMode={localStorageSettings?.vimMode || false}
               value={taskContent}
               onChange={setTaskContent}
               onBlur={() => actions.setLyricsInline(task.id, taskContent)}

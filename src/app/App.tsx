@@ -11,11 +11,11 @@ import { TourOverlay } from "./components/tour-overlay.jsx";
 import { AppLoadingScreen } from "./components/AppLoadingScreen";
 import { useApp } from "./context/AppContext.jsx";
 import { fmt } from "./utils.jsx";
-import { ACCOUNT_STORAGE_KEYS, JOURNAL_COPY, JOURNAL_ICON_SIZE, JOURNAL_VIEW_KEY, LIFE_AREA_VIEW_KEY, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
+import { ACCOUNT_STORAGE_KEYS, JOURNAL_COPY, JOURNAL_ICON_SIZE, JOURNAL_VIEW_KEY, LIFE_AREA_VIEW_KEY, PLANNER_COPY, PLANNER_ICON_SIZE, PLANNER_VIEW_KEY, SIDEBAR_COPY, SIDEBAR_HEADER_ACTION_ICON_SIZE_PX, TASK_ALBUM_COPY, TIMER_PLAY_TRIGGERS } from "./constants.jsx";
 import { AnimatePresence } from "motion/react";
 import { AnimatedModal, AnimatedSpinner, AnimatedToast, AnimatedContextMenu } from "./components/motion-transitions.jsx";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { BookHeart, CalendarDays, RefreshCw, ChevronsDown, ChevronsUp } from "lucide-react";
+import { BookHeart, CalendarDays, RefreshCw, ChevronsDown, ChevronsUp, Plus } from "lucide-react";
 
 import { useTauriSubscriptions } from "./hooks/use-tauri-subscriptions.jsx";
 import { useSidebarSections } from "./hooks/use-sidebar-sections.jsx";
@@ -75,31 +75,29 @@ export function App() {
       <div id="app">
         <Topbar state={state} list={helpers.list} activeView={state.view} />
         <aside className="side">
-          <div className="side-fixed">
-            <div id="pinnedNav">
-              <div data-tour-id="planner-nav" className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
-                <span className="li-icon"><CalendarDays size={PLANNER_ICON_SIZE} /></span>
-                <span className="li-label">{PLANNER_COPY.navigationLabel}</span>
-              </div>
-              <div className={`list-item ${state.view === JOURNAL_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: JOURNAL_VIEW_KEY })} title={JOURNAL_COPY.navigationTitle}>
-                <span className="li-icon"><BookHeart size={JOURNAL_ICON_SIZE} /></span>
-                <span className="li-label">{JOURNAL_COPY.navigationLabel}</span>
-              </div>
+          <div className="side-capture">
+            <h3>{SIDEBAR_COPY.captureHeading}</h3>
+            <div className={`list-item ${state.view === JOURNAL_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: JOURNAL_VIEW_KEY })} title={JOURNAL_COPY.navigationTitle}>
+              <span className="li-icon"><BookHeart size={JOURNAL_ICON_SIZE} /></span>
+              <span className="li-label">{JOURNAL_COPY.navigationLabel}</span>
             </div>
-            <div className="side-lists-heading">
-              <div className="side-lists-title">
-                <h3>{SIDEBAR_COPY.lifeAreasHeading}</h3>
-                {state.S?.syncing && (
-                  <AnimatedSpinner title="Syncing data...">
-                    <RefreshCw size={12} strokeWidth={3} />
-                  </AnimatedSpinner>
-                )}
-              </div>
-              <div className="side-lists-actions">
-                <button id="sidebarToggleAll" className="side-toggle-all" onClick={handleToggleAllAreaSections} title={toggleAllTitle}>
-                  {anyCollapsed ? <ChevronsDown size={16} /> : <ChevronsUp size={16} />}
-                </button>
-              </div>
+          </div>
+          <div className="side-lists-heading">
+            <div className="side-lists-title">
+              <h3>{SIDEBAR_COPY.organizeHeading}</h3>
+              {state.S?.syncing && (
+                <AnimatedSpinner title="Syncing data...">
+                  <RefreshCw size={12} strokeWidth={3} />
+                </AnimatedSpinner>
+              )}
+            </div>
+            <div className="side-lists-actions">
+              <button data-tour-id="add-list-btn" className="side-heading-action" onClick={() => actions.addList()} title={SIDEBAR_COPY.addListTitle} aria-label={SIDEBAR_COPY.addListTitle}>
+                <Plus size={SIDEBAR_HEADER_ACTION_ICON_SIZE_PX} />
+              </button>
+              <button id="sidebarToggleAll" className="side-heading-action" onClick={handleToggleAllAreaSections} title={toggleAllTitle}>
+                {anyCollapsed ? <ChevronsDown size={SIDEBAR_HEADER_ACTION_ICON_SIZE_PX} /> : <ChevronsUp size={SIDEBAR_HEADER_ACTION_ICON_SIZE_PX} />}
+              </button>
             </div>
           </div>
           <div className="side-scroll" data-tour-id="sidebar-lists">
@@ -112,7 +110,13 @@ export function App() {
               />
             </div>
           </div>
-          <button data-tour-id="add-list-btn" className="add-btn" onClick={() => actions.addList()}>＋ New list</button>
+          <div className="side-plan">
+            <h3>{SIDEBAR_COPY.planHeading}</h3>
+            <div data-tour-id="planner-nav" className={`list-item ${state.view === PLANNER_VIEW_KEY ? "active" : ""}`} onClick={() => actions.navigate({ view: PLANNER_VIEW_KEY })} title={PLANNER_COPY.navigationTitle}>
+              <span className="li-icon"><CalendarDays size={PLANNER_ICON_SIZE} /></span>
+              <span className="li-label">{PLANNER_COPY.navigationLabel}</span>
+            </div>
+          </div>
         </aside>
 
         <input type="file" id="importFile" accept=".json,application/json" style={{ display: "none" }} />

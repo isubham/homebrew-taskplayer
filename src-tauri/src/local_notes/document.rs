@@ -13,7 +13,7 @@ use crate::constants::{
     LOCAL_NOTES_TEMP_PREFIX,
 };
 
-fn atomic_write(root: &Path, destination: &Path, contents: &str) -> Result<(), String> {
+fn atomic_write_bytes(root: &Path, destination: &Path, bytes: &[u8]) -> Result<(), String> {
     ensure_safe_parent(root, destination)?;
     let parent = destination
         .parent()
@@ -28,8 +28,7 @@ fn atomic_write(root: &Path, destination: &Path, contents: &str) -> Result<(), S
         .create_new(true)
         .open(&temporary)
         .map_err(|error| error.to_string())?;
-    file.write_all(contents.as_bytes())
-        .map_err(|error| error.to_string())?;
+    file.write_all(bytes).map_err(|error| error.to_string())?;
     file.sync_all().map_err(|error| error.to_string())?;
     #[cfg(unix)]
     {
@@ -41,6 +40,45 @@ fn atomic_write(root: &Path, destination: &Path, contents: &str) -> Result<(), S
         .map_err(|error| error.to_string())?;
     }
     fs::rename(&temporary, destination).map_err(|error| error.to_string())
+}
+
+fn atomic_write(root: &Path, destination: &Path, contents: &str) -> Result<(), String> {
+    atomic_write_bytes(root, destination, contents.as_bytes())
+}
+
+pub(crate) fn save_image(
+    root: &Path,
+    context: &NoteContext,
+    mime_type: &str,
+    bytes: &[u8],
+) -> Result<crate::journal::JournalImageResult, String> {
+    use crate::constants::{JOURNAL_INVALID_IMAGE_MSG, JOURNAL_IMAGE_TOO_LARGE_MSG, JOURNAL_MAX_IMAGE_BYTES};
+    let extension = crate::journal::images::image_extension(mime_type)
+        .ok_or_else(|| JOURNAL_INVALID_IMAGE_MSG.to_string())?;
+    if !crate::journal::images::has_valid_signature(mime_type, bytes) {
+        return Err(JOURNAL_INVALID_IMAGE_MSG.to_string());
+    }
+    if bytes.len() > JOURNAL_MAX_IMAGE_BYTES {
+        return Err(JOURNAL_IMAGE_TOO_LARGE_MSG.to_string());
+    }
+    let desired = desired_note_path(root, context)?;
+    let parent = desired.parent().ok_or_else(|| LOCAL_NOTES_DESTINATION_MSG.to_string())?;
+    
+    let mut random = [0_u8; 8];
+    getrandom::fill(&mut random).map_err(|error| error.to_string())?;
+    let hash = random.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+    
+    let stem = desired.file_stem().and_then(|s| s.to_str()).unwrap_or("Image");
+    let filename = format!("{stem} - {hash}.{extension}");
+    let destination = parent.join(&filename);
+    
+    atomic_write_bytes(root, &destination, bytes)?;
+    
+    // We return markdown with just the filename, so it resolves relative to the note itself
+    let encoded = filename.replace(' ', "%20");
+    Ok(crate::journal::JournalImageResult {
+        markdown: format!("![]({})", encoded),
+    })
 }
 
 fn relocate(root: &Path, source: &Path, destination: &Path) -> Result<PathBuf, String> {

@@ -1,43 +1,34 @@
 import { Save, Trash2, X } from "lucide-react";
-import { lazy, Suspense, type Dispatch, type SetStateAction } from "react";
-import { JOURNAL_COPY, JOURNAL_PENDING_IMAGE_PREFIX } from "../../constants";
+import { lazy, Suspense } from "react";
+import { JOURNAL_COPY } from "../../constants";
+import type { JournalAsset } from "../../bindings";
+import type { PendingMarkdownImage } from "../../hooks/use-markdown-images";
+import { useJournalImagePreviews } from "./use-journal-image-previews";
 
 const MarkdownEditor = lazy(() => import("../markdown-editor").then((module) => ({
   default: module.MarkdownEditor,
 })));
 
-export type PendingJournalImage = {
-  token: string;
-  file: File;
-  previewUrl: string;
-};
-
 type JournalEditorProps = {
   dateLabel: string;
   body: string;
-  pendingImages: PendingJournalImage[];
+  assets: JournalAsset[];
+  pendingImages: PendingMarkdownImage[];
   vimMode: boolean;
   onBodyChange: (body: string) => void;
-  onPendingImagesChange: Dispatch<SetStateAction<PendingJournalImage[]>>;
+  onPasteImage: (file: File, insertText: (text: string) => void) => void;
   onSave: () => void;
   onCancel: () => void;
   onDelete?: () => void;
 };
 
 export function JournalEditor(props: JournalEditorProps) {
-  const onPasteImage = (file: File, insertText: (text: string) => void) => {
-    const token = `${JOURNAL_PENDING_IMAGE_PREFIX}${crypto.randomUUID()}`;
-    insertText(`![](${token})`);
-    props.onPendingImagesChange((current) => [
-      ...current,
-      { token, file, previewUrl: URL.createObjectURL(file) },
-    ]);
-  };
+  const imagePreviews = useJournalImagePreviews(props.assets, props.pendingImages);
 
   return (
     <section className="journal-editor-screen">
       <header>
-        <div><h1>{props.onDelete ? JOURNAL_COPY.editEntry : JOURNAL_COPY.newEntry}</h1><small>{props.dateLabel}</small></div>
+        <div>{props.onDelete ? null : <h1>{JOURNAL_COPY.newEntry}</h1>}<small>{props.dateLabel}</small></div>
         <div>
           {props.onDelete ? <button className="journal-delete" type="button" onClick={props.onDelete} title={JOURNAL_COPY.delete} aria-label={JOURNAL_COPY.delete}><Trash2 /></button> : null}
           <button type="button" onClick={props.onSave} disabled={!props.body.trim()} title={JOURNAL_COPY.save} aria-label={JOURNAL_COPY.save}><Save /></button>
@@ -54,10 +45,11 @@ export function JournalEditor(props: JournalEditorProps) {
           vimMode={props.vimMode}
           onChange={props.onBodyChange}
           onBlur={() => undefined}
-          onPasteImage={onPasteImage}
+          onPasteImage={props.onPasteImage}
+          imagePreviews={imagePreviews}
+          imagePreviewAlt={JOURNAL_COPY.pastedImageAlt}
         />
       </Suspense>
-      {props.pendingImages.filter((image) => props.body.includes(image.token)).map((image) => <img key={image.token} src={image.previewUrl} alt={JOURNAL_COPY.pastedImageAlt} />)}
     </section>
   );
 }

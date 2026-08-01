@@ -12,7 +12,7 @@ mod tests;
 
 pub(crate) use config::{load_state, update_root, update_vim_mode};
 pub(crate) use document::{
-    archive_note, ensure_note_file, read_note, reconcile_note_path, save_note,
+    archive_note, ensure_note_file, read_note, reconcile_note_path, save_image, save_note,
 };
 pub(crate) use paths::NoteContext;
 pub(crate) use paths::{ensure_safe_parent, sanitize_component};

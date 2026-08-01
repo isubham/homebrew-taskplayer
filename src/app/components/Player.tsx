@@ -4,7 +4,7 @@ import { fmt, isTaskTerminallyCompleted } from "../utils.jsx";
 import { useApp } from "../context/app-context-value";
 import { useMusic } from "../context/music-context-value";
 import { useSessionNow } from "../hooks/use-session-now";
-import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE, SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS } from "../constants.jsx";
+import { MUSIC_COPY, MUSIC_FAVORITES_VIBE_KEY, MUSIC_MINI_CONTROL_ICON_SIZE, MUSIC_PLAYER_WIDTH, MUSIC_PRIMARY_CONTROL_ICON_SIZE, PLAYER_HISTORY_ICON_SIZE, SESSION_PLAYBACK_COPY, TIMER_PLAY_TRIGGERS, SYSTEM_JOURNALING_TASK_ID, SYSTEM_PLANNING_TASK_ID } from "../constants.jsx";
 
 export function Player() {
   const { state, helpers, actions } = useApp();
@@ -59,7 +59,7 @@ export function Player() {
         <button className="player-task-link" onClick={() => actions.navigate({ view: "playing" })} title="Open Now Playing">
           <span className="art" style={{ background: `${listItem?.color}22`, color: listItem?.color }}>{listItem?.emoji}</span>
           <span className="player-task-copy">
-            <span className="t">{task?.name}</span>
+            <span className="t">{task?.id === SYSTEM_JOURNALING_TASK_ID ? "Journal" : task?.id === SYSTEM_PLANNING_TASK_ID ? "Planning" : task?.name}</span>
             <span className="l">Playing on {run.deviceName || "another device"}</span>
           </span>
         </button>
@@ -82,7 +82,7 @@ export function Player() {
       <button className="player-task-link" onClick={() => actions.navigate({ view: "playing" })} title="Open Now Playing">
         <span className="art" style={{ background: `${listItem?.color}22`, color: listItem?.color }}>{listItem?.emoji}</span>
         <span className="player-task-copy">
-          <span className="t">{task?.name}</span>
+          <span className="t">{task?.id === SYSTEM_JOURNALING_TASK_ID ? "Journal" : task?.id === SYSTEM_PLANNING_TASK_ID ? "Planning" : task?.name}</span>
           <span className="l">{listItem?.name}{running ? "" : ` · ${SESSION_PLAYBACK_COPY.readyLabel}`}</span>
         </span>
       </button>

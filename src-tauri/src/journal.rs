@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 mod deletion;
 mod document;
 mod format;
-mod images;
+pub(crate) mod images;
 mod paths;
 mod storage;
 
@@ -38,6 +38,7 @@ pub(crate) struct JournalEntrySummary {
     pub(crate) mood: Option<String>,
     pub(crate) excerpt: String,
     pub(crate) related_items: Vec<JournalRelatedItem>,
+    pub(crate) first_asset: Option<JournalAsset>,
 }
 
 #[derive(Clone, Debug, Serialize, specta::Type)]

@@ -103,6 +103,7 @@ pub fn run() {
             set_local_notes_vim_mode,
             read_local_note,
             save_local_note,
+            save_local_note_image,
             open_local_note_externally,
             reveal_local_notes_directory,
             list_journal_entries,
@@ -173,7 +174,8 @@ pub fn run() {
             import_music_favorites,
             open_url,
             check_for_update,
-            install_update
+            install_update,
+            log_client_error
         ])
         .run(tauri::generate_context!())
         .expect("error while running TaskPlayer");

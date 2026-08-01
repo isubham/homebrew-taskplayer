@@ -520,6 +520,25 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        name: "023_system_tasks",
+        run: |conn| {
+            let now = crate::models::now_ms();
+            conn.execute(
+                "INSERT OR IGNORE INTO lists(id, name, ord, updated_at) VALUES('system', 'System', -1, ?1)",
+                [now],
+            )?;
+            conn.execute(
+                "INSERT OR IGNORE INTO tasks(id, list_id, name, depth, ord, updated_at) VALUES('system_journaling', 'system', 'Journaling', 'deep', 0, ?1)",
+                [now],
+            )?;
+            conn.execute(
+                "INSERT OR IGNORE INTO tasks(id, list_id, name, depth, ord, updated_at) VALUES('system_planning', 'system', 'Planning', 'shallow', 1, ?1)",
+                [now],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 /// Runs every migration newer than the database's current `user_version`, in

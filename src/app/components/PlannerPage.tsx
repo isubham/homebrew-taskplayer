@@ -12,6 +12,8 @@ import {
   PLANNER_MODAL_INITIAL_REVISION,
   PLANNER_MODAL_REVISION_STEP,
   PLANNER_VIEW_MODES,
+  SYSTEM_PLANNING_TASK_ID,
+  TIMER_PLAY_TRIGGERS,
 } from "../constants";
 import { useApp } from "../context/AppContext";
 import { buildPlannerDays } from "../planner/planner-model";
@@ -42,6 +44,8 @@ export function PlannerPage() {
   const planner = usePlannerCommands(actions, state.S);
   const dayCount = mode === PLANNER_VIEW_MODES.today ? 1 : PLANNER_DAY_COUNT;
   const viewAnchor = mode === PLANNER_VIEW_MODES.week ? startOfLocalWeek(anchor) : anchor;
+
+
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), PLANNER_CLOCK_TICK_MS);

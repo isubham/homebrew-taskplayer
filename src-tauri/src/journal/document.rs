@@ -53,6 +53,7 @@ fn load_assets(root: &Path, body: &str) -> Vec<JournalAsset> {
                 "jpg" | "jpeg" => "image/jpeg",
                 "gif" => "image/gif",
                 "webp" => "image/webp",
+                "heic" | "heif" => "image/heic",
                 _ => return None,
             };
             Some(JournalAsset {
@@ -175,6 +176,7 @@ pub(crate) fn list_entries(root: &Path) -> Result<Vec<JournalEntrySummary>, Stri
                     mood: document.mood,
                     excerpt: excerpt(&document.body),
                     related_items: document.related_items,
+                    first_asset: document.assets.into_iter().next(),
                 })
         })
         .collect::<Vec<_>>();

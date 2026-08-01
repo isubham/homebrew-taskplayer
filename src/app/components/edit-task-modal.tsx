@@ -10,6 +10,7 @@ import { repeatWeekdayLabel } from "../weekly-schedule.jsx";
 import { sessionRangeLabel } from "../session-time";
 import { validateTaskSchedule } from "../schedule-validation";
 import { useSessionNow } from "../hooks/use-session-now";
+import { useLocalStorageSettings } from "../hooks/use-local-storage-settings";
 
 const LocalNotePanel = lazy(() => import("./local-note-panel").then((module) => ({
   default: module.LocalNotePanel,
@@ -21,6 +22,7 @@ const MarkdownEditor = lazy(() => import("./markdown-editor").then((module) => (
 export function TaskDetailModal() {
   const { state, helpers, actions } = useApp();
   const now = useSessionNow(state.S?.run?.activeSessionId);
+  const { settings: localStorageSettings } = useLocalStorageSettings();
   const task = helpers.findTask(state.openTaskId);
 
   // Hooks must be called unconditionally — before the early return guard
@@ -93,7 +95,7 @@ export function TaskDetailModal() {
                   className="task-description-editor"
                   ariaLabel={LOCAL_NOTES_COPY.taskDescriptionAriaLabel}
                   placeholder={LOCAL_NOTES_COPY.taskDescriptionPlaceholder}
-                  vimMode={false}
+                  vimMode={localStorageSettings?.vimMode || false}
                   value={notes}
                   onChange={setNotes}
                   onBlur={() => actions.setLyricsInline(task.id, notes)}

@@ -8,6 +8,39 @@ move those entries into a dated version section.
 
 ## Unreleased
 
+## 0.9.10 - 2026-08-01
+
+### Added
+
+- Added automatic error log capture and pushing for React exceptions and Rust panics to Supabase.
+
+### Changed
+
+- Journal create and edit now use a full-window, distraction-free writing page that hides the
+  top bar, sidebar, and player until the entry is saved or cancelled.
+- Editing a Journal entry that already has a reaction and **Related to** context now preserves
+  them and saves directly instead of asking for the same context again.
+- Flattened the full-window Journal editor into the page background by removing its contrasting
+  field border, fill, and active-line highlight.
+- Removed the redundant **Edit entry** heading from the full-window editor while keeping its date
+  and actions visible.
+- Styled the first Journal editor line as a larger, heavier title while keeping subsequent lines
+  at the standard body size.
+- Journal read view now shows the entry's first-line title as a larger, bold heading above the
+  remaining body.
+- Moved Journal above Planner in the sidebar to reflect the capture-before-planning workflow.
+- Refined the sidebar into **Capture**, **Organize**, and **Plan** stages. Journal and Planner stay
+  fixed around the scrollable Life Area/List hierarchy, and Add List now sits beside Organize.
+- Simplified Journal entry reading to use the global Back/Forward history, retain only an icon-only
+  Edit action, and hide the local file path and Open Externally action.
+- Moved the Journal Edit icon into the same horizontal row as reaction, date, and **Related to**.
+- Redesigned Journal reading around a centered, comfortable-width text column with quieter
+  metadata, tighter paragraph rhythm, and a subtle borderless Edit icon.
+- Stopped inspecting pasted photos for EXIF/GPS coordinates or appending location links in Journal
+  and Local Notes.
+- Journal editing now previews newly pasted and previously saved images directly beneath their
+  corresponding editable Markdown lines.
+
 ## 0.9.9 - 2026-07-29
 
 ### Added
@@ -52,8 +85,8 @@ move those entries into a dated version section.
   surfaces.
 - Replaced the task-description textareas in Task Detail and Now Playing with the same Markdown
   editor used by Local Notes. Removed the Markdown formatting toolbar and Vim badge from the
-  editor so all three writing surfaces stay minimal; the Local Notes Vim preference still
-  controls its keybindings.
+  editor so all three writing surfaces stay minimal; the Vim preference controls Local Notes and
+  synced task-content editors.
 - Set the Journal editor to an explicit inherited 14px typeface for more readable writing.
 - Expanded the Journal edit surface to fill the available height while retaining its previous
   bounded width.

@@ -29,18 +29,22 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   a structured reason and trigger, task/phase timestamps, device id, and the outcome of both the
   session-history and run-state writes. Frontend triggers distinguish keyboard, task-row, player,
   menu, Home, and album actions; automatic causes identify sleep, Pomodoro, and sync transitions.
+- Automatic error log capture and pushing sends React exceptions and Rust panics to a remote `client_errors` table anonymously, preserving essential context for debugging.
 
 ### Main navigation — Shipped
 
 - Home dashboard.
 - Life-area and list sidebar.
 - Individual task-list pages.
-- Pinned Planner page.
+- The sidebar is organized as three stable stages: **Capture** keeps Journal at the top,
+  **Organize** contains the scrollable Life Area/List hierarchy and its add action, and **Plan**
+  keeps Planner fixed at the bottom above the Player.
 - Sessions control in the top bar, immediately left of Settings.
 - Settings page.
 - Dedicated Now Playing focus page and task/track overlays.
 - The left sidebar uses a 280px column so list and life-area labels have more room.
-- Its hierarchy is labeled “Life Areas,” matching the five factual areas that organize lists.
+- Its hierarchy remains the five factual Life Areas that organize lists, under the **Organize**
+  stage rather than a separate competing navigation model.
 - The list-heading expand/collapse control stays against the sidebar's right edge, with its glyph
   aligned to the life-area row chevrons.
 - The desktop window opens at 1280×840 and cannot be resized below 1280×800, preserving the
@@ -237,7 +241,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   **No Cloud**, with Write and Preview modes, autosave, the local full file path, and an action to
   open the file in its default external editor.
 - Task descriptions in Task Detail and Now Playing use the same minimal Markdown editor as Local
-  Notes. The editor has no formatting toolbar; Local Notes alone can opt into Vim keybindings.
+  Notes. The editor has no formatting toolbar; the shared Vim preference applies to Local Notes
+  and both synced task-content surfaces.
 - Now Playing uses a compact single-column context surface: a reduced task title, editable synced
   Task content, then the same Local Notes editor. Timing and transport controls remain in the
   persistent player rather than being duplicated on the page.
@@ -250,7 +255,8 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
 - Task and list deletion archives associated Markdown files beneath `_Archived`; an unavailable
   configured directory blocks deletion instead of risking note loss.
 - Note contents, paths, filenames, and previews are absent from TaskPlayer account sync, task
-  models, diagnostics, and backup exports. Raw HTML and remote images are not rendered.
+  models, diagnostics, and backup exports. Raw HTML and remote images are not rendered. Pasted
+  photos are attached without inspecting or appending embedded EXIF/GPS location data.
 - **Known gap:** changing roots leaves the old folder untouched, and external edits are checked on
   app focus rather than through a continuous filesystem watcher.
 
@@ -269,23 +275,38 @@ rationale belongs in [`docs/decisions/`](decisions/) or a focused design specifi
   collisions. Journal uses the shared Markdown editor in a minimal headerless configuration with
   readable 14px text, syntax highlighting, history, search shortcuts, and pasted-image handling.
   There is no separate title field, date picker, formatting toolbar, or mode header. The existing
-  device-local Vim preference applies without adding editor chrome. The edit surface fills the
-  available height while retaining Journal's bounded reading width.
+  device-local Vim preference applies without adding editor chrome. Creating or editing opens a
+  full-window, distraction-free page that hides the app navigation and player while retaining
+  Journal's bounded reading width. The writing field uses the same background as the page, with
+  no contrasting panel border or active-line highlight. Existing-entry edits omit the redundant
+  **Edit entry** heading while retaining the date and actions. The first editor line is presented
+  as a larger, heavier title; later lines retain the standard body style. The read view presents
+  that same first-line title as a distinct larger, bold heading above the remaining body. In edit
+  mode, pasted and previously saved images appear directly beneath their corresponding editable
+  Markdown lines rather than in a detached preview area.
 - Save opens one compact optional-context dialog. Mood can be sad/okay/happy or absent, and
   **Related to** can connect the entry to existing lists, albums, or tasks without requiring a
-  category. Saving remains available without choosing either.
+  category. Saving remains available without choosing either. Once a saved entry has both mood
+  and relationships, later text edits preserve that context and save directly without asking for
+  it again.
 - Switching to another page automatically saves changed Journal text locally with its current
   mood and relationships, then continues to the requested page so the entry can be resumed later.
   A save failure keeps the editor open and shows the error.
 - Editing a saved entry offers a confirmed delete action. Deleted entries disappear from Journal
   and move with their pasted images to `_Archived/Journal` for manual recovery.
 - Pasted PNG, JPEG, GIF, and WebP images are stored below `Journal/_assets/<entry-id>/` and referenced
-  with relative Markdown paths. Remote images and raw HTML are not rendered.
+  with relative Markdown paths. TaskPlayer does not inspect or append embedded EXIF/GPS location
+  data. Remote images and raw HTML are not rendered.
 - Each entry has a stable local ID and a readable
   `Journal/YYYY-MM-DD - first-line-title - short-id.md` path. Versioned frontmatter keeps its date,
   creation time, optional mood, and optional local-only relationship references. Reads and writes
   use the same containment, symlink, owner-permission, atomic-write, and revision-conflict rules
   as Local Notes. Existing date-only Journal files remain readable and upgrade on their next save.
+- Journal entry reading uses the global Back and Forward controls instead of a local back action.
+  The read view keeps one icon-only Edit action in the same horizontal row as reaction, date, and
+  **Related to**, and omits both Open Externally and the local file path to reduce chrome. Entries
+  use a centered, bounded reading column with quiet metadata, a strong title, comfortable body
+  measure, and compact paragraph rhythm on the same background as the surrounding page.
 - Journal contents, mood, paths, and images are excluded from SQLite, account sync, diagnostics,
   and TaskPlayer backup exports. Journal has no mood analytics, streaks, rewards, or shame record.
 
